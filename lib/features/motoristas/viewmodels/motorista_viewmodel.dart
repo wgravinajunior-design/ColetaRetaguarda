@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import '../../core/viewmodels/base_viewmodel.dart';
 import '../models/motorista_model.dart';
 import '../repositories/motorista_repository.dart';
@@ -14,12 +13,7 @@ class MotoristaViewModel extends BaseViewModel<MotoristaModel> {
     setLoading();
     try {
       final motoristas = await _repository.getMotoristas(query: query);
-      if (motoristas.isEmpty) {
-        // Fallback para mock data se não houver dados do servidor
-        setItems(_repository.getMockMotoristas());
-      } else {
-        setItems(motoristas);
-      }
+      setItems(motoristas);
     } catch (e) {
       setError('Erro ao carregar motoristas: $e');
     }

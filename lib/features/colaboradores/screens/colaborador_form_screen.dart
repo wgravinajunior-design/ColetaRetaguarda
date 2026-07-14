@@ -14,8 +14,6 @@ class ColaboradorFormScreen extends StatefulWidget {
 }
 
 class _ColaboradorFormScreenState extends State<ColaboradorFormScreen> {
-  final _formKey = GlobalKey<FormState>();
-  
   late TextEditingController nomeController;
   late TextEditingController cpfController;
   late TextEditingController funcaoController;

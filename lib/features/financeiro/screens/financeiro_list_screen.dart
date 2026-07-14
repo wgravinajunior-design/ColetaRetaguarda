@@ -45,10 +45,113 @@ class _FinanceiroListScreenState extends State<FinanceiroListScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                _buildContaSelector(viewModel),
+                _buildSaldosPorConta(viewModel),
                 _buildDashboard(viewModel),
                 Expanded(child: _buildList(viewModel)),
               ],
             ),
+    );
+  }
+
+  Widget _buildSaldosPorConta(FinanceiroViewModel viewModel) {
+    if (viewModel.saldos.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 96,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        itemCount: viewModel.saldos.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        itemBuilder: (context, i) {
+          final s = viewModel.saldos[i];
+          final cor = s.isBanco ? Colors.indigo : Colors.teal;
+          final saldoNeg = s.saldo < 0;
+          return Container(
+            width: 200,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: cor.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  children: [
+                    Icon(s.isBanco ? Icons.account_balance : Icons.point_of_sale, size: 16, color: cor),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(s.descricao,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(s.isBanco ? 'Banco' : 'Caixa', style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+                const SizedBox(height: 6),
+                Text(
+                  formatCurrency.format(s.saldo),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: saldoNeg ? Colors.red : Colors.green[800],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildContaSelector(FinanceiroViewModel viewModel) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Row(
+        children: [
+          const Icon(Icons.account_balance, size: 20),
+          const SizedBox(width: 8),
+          const Text('Conta: ', style: TextStyle(fontWeight: FontWeight.w500)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DropdownButtonFormField<int?>(
+              initialValue: viewModel.contaFiltro,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              items: [
+                const DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text('Todas as contas'),
+                ),
+                ...viewModel.contas.map((c) => DropdownMenuItem<int?>(
+                      value: c.id,
+                      child: Row(
+                        children: [
+                          Icon(c.isBanco ? Icons.account_balance : Icons.point_of_sale,
+                              size: 16, color: c.isBanco ? Colors.indigo : Colors.teal),
+                          const SizedBox(width: 6),
+                          Flexible(child: Text(c.descricao, overflow: TextOverflow.ellipsis)),
+                          const SizedBox(width: 6),
+                          Text('(${c.isBanco ? 'Banco' : 'Caixa'})',
+                              style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                        ],
+                      ),
+                    )),
+              ],
+              onChanged: (v) => viewModel.aplicarFiltroConta(v),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -123,7 +226,7 @@ class _FinanceiroListScreenState extends State<FinanceiroListScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isReceita ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                      color: isReceita ? Colors.green.withValues(alpha: 0.2) : Colors.red.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(

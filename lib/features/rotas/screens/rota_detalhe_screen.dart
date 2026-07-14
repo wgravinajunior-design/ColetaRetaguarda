@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../models/rota_model.dart';
+import '../viewmodels/rota_viewmodel.dart';
 import '../../coleta/screens/coleta_rotas_screen.dart';
+import '../../coleta/screens/adicionar_parada_screen.dart';
+import '../../coleta/screens/mapa_rota_screen.dart';
+import '../../coleta/repositories/parada_repository.dart';
+import '../../coleta/services/comprovante_service.dart';
 
 class RotaDetalheScreen extends StatelessWidget {
   final RotaModel rota;
@@ -73,21 +79,13 @@ class RotaDetalheScreen extends StatelessWidget {
                   _BotaoAcaoPequeno(
                     icon: Icons.print,
                     label: 'Imprimir',
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Impressão em desenvolvimento')),
-                      );
-                    },
+                    onPressed: () => _imprimirComprovante(context),
                   ),
                   const SizedBox(width: 8),
                   _BotaoAcaoPequeno(
                     icon: Icons.map,
                     label: 'Mapa',
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Abrindo mapa...')),
-                      );
-                    },
+                    onPressed: () => _abrirMapa(context),
                   ),
                   const SizedBox(width: 8),
                   _BotaoAcaoPequeno(
@@ -169,8 +167,13 @@ class RotaDetalheScreen extends StatelessWidget {
                             icon: const Icon(Icons.add),
                             label: const Text('Adicionar Parada'),
                             onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Adicionar parada em desenvolvimento')),
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => AdicionarParadaScreen(
+                                    rotaId: rota.id ?? 0,
+                                    sequencia: (rota.paradas ?? 0) + 1,
+                                  ),
+                                ),
                               );
                             },
                           ),
@@ -187,42 +190,94 @@ class RotaDetalheScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _imprimirComprovante(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final paradas = await ParadaRepository().getParadasByRota(rota.id ?? 0);
+
+      if (!context.mounted) return;
+      Navigator.pop(context); // fecha o loading
+
+      await ComprovanteService().imprimirComprovanteRota(
+        rota: rota,
+        paradas: paradas,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao gerar comprovante: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _abrirMapa(BuildContext context) async {
+    // Mostra loading enquanto carrega as paradas da rota
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final paradas = await ParadaRepository().getParadasByRota(rota.id ?? 0);
+
+    if (!context.mounted) return;
+    Navigator.pop(context); // fecha o loading
+
+    if (paradas.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Esta rota ainda não tem paradas cadastradas')),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => MapaRotaScreen(
+          paradas: paradas,
+          rotaDescricao: rota.descricao,
+        ),
+      ),
+    );
+  }
+
   void _mostrarDialogoStatus(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Mudar Status'),
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Status da Rota'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _StatusOption(
-              status: 'A',
-              label: 'Ativo',
-              color: Colors.green,
-              onTap: () => Navigator.pop(context),
-            ),
-            _StatusOption(
-              status: 'E',
-              label: 'Em Coleta',
-              color: Colors.orange,
-              onTap: () => Navigator.pop(context),
-            ),
-            _StatusOption(
-              status: 'C',
-              label: 'Concluída',
-              color: Colors.blue,
-              onTap: () => Navigator.pop(context),
-            ),
-            _StatusOption(
-              status: 'X',
-              label: 'Cancelada',
-              color: Colors.red,
-              onTap: () => Navigator.pop(context),
-            ),
+            _StatusOption(status: 'PENDENTE', label: 'Pendente', color: Colors.grey, onTap: () => _mudarStatus(context, dialogCtx, 'PENDENTE')),
+            _StatusOption(status: 'LIBERADA', label: 'Liberada (motorista)', color: Colors.blue, onTap: () => _mudarStatus(context, dialogCtx, 'LIBERADA')),
+            _StatusOption(status: 'EM_ANDAMENTO', label: 'Em Andamento', color: Colors.orange, onTap: () => _mudarStatus(context, dialogCtx, 'EM_ANDAMENTO')),
+            _StatusOption(status: 'CONCLUIDA', label: 'Concluída', color: Colors.green, onTap: () => _mudarStatus(context, dialogCtx, 'CONCLUIDA')),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _mudarStatus(BuildContext context, BuildContext dialogCtx, String status) async {
+    Navigator.pop(dialogCtx);
+    if (rota.id == null) return;
+    final ok = await context.read<RotaViewModel>().mudarStatus(rota.id!, status);
+    if (ok) rota.status = status;
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? 'Status alterado para $status' : 'Não foi possível alterar o status'),
+          backgroundColor: ok ? Colors.green : Colors.red,
+        ),
+      );
+    }
   }
 }
 
@@ -384,7 +439,7 @@ class _StatusOption extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             border: Border.all(color: color),
             borderRadius: BorderRadius.circular(8),
           ),

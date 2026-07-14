@@ -16,11 +16,11 @@ class VeiculoModel {
     this.id,
     required this.placa,
     required this.marca,
-    required this.modelo,
-    required this.cor,
-    required this.ano,
-    required this.tipo,
-    required this.renavam,
+    this.modelo = '',
+    this.cor = '',
+    this.ano = '',
+    this.tipo = 'C',
+    this.renavam = '',
     this.chassi,
     this.status = 'A',
     this.dataCadastro,
@@ -63,5 +63,35 @@ class VeiculoModel {
       'VEI_DT_CADASTRO': dataCadastro?.toIso8601String(),
       'VEI_DT_ATUALIZACAO': dataAtualizacao?.toIso8601String(),
     };
+  }
+
+  VeiculoModel copyWith({
+    int? id,
+    String? placa,
+    String? marca,
+    String? modelo,
+    String? cor,
+    String? ano,
+    String? tipo,
+    String? renavam,
+    String? chassi,
+    String? status,
+    DateTime? dataCadastro,
+    DateTime? dataAtualizacao,
+  }) {
+    return VeiculoModel(
+      id: id ?? this.id,
+      placa: placa ?? this.placa,
+      marca: marca ?? this.marca,
+      modelo: modelo ?? this.modelo,
+      cor: cor ?? this.cor,
+      ano: ano ?? this.ano,
+      tipo: tipo ?? this.tipo,
+      renavam: renavam ?? this.renavam,
+      chassi: chassi ?? this.chassi,
+      status: status ?? this.status,
+      dataCadastro: dataCadastro ?? this.dataCadastro,
+      dataAtualizacao: dataAtualizacao ?? this.dataAtualizacao,
+    );
   }
 }

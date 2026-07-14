@@ -70,7 +70,7 @@ class MiniMap extends StatelessWidget {
                               border: Border.all(color: Colors.white, width: 2),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.blue.withOpacity(0.5),
+                                  color: Colors.blue.withValues(alpha: 0.5),
                                   blurRadius: 8,
                                 ),
                               ],

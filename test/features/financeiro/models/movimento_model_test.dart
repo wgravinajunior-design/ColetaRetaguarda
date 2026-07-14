@@ -54,18 +54,18 @@ void main() {
       );
 
       final json = movimento.toJson();
-      expect(json['tipo'], 'C');
-      expect(json['valor'], 1000.0);
-      expect(json['historico'], 'Venda');
+      expect(json['mov_tipo'], 'C');
+      expect(json['mov_valor'], 1000.0);
+      expect(json['mov_historico'], 'Venda');
     });
 
     test('fromJson deserializes movimento correctly', () {
       final json = {
-        'id': 1,
-        'tipo': 'D',
-        'valor': 500.0,
-        'dt_emissao': '2026-01-01',
-        'historico': 'Frete',
+        'mov_id': 1,
+        'mov_tipo': 'D',
+        'mov_valor': 500.0,
+        'mov_dt_emissao': '2026-01-01',
+        'mov_historico': 'Frete',
       };
 
       final movimento = MovimentoModel.fromJson(json);

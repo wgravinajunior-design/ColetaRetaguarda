@@ -30,21 +30,21 @@ void main() {
       );
 
       final json = pessoa.toJson();
-      expect(json['rSocialNome'], 'Produtor A');
-      expect(json['cnpjCpf'], '123.456.789-00');
-      expect(json['cliente'], 'S');
+      expect(json['PES_RSOCIAL_NOME'], 'Produtor A');
+      expect(json['PES_CNPJ_CPF'], '123.456.789-00');
+      expect(json['PES_CLIENTE'], 'S');
     });
 
     test('fromJson deserializes pessoa correctly', () {
       final json = {
-        'id': 1,
-        'tipo_pessoa': 'P',
-        'rsocial_nome': 'Produtor B',
-        'cnpj_cpf': '987.654.321-00',
-        'status': 'A',
-        'cliente': 'S',
-        'transportador': 'N',
-        'contribuinte': 'S',
+        'PES_ID': 1,
+        'PES_TIPO_PESSOA': 'P',
+        'PES_RSOCIAL_NOME': 'Produtor B',
+        'PES_CNPJ_CPF': '987.654.321-00',
+        'PES_STATUS': 'A',
+        'PES_CLIENTE': 'S',
+        'PES_TRANSPORTADOR': 'N',
+        'PES_CONTRIBUINTE': 'S',
       };
 
       final pessoa = PessoaModel.fromJson(json);

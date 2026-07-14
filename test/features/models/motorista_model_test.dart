@@ -40,17 +40,17 @@ void main() {
       );
 
       final json = motorista.toJson();
-      expect(json['nome'], 'João');
-      expect(json['cpf'], '123.456.789-00');
+      expect(json['PES_RSOCIAL_NOME'], 'João');
+      expect(json['PES_CNPJ_CPF'], '123.456.789-00');
     });
 
     test('fromJson deserializes motorista correctly', () {
       final json = {
-        'id': 1,
-        'nome': 'João',
-        'cpf': '123.456.789-00',
-        'rg': 'MG-1234567',
-        'status': 'A',
+        'PES_ID': 1,
+        'PES_RSOCIAL_NOME': 'João',
+        'PES_CNPJ_CPF': '123.456.789-00',
+        'PES_IE_RG': 'MG-1234567',
+        'PES_STATUS': 'A',
       };
 
       final motorista = MotoristaModel.fromJson(json);

@@ -19,28 +19,43 @@ class PessoaModel {
   String cliente;
   String transportador;
   String contribuinte;
+  // Campos de Coleta de Leite (produtor)
+  double? latitude;
+  double? longitude;
+  String? horarioColeta; // "HH:mm"
+  double? km;
+  double? volumeMedio;
+  int? resfriadorId;
+  String? resfriadorNome;
 
   PessoaModel({
     this.id,
     required this.tipoPessoa,
     required this.rSocialNome,
-    required this.fantasiaApelido,
+    this.fantasiaApelido = '',
     required this.cnpjCpf,
-    required this.ieRg,
-    required this.endereco,
-    required this.numero,
-    required this.complemento,
-    required this.bairro,
-    required this.cep,
-    required this.telefone,
-    required this.celular,
-    required this.email,
-    required this.contato,
-    required this.referencia,
-    required this.status,
-    required this.cliente,
-    required this.transportador,
-    required this.contribuinte,
+    this.ieRg = '',
+    this.endereco = '',
+    this.numero = '',
+    this.complemento = '',
+    this.bairro = '',
+    this.cep = '',
+    this.telefone = '',
+    this.celular = '',
+    this.email = '',
+    this.contato = '',
+    this.referencia = '',
+    this.status = 'A',
+    this.cliente = 'N',
+    this.transportador = 'N',
+    this.contribuinte = 'N',
+    this.latitude,
+    this.longitude,
+    this.horarioColeta,
+    this.km,
+    this.volumeMedio,
+    this.resfriadorId,
+    this.resfriadorNome,
   });
 
   factory PessoaModel.fromJson(Map<String, dynamic> json) {
@@ -91,5 +106,65 @@ class PessoaModel {
       'PES_TRANSPORTADOR': transportador,
       'PES_CONTRIBUINTE': contribuinte,
     };
+  }
+
+  PessoaModel copyWith({
+    int? id,
+    String? tipoPessoa,
+    String? rSocialNome,
+    String? fantasiaApelido,
+    String? cnpjCpf,
+    String? ieRg,
+    String? endereco,
+    String? numero,
+    String? complemento,
+    String? bairro,
+    String? cep,
+    String? telefone,
+    String? celular,
+    String? email,
+    String? contato,
+    String? referencia,
+    String? status,
+    String? cliente,
+    String? transportador,
+    String? contribuinte,
+    double? latitude,
+    double? longitude,
+    String? horarioColeta,
+    double? km,
+    double? volumeMedio,
+    int? resfriadorId,
+    String? resfriadorNome,
+  }) {
+    return PessoaModel(
+      id: id ?? this.id,
+      tipoPessoa: tipoPessoa ?? this.tipoPessoa,
+      rSocialNome: rSocialNome ?? this.rSocialNome,
+      fantasiaApelido: fantasiaApelido ?? this.fantasiaApelido,
+      cnpjCpf: cnpjCpf ?? this.cnpjCpf,
+      ieRg: ieRg ?? this.ieRg,
+      endereco: endereco ?? this.endereco,
+      numero: numero ?? this.numero,
+      complemento: complemento ?? this.complemento,
+      bairro: bairro ?? this.bairro,
+      cep: cep ?? this.cep,
+      telefone: telefone ?? this.telefone,
+      celular: celular ?? this.celular,
+      email: email ?? this.email,
+      contato: contato ?? this.contato,
+      referencia: referencia ?? this.referencia,
+      status: status ?? this.status,
+      cliente: cliente ?? this.cliente,
+      transportador: transportador ?? this.transportador,
+      contribuinte: contribuinte ?? this.contribuinte,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      horarioColeta: horarioColeta ?? this.horarioColeta,
+      km: km ?? this.km,
+      volumeMedio: volumeMedio ?? this.volumeMedio,
+      resfriadorId: resfriadorId ?? this.resfriadorId,
+      resfriadorNome: resfriadorNome ?? this.resfriadorNome,
+    );
   }
 }

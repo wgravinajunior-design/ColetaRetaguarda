@@ -1,33 +1,47 @@
-import '../../../core/api/http_client.dart';
+import 'package:flutter/foundation.dart';
 import '../../core/database/daos/parada_dao.dart';
 import '../../core/database/sync_service.dart';
+import '../../core/database/firebird_service.dart';
 import '../models/parada_model.dart';
 
 class ParadaRepository {
-  final ApiClient _apiClient = ApiClient();
   final ParadaDao _dao = ParadaDao();
   final SyncService _syncService = SyncService();
+  final FirebirdService _firebird = FirebirdService();
 
   Future<List<ParadaModel>> getParadasByRota(int rotaId) async {
+    // Fonte primária: base Firebird configurada
     try {
-      final response = await _apiClient.get('/coleta/rotas/$rotaId/paradas');
-      if (response.success && response.data is List) {
-        final paradas = (response.data as List)
-            .map((e) => ParadaModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-        for (var p in paradas) {
-          await _dao.insert(p);
-        }
-        return paradas;
-      }
+      return await _firebird.getParadasByRota(rotaId);
     } catch (e) {
-      print('Erro ao carregar paradas da API: $e');
+      debugPrint('Erro ao carregar paradas do Firebird: $e');
     }
 
     try {
       return await _dao.getByRotaId(rotaId);
     } catch (e) {
-      print('Erro ao carregar paradas do SQLite: $e');
+      debugPrint('Erro ao carregar paradas do SQLite: $e');
+    }
+
+    return [];
+  }
+
+  /// Busca todas as coletas (paradas) de todas as rotas.
+  /// Opcionalmente filtra por status (P/E/C/R).
+  Future<List<ParadaModel>> getTodasColetas({String? status}) async {
+    try {
+      return await _firebird.getTodasColetas(status: status);
+    } catch (e) {
+      debugPrint('Erro ao carregar coletas do Firebird: $e');
+    }
+
+    try {
+      if (status != null) {
+        return await _dao.getByStatus(status);
+      }
+      return await _dao.getAll();
+    } catch (e) {
+      debugPrint('Erro ao carregar coletas do SQLite: $e');
     }
 
     return [];
@@ -35,20 +49,15 @@ class ParadaRepository {
 
   Future<ParadaModel?> getParadaById(int id) async {
     try {
-      final response = await _apiClient.get('/coleta/paradas/$id');
-      if (response.success && response.data != null) {
-        final parada = ParadaModel.fromJson(response.data as Map<String, dynamic>);
-        await _dao.insert(parada);
-        return parada;
-      }
+      return await _firebird.getParadaById(id);
     } catch (e) {
-      print('Erro ao carregar parada $id da API: $e');
+      debugPrint('Erro ao carregar parada $id do Firebird: $e');
     }
 
     try {
       return await _dao.getById(id);
     } catch (e) {
-      print('Erro ao carregar parada $id do SQLite: $e');
+      debugPrint('Erro ao carregar parada $id do SQLite: $e');
     }
 
     return null;
@@ -60,37 +69,34 @@ class ParadaRepository {
     double? temperatura,
     double? volume,
     String? justificativa,
+    String? assinaturaBase64,
+    String? fotoPath,
   }) async {
+    // Grava direto na base Firebird
     try {
-      final response = await _apiClient.put(
-        '/coleta/paradas/$paradaId/status',
-        body: {
-          'status': novoStatus,
-          'temperatura': temperatura,
-          'volume': volume,
-          'justificativa': justificativa,
-        },
+      await _firebird.atualizarStatusColeta(
+        paradaId: paradaId,
+        novoStatus: novoStatus,
+        temperatura: temperatura,
+        volume: volume,
+        justificativa: justificativa,
+        assinaturaBase64: assinaturaBase64,
+        fotoPath: fotoPath,
       );
-      if (response.success) {
-        await _dao.updateStatus(
-          paradaId,
-          novoStatus,
-          temperatura: temperatura,
-          volume: volume,
-          justificativa: justificativa,
-        );
-        return true;
-      }
+      return true;
     } catch (e) {
-      print('Erro ao atualizar status na API: $e');
+      debugPrint('Erro ao atualizar status no Firebird: $e');
     }
 
+    // Fallback offline: SQLite + fila de sincronização
     await _dao.updateStatus(
       paradaId,
       novoStatus,
       temperatura: temperatura,
       volume: volume,
       justificativa: justificativa,
+      assinaturaBase64: assinaturaBase64,
+      fotoPath: fotoPath,
     );
 
     await _syncService.queueOperation(
@@ -102,38 +108,59 @@ class ParadaRepository {
         'temperatura': temperatura,
         'volume': volume,
         'justificativa': justificativa,
+        'assinatura_base64': assinaturaBase64,
+        'foto_path': fotoPath,
       },
     );
 
     return true;
   }
 
-  Future<bool> registrarGPS(int paradaId, double latitude, double longitude) async {
+  Future<bool> registrarGPS(
+    int paradaId,
+    double latitude,
+    double longitude, {
+    String? horarioChegada,
+  }) async {
+    // Grava o GPS de captura direto na base Firebird (COLETAS_DETALHE)
     try {
-      await _apiClient.post(
-        '/coleta/paradas/$paradaId/gps',
-        body: {
-          'latitude': latitude,
-          'longitude': longitude,
-        },
-      );
+      await _firebird.registrarGpsColeta(paradaId, latitude, longitude, horarioChegada: horarioChegada);
+      return true;
     } catch (e) {
-      print('Erro ao registrar GPS na API: $e');
+      debugPrint('Erro ao registrar GPS no Firebird: $e');
     }
 
-    await _dao.registrarGPS(paradaId, latitude, longitude);
+    // Fallback local best-effort
+    try {
+      await _dao.registrarGPS(paradaId, latitude, longitude, horarioChegada: horarioChegada);
+    } catch (_) {}
+    return true;
+  }
+
+  Future<bool> reordenarParadas(List<int> paradaIdsEmOrdem) async {
+    return await _firebird.atualizarOrdemParadas(paradaIdsEmOrdem);
+  }
+
+  Future<ParadaModel?> criarParada(ParadaModel parada) async {
+    // Grava direto na base Firebird
+    try {
+      final criada = await _firebird.criarParada(parada);
+      if (criada != null) return criada;
+    } catch (e) {
+      debugPrint('Erro ao criar parada no Firebird: $e');
+    }
+
+    // Fallback offline
+    final localParada = parada.copyWith(id: DateTime.now().millisecondsSinceEpoch);
+    await _dao.insert(localParada);
 
     await _syncService.queueOperation(
       tabela: 'tb_parada',
-      operacao: 'GPS',
-      registroId: paradaId,
-      dados: {
-        'latitude': latitude,
-        'longitude': longitude,
-      },
+      operacao: 'INSERT',
+      dados: localParada.toJson(),
     );
 
-    return true;
+    return localParada;
   }
 
   List<ParadaModel> getMockParadas() {

@@ -12,6 +12,8 @@ class MotoristaModel {
   String? complemento;
   String? bairro;
   String? cidade;
+  int? cidadeId; // FK → TB_CIDADE.CID_ID
+  String? cidadeNome; // nome da cidade (para exibição)
   String? cep;
   String? cnh;
   String? cnhValidade;
@@ -33,6 +35,8 @@ class MotoristaModel {
     this.complemento,
     this.bairro,
     this.cidade,
+    this.cidadeId,
+    this.cidadeNome,
     this.cep,
     this.cnh,
     this.cnhValidade,
@@ -107,6 +111,8 @@ class MotoristaModel {
     String? complemento,
     String? bairro,
     String? cidade,
+    int? cidadeId,
+    String? cidadeNome,
     String? cep,
     String? cnh,
     String? cnhValidade,
@@ -128,6 +134,8 @@ class MotoristaModel {
       complemento: complemento ?? this.complemento,
       bairro: bairro ?? this.bairro,
       cidade: cidade ?? this.cidade,
+      cidadeId: cidadeId ?? this.cidadeId,
+      cidadeNome: cidadeNome ?? this.cidadeNome,
       cep: cep ?? this.cep,
       cnh: cnh ?? this.cnh,
       cnhValidade: cnhValidade ?? this.cnhValidade,

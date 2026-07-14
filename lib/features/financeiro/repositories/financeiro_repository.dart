@@ -1,123 +1,29 @@
-import '../../../core/api/http_client.dart';
-import '../../core/database/daos/movimento_dao.dart';
-import '../../core/database/sync_service.dart';
+import '../../core/database/firebird_service.dart';
 import '../models/movimento_model.dart';
 
 class FinanceiroRepository {
-  final ApiClient _apiClient = ApiClient();
-  final MovimentoDao _dao = MovimentoDao();
-  final SyncService _syncService = SyncService();
+  final FirebirdService _firebird = FirebirdService();
 
-  Future<List<MovimentoModel>> getMovimentos({String? tipo, String? dataInicio, String? dataFim}) async {
-    try {
-      final response = await _apiClient.get(
-        '/coleta/movimento-conta${tipo != null ? '?tipo=$tipo' : ''}',
-      );
+  /// Lista as contas financeiras (caixa e bancos) da base.
+  Future<List<ContaRef>> getContas() => _firebird.getContas();
 
-      if (response.success && response.data is List) {
-        final movimentos = (response.data as List)
-            .map((m) => MovimentoModel.fromJson(m as Map<String, dynamic>))
-            .toList();
-        for (var m in movimentos) {
-          await _dao.insert(m);
-        }
-        return movimentos;
-      }
-    } catch (e) {
-      print('Erro ao carregar movimentos da API: $e');
-    }
+  /// Saldo acumulado de cada conta.
+  Future<List<SaldoConta>> getSaldosPorConta() => _firebird.getSaldosPorConta();
 
-    try {
-      if (tipo != null) {
-        return await _dao.getByTipo(tipo);
-      }
-      return await _dao.getAll();
-    } catch (e) {
-      print('Erro ao carregar movimentos do SQLite: $e');
-    }
-
-    return getMockMovimentos();
+  Future<List<MovimentoModel>> getMovimentos({int? contaId, String? tipo}) async {
+    return await _firebird.getMovimentos(contaId: contaId, tipo: tipo);
   }
 
   Future<MovimentoModel?> createMovimento(MovimentoModel mov) async {
-    try {
-      final response = await _apiClient.post(
-        '/coleta/movimento-conta',
-        body: mov.toJson(),
-      );
-
-      if (response.success && response.data != null) {
-        final created = MovimentoModel.fromJson(response.data as Map<String, dynamic>);
-        await _dao.insert(created);
-        return created;
-      }
-    } catch (e) {
-      print('Erro ao criar movimento na API: $e');
-    }
-
-    final movWithId = mov.id != null ? mov : MovimentoModel(
-      id: DateTime.now().millisecondsSinceEpoch,
-      tipo: mov.tipo,
-      status: mov.status,
-      conta: mov.conta,
-      contaNome: mov.contaNome,
-      valor: mov.valor,
-      dtEmissao: mov.dtEmissao,
-      dtCompensado: mov.dtCompensado,
-      historico: mov.historico,
-    );
-    await _dao.insert(movWithId);
-    await _syncService.queueOperation(
-      tabela: 'tb_movimento_conta',
-      operacao: 'CREATE',
-      registroId: movWithId.id,
-      dados: movWithId.toJson(),
-    );
-    return movWithId;
+    return await _firebird.criarMovimento(mov);
   }
 
   Future<bool> updateMovimento(MovimentoModel mov) async {
-    if (mov.id == null) return false;
-    try {
-      final response = await _apiClient.put(
-        '/coleta/movimento-conta/${mov.id}',
-        body: mov.toJson(),
-      );
-      if (response.success) {
-        await _dao.update(mov);
-        return true;
-      }
-    } catch (e) {
-      print('Erro ao atualizar movimento na API: $e');
-    }
-
-    await _dao.update(mov);
-    await _syncService.queueOperation(
-      tabela: 'tb_movimento_conta',
-      operacao: 'UPDATE',
-      registroId: mov.id,
-      dados: mov.toJson(),
-    );
-    return true;
+    return await _firebird.atualizarMovimento(mov);
   }
 
   Future<bool> deleteMovimento(int id) async {
-    try {
-      await _apiClient.delete('/coleta/movimento-conta/$id');
-      await _dao.delete(id);
-      return true;
-    } catch (e) {
-      print('Erro ao deletar movimento na API: $e');
-    }
-
-    await _dao.delete(id);
-    await _syncService.queueOperation(
-      tabela: 'tb_movimento_conta',
-      operacao: 'DELETE',
-      registroId: id,
-      dados: {'id': id},
-    );
-    return true;
+    return await _firebird.excluirMovimento(id);
   }
 
   List<MovimentoModel> getMockMovimentos() {

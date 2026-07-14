@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../models/movimento_model.dart';
 import '../viewmodels/financeiro_viewmodel.dart';
+import '../../core/database/firebird_service.dart';
 
 class FinanceiroFormScreen extends StatefulWidget {
   final MovimentoModel? movimento;
@@ -16,34 +17,58 @@ class FinanceiroFormScreen extends StatefulWidget {
 class _FinanceiroFormScreenState extends State<FinanceiroFormScreen> {
   late TextEditingController historicoController;
   late TextEditingController valorController;
-  late TextEditingController contaController;
   String tipoSelecionado = 'C';
+
+  final _firebird = FirebirdService();
+  List<ContaRef> _contas = [];
+  int? _contaId;
+  bool _carregando = true;
 
   @override
   void initState() {
     super.initState();
     historicoController = TextEditingController(text: widget.movimento?.historico ?? '');
-    valorController = TextEditingController(text: widget.movimento?.valor?.toString() ?? '');
-    contaController = TextEditingController(text: widget.movimento?.conta?.toString() ?? '');
+    valorController = TextEditingController(text: widget.movimento?.valor.toString() ?? '');
+    _contaId = widget.movimento?.conta;
     tipoSelecionado = widget.movimento?.tipo ?? 'C';
+    _carregarContas();
+  }
+
+  Future<void> _carregarContas() async {
+    try {
+      final contas = await _firebird.getContas();
+      if (!mounted) return;
+      setState(() {
+        _contas = contas;
+        _contaId ??= contas.isNotEmpty ? contas.first.id : null;
+        _carregando = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _carregando = false);
+    }
   }
 
   @override
   void dispose() {
     historicoController.dispose();
     valorController.dispose();
-    contaController.dispose();
     super.dispose();
   }
 
   void _save() async {
+    if (_contaId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione a conta'), backgroundColor: Colors.red),
+      );
+      return;
+    }
     final viewModel = context.read<FinanceiroViewModel>();
 
     final m = MovimentoModel(
       id: widget.movimento?.id,
       historico: historicoController.text,
-      valor: double.tryParse(valorController.text) ?? 0.0,
-      conta: int.tryParse(contaController.text) ?? 1,
+      valor: double.tryParse(valorController.text.replaceAll(',', '.')) ?? 0.0,
+      conta: _contaId!,
       tipo: tipoSelecionado,
       status: 'P',
       dtEmissao: DateTime.now().toString().split(' ')[0],
@@ -70,45 +95,72 @@ class _FinanceiroFormScreenState extends State<FinanceiroFormScreen> {
       appBar: AppBar(
         title: Text(widget.movimento == null ? 'Novo Lançamento' : 'Editar Lançamento'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: historicoController,
-              decoration: const InputDecoration(labelText: 'Histórico'),
+      body: _carregando
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: historicoController,
+                    decoration: const InputDecoration(
+                      labelText: 'Histórico',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: valorController,
+                    decoration: const InputDecoration(
+                      labelText: 'Valor (R\$)',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.attach_money),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<int>(
+                    initialValue: _contaId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Conta *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.account_balance),
+                    ),
+                    items: _contas
+                        .map((c) => DropdownMenuItem(
+                              value: c.id,
+                              child: Text('${c.descricao} (${c.isBanco ? 'Banco' : 'Caixa'})'),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setState(() => _contaId = v),
+                    hint: _contas.isEmpty ? const Text('Nenhuma conta cadastrada') : null,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: tipoSelecionado,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (val) => setState(() => tipoSelecionado = val ?? 'C'),
+                    items: const [
+                      DropdownMenuItem(value: 'C', child: Text('Receita (entrada)')),
+                      DropdownMenuItem(value: 'D', child: Text('Despesa (saída)')),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _save,
+                      child: const Text('Salvar'),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: valorController,
-              decoration: const InputDecoration(labelText: 'Valor'),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: contaController,
-              decoration: const InputDecoration(labelText: 'Conta'),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            DropdownButton<String>(
-              value: tipoSelecionado,
-              onChanged: (String? val) {
-                setState(() => tipoSelecionado = val ?? 'C');
-              },
-              items: const [
-                DropdownMenuItem(value: 'C', child: Text('Receita')),
-                DropdownMenuItem(value: 'D', child: Text('Despesa')),
-              ],
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _save,
-              child: const Text('Salvar'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

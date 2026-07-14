@@ -1,36 +1,29 @@
+import 'package:flutter/foundation.dart';
 import '../../../core/api/http_client.dart';
 import '../../core/database/daos/rota_dao.dart';
-import '../../core/database/sync_service.dart';
+import '../../core/database/firebird_service.dart';
 import '../models/rota_model.dart';
 
 class RotaRepository {
   final ApiClient _apiClient = ApiClient();
   final RotaDao _dao = RotaDao();
-  final SyncService _syncService = SyncService();
+  final FirebirdService _firebird = FirebirdService();
 
   Future<List<RotaModel>> getRotas({String? query}) async {
+    // Fonte primária: base Firebird configurada (COLETAS_ROTA)
     try {
-      final response = await _apiClient.get(
-        '/coleta/rotas${query != null ? '?q=$query' : ''}',
-      );
-
-      if (response.success && response.data is List) {
-        final rotas = (response.data as List)
-            .map((e) => RotaModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-        for (var r in rotas) {
-          await _dao.insert(r);
-        }
-        return rotas;
-      }
+      final rotas = await _firebird.getRotas();
+      if (query == null || query.isEmpty) return rotas;
+      final q = query.toLowerCase();
+      return rotas.where((r) => r.descricao.toLowerCase().contains(q)).toList();
     } catch (e) {
-      print('Erro ao carregar rotas da API: $e');
+      debugPrint('Erro ao carregar rotas do Firebird: $e');
     }
 
     try {
       return await _dao.getAll();
     } catch (e) {
-      print('Erro ao carregar rotas do SQLite: $e');
+      debugPrint('Erro ao carregar rotas do SQLite: $e');
     }
 
     return getMockRotas();
@@ -45,86 +38,35 @@ class RotaRepository {
         return rota;
       }
     } catch (e) {
-      print('Erro ao carregar rota $id da API: $e');
+      debugPrint('Erro ao carregar rota $id da API: $e');
     }
 
     try {
       return await _dao.getById(id);
     } catch (e) {
-      print('Erro ao carregar rota $id do SQLite: $e');
+      debugPrint('Erro ao carregar rota $id do SQLite: $e');
     }
 
     return null;
   }
 
   Future<RotaModel?> createRota(RotaModel r) async {
-    try {
-      final response = await _apiClient.post(
-        '/coleta/rotas',
-        body: r.toJson(),
-      );
-      if (response.success && response.data != null) {
-        final created = RotaModel.fromJson(response.data as Map<String, dynamic>);
-        await _dao.insert(created);
-        return created;
-      }
-    } catch (e) {
-      print('Erro ao criar rota na API: $e');
-    }
-
-    r.id ??= DateTime.now().millisecondsSinceEpoch;
-    await _dao.insert(r);
-    await _syncService.queueOperation(
-      tabela: 'tb_rota',
-      operacao: 'CREATE',
-      registroId: r.id,
-      dados: r.toJson(),
-    );
-    return r;
+    // Grava direto na base Firebird (COLETAS_ROTA)
+    final criada = await _firebird.criarRota(r);
+    return criada;
   }
 
   Future<bool> updateRota(RotaModel r) async {
     if (r.id == null) return false;
-    try {
-      final response = await _apiClient.put(
-        '/coleta/rotas/${r.id}',
-        body: r.toJson(),
-      );
-      if (response.success) {
-        await _dao.update(r);
-        return true;
-      }
-    } catch (e) {
-      print('Erro ao atualizar rota na API: $e');
-    }
-
-    await _dao.update(r);
-    await _syncService.queueOperation(
-      tabela: 'tb_rota',
-      operacao: 'UPDATE',
-      registroId: r.id,
-      dados: r.toJson(),
-    );
-    return true;
+    return await _firebird.atualizarRota(r);
   }
 
   Future<bool> deleteRota(int id) async {
-    try {
-      await _apiClient.delete('/coleta/rotas/$id');
-      await _dao.delete(id);
-      return true;
-    } catch (e) {
-      print('Erro ao deletar rota na API: $e');
-    }
+    return await _firebird.excluirRota(id);
+  }
 
-    await _dao.delete(id);
-    await _syncService.queueOperation(
-      tabela: 'tb_rota',
-      operacao: 'DELETE',
-      registroId: id,
-      dados: {'id': id},
-    );
-    return true;
+  Future<bool> mudarStatus(int rotaId, String status) async {
+    return await _firebird.atualizarStatusRota(rotaId, status);
   }
 
   List<RotaModel> getMockRotas() {

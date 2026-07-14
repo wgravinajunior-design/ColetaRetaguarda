@@ -1,4 +1,4 @@
-const int dbVersion = 2;
+const int dbVersion = 3;
 
 // Schema SQL para criar tabelas SQLite
 const String createPessoaTable = '''
@@ -145,6 +145,8 @@ const String createParadaTable = '''
     gps_captura_longitude REAL,
     horario_chegada TEXT,
     horario_saida TEXT,
+    assinatura_base64 TEXT,
+    foto_path TEXT,
     data_cadastro TEXT,
     data_atualizacao TEXT,
     FOREIGN KEY (rota_id) REFERENCES tb_rota(id)
@@ -165,7 +167,7 @@ const String createSyncQueueTable = '''
   );
 ''';
 
-// Lista de todas as migrações
+// Lista de todas as migrações (criação de tabelas)
 List<String> getMigrations() {
   return [
     createPessoaTable,
@@ -176,5 +178,14 @@ List<String> getMigrations() {
     createParadaTable,
     createMovimentoTable,
     createSyncQueueTable,
+  ];
+}
+
+// Alterações incrementais para bancos já existentes (rodadas no onUpgrade).
+// Cada statement é executado com try/catch — se a coluna já existir, é ignorado.
+List<String> getAlteracoes() {
+  return [
+    'ALTER TABLE tb_parada ADD COLUMN assinatura_base64 TEXT',
+    'ALTER TABLE tb_parada ADD COLUMN foto_path TEXT',
   ];
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'db_migration.dart';
@@ -37,11 +38,20 @@ class SqliteService {
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < newVersion) {
+      // Cria tabelas que ainda não existem
       for (String migration in getMigrations()) {
         try {
           await db.execute(migration);
         } catch (e) {
-          print('Migration error (table may exist): $e');
+          debugPrint('Migration error (table may exist): $e');
+        }
+      }
+      // Aplica alterações incrementais (novas colunas em tabelas existentes)
+      for (String alteracao in getAlteracoes()) {
+        try {
+          await db.execute(alteracao);
+        } catch (e) {
+          debugPrint('Alteracao ignorada (coluna pode existir): $e');
         }
       }
     }
@@ -50,5 +60,68 @@ class SqliteService {
   Future<void> close() async {
     await _database?.close();
     _database = null;
+  }
+
+  /// Retorna o caminho do arquivo do banco de dados.
+  Future<String> getDbPath() async {
+    final dbPath = await getDatabasesPath();
+    return join(dbPath, 'coleta_erp.db');
+  }
+
+  /// Lista todas as tabelas do banco (exceto internas do SQLite).
+  Future<List<String>> listarTabelas() async {
+    final db = await database;
+    final result = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%' ORDER BY name",
+    );
+    return result.map((r) => r['name'] as String).toList();
+  }
+
+  /// Retorna os campos (colunas) de uma tabela: nome, tipo, notnull, pk.
+  Future<List<Map<String, dynamic>>> listarCampos(String tabela) async {
+    final db = await database;
+    return db.rawQuery('PRAGMA table_info($tabela)');
+  }
+
+  /// Conta os registros de uma tabela.
+  Future<int> contarRegistros(String tabela) async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as total FROM $tabela');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  /// Versão atual do schema gravada no banco.
+  Future<int> versaoAtual() async {
+    final db = await database;
+    return await db.getVersion();
+  }
+
+  /// Atualiza o schema de forma ADITIVA e não destrutiva:
+  /// - cria tabelas que ainda não existem (CREATE IF NOT EXISTS);
+  /// - adiciona colunas novas que faltam (ALTER TABLE ADD COLUMN).
+  /// NUNCA dá DROP em tabelas ou campos originais — nenhum dado é perdido.
+  Future<void> atualizarSchema() async {
+    final db = await database;
+
+    // Cria tabelas que ainda não existem
+    for (final migration in getMigrations()) {
+      try {
+        await db.execute(migration);
+      } catch (_) {
+        // tabela já existe — ignora
+      }
+    }
+
+    // Adiciona colunas novas (se já existirem, o ALTER falha e é ignorado)
+    for (final alteracao in getAlteracoes()) {
+      try {
+        await db.execute(alteracao);
+      } catch (_) {
+        // coluna já existe — ignora
+      }
+    }
+
+    // Atualiza a versão do schema gravada no banco
+    await db.setVersion(dbVersion);
   }
 }

@@ -9,7 +9,7 @@ class RotaViewModel extends BaseViewModel<RotaModel> {
     setLoading();
     try {
       final rotas = await _repository.getRotas(query: query);
-      setItems(rotas.isEmpty ? _repository.getMockRotas() : rotas);
+      setItems(rotas);
     } catch (e) {
       setError('Erro ao carregar rotas: $e');
     }
@@ -56,6 +56,21 @@ class RotaViewModel extends BaseViewModel<RotaModel> {
         return true;
       }
       return false;
+    } catch (e) {
+      setError('Erro: $e');
+      return false;
+    }
+  }
+
+  Future<bool> mudarStatus(int rotaId, String status) async {
+    try {
+      final ok = await _repository.mudarStatus(rotaId, status);
+      if (ok) {
+        final i = items.indexWhere((x) => x.id == rotaId);
+        if (i != -1) items[i].status = status;
+        notifyListeners();
+      }
+      return ok;
     } catch (e) {
       setError('Erro: $e');
       return false;

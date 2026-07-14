@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../models/motorista_model.dart';
 import '../viewmodels/motorista_viewmodel.dart';
+import '../../core/database/firebird_service.dart';
 
 class MotoristaFormScreen extends StatefulWidget {
   final MotoristaModel? motorista;
@@ -20,6 +21,10 @@ class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
   late TextEditingController cnhController;
   late TextEditingController celularController;
   late TextEditingController emailController;
+  late TextEditingController cidadeController;
+
+  final _firebird = FirebirdService();
+  int? _cidadeId;
 
   @override
   void initState() {
@@ -30,6 +35,8 @@ class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
     cnhController = TextEditingController(text: widget.motorista?.cnh ?? '');
     celularController = TextEditingController(text: widget.motorista?.celular ?? '');
     emailController = TextEditingController(text: widget.motorista?.email ?? '');
+    _cidadeId = widget.motorista?.cidadeId;
+    cidadeController = TextEditingController(text: widget.motorista?.cidadeNome ?? '');
   }
 
   @override
@@ -40,6 +47,7 @@ class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
     cnhController.dispose();
     celularController.dispose();
     emailController.dispose();
+    cidadeController.dispose();
     super.dispose();
   }
 
@@ -54,7 +62,9 @@ class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
       cnh: cnhController.text,
       celular: celularController.text,
       email: emailController.text,
-      status: 'A',
+      cidadeId: _cidadeId,
+      cidadeNome: cidadeController.text,
+      status: widget.motorista?.status ?? 'A',
     );
 
     bool success;
@@ -70,6 +80,78 @@ class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
       );
       context.go('/motoristas');
     }
+  }
+
+  Widget _buildCampoCidade() {
+    return Autocomplete<OpcaoRef>(
+      initialValue: TextEditingValue(text: widget.motorista?.cidadeNome ?? ''),
+      displayStringForOption: (o) => o.label,
+      optionsBuilder: (value) async {
+        final termo = value.text.trim();
+        if (termo.length < 2) return const Iterable<OpcaoRef>.empty();
+        try {
+          return await _firebird.buscarCidades(termo);
+        } catch (_) {
+          return const Iterable<OpcaoRef>.empty();
+        }
+      },
+      onSelected: (o) {
+        setState(() {
+          _cidadeId = o.id;
+          cidadeController.text = o.label;
+        });
+      },
+      fieldViewBuilder: (context, controller, focusNode, onSubmit) {
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: InputDecoration(
+            labelText: 'Cidade',
+            hintText: 'Digite ao menos 2 letras...',
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.location_city),
+            suffixIcon: _cidadeId != null
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      controller.clear();
+                      setState(() {
+                        _cidadeId = null;
+                        cidadeController.clear();
+                      });
+                    },
+                  )
+                : null,
+          ),
+          onChanged: (_) {
+            // Ao digitar de novo, invalida a seleção anterior até escolher outra
+            if (_cidadeId != null) setState(() => _cidadeId = null);
+          },
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 240, maxWidth: 400),
+              child: ListView(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                children: options
+                    .map((o) => ListTile(
+                          dense: true,
+                          title: Text(o.label),
+                          onTap: () => onSelected(o),
+                        ))
+                    .toList(),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -111,6 +193,8 @@ class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
               controller: emailController,
               decoration: const InputDecoration(labelText: 'Email'),
             ),
+            const SizedBox(height: 16),
+            _buildCampoCidade(),
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: _save,

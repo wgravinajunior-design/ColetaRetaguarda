@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
 import '../models/parada_model.dart';
 import '../viewmodels/coleta_viewmodel.dart';
 import '../screens/mapa_rota_screen.dart';
+import '../screens/coleta_parada_screen.dart';
 import '../../rotas/models/rota_model.dart';
 
 class ColetaRotasScreen extends StatefulWidget {
@@ -16,6 +16,8 @@ class ColetaRotasScreen extends StatefulWidget {
 }
 
 class _ColetaRotasScreenState extends State<ColetaRotasScreen> {
+  bool _reordenando = false;
+
   @override
   void initState() {
     super.initState();
@@ -30,6 +32,11 @@ class _ColetaRotasScreenState extends State<ColetaRotasScreen> {
         title: Text('Coleta - ${widget.rota.descricao}'),
         elevation: 0,
         actions: [
+          IconButton(
+            icon: Icon(_reordenando ? Icons.check : Icons.swap_vert),
+            tooltip: _reordenando ? 'Concluir ordenação' : 'Reordenar paradas',
+            onPressed: () => setState(() => _reordenando = !_reordenando),
+          ),
           Consumer<ColetaViewModel>(
             builder: (context, viewModel, _) {
               return IconButton(
@@ -113,16 +120,45 @@ class _ColetaRotasScreenState extends State<ColetaRotasScreen> {
                   ],
                 ),
               ),
+              if (_reordenando)
+                Container(
+                  width: double.infinity,
+                  color: Colors.amber.shade100,
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                  child: const Text('Arraste as paradas para reordenar a sequência de visita',
+                      style: TextStyle(fontSize: 12)),
+                ),
               // Lista de paradas
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: viewModel.items.length,
-                  itemBuilder: (context, index) {
-                    final parada = viewModel.items[index];
-                    return _ParadaCard(parada: parada, index: index + 1);
-                  },
-                ),
+                child: _reordenando
+                    ? ReorderableListView.builder(
+                        padding: const EdgeInsets.all(8),
+                        itemCount: viewModel.items.length,
+                        onReorder: (oldIndex, newIndex) {
+                          if (newIndex > oldIndex) newIndex -= 1;
+                          final lista = List.of(viewModel.items);
+                          final item = lista.removeAt(oldIndex);
+                          lista.insert(newIndex, item);
+                          viewModel.reordenarParadas(lista);
+                        },
+                        itemBuilder: (context, index) {
+                          final parada = viewModel.items[index];
+                          return _ParadaCard(
+                            key: ValueKey(parada.id),
+                            parada: parada,
+                            index: index + 1,
+                            reordenando: true,
+                          );
+                        },
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(8),
+                        itemCount: viewModel.items.length,
+                        itemBuilder: (context, index) {
+                          final parada = viewModel.items[index];
+                          return _ParadaCard(parada: parada, index: index + 1);
+                        },
+                      ),
               ),
             ],
           );
@@ -159,10 +195,13 @@ class _StatCard extends StatelessWidget {
 class _ParadaCard extends StatelessWidget {
   final ParadaModel parada;
   final int index;
+  final bool reordenando;
 
   const _ParadaCard({
+    super.key,
     required this.parada,
     required this.index,
+    this.reordenando = false,
   });
 
   Color _getStatusColor(String status) {
@@ -189,7 +228,7 @@ class _ParadaCard extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: _getStatusColor(parada.status).withOpacity(0.2),
+            color: _getStatusColor(parada.status).withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Center(
@@ -241,12 +280,21 @@ class _ParadaCard extends StatelessWidget {
             ),
           ],
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.arrow_forward),
-          onPressed: () {
-            context.push('/coleta/parada/${parada.id}', extra: parada);
-          },
-        ),
+        trailing: reordenando
+            ? const Icon(Icons.drag_handle, color: Colors.grey)
+            : IconButton(
+                icon: const Icon(Icons.arrow_forward),
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => ColetaParadaScreen(parada: parada),
+                    ),
+                  );
+                  if (context.mounted) {
+                    context.read<ColetaViewModel>().loadParadasFromRota(parada.rotaId ?? 0);
+                  }
+                },
+              ),
       ),
     );
   }

@@ -33,9 +33,8 @@ void main() {
     });
 
     test('setLoading updates isSyncing', () async {
-      service.isOnline = true; // Ensure online
-      // Note: In real app, syncPending would be called
-      // This test verifies the property itself
+      // isOnline é derivado da conectividade real (somente leitura).
+      // Este teste verifica a propriedade em si.
       expect(service.isSyncing, false);
     });
 
@@ -59,7 +58,7 @@ void main() {
     });
 
     test('isSyncing property is accessible', () {
-      expect(service.isSyncing is bool, true);
+      expect(service.isSyncing, isA<bool>());
     });
   });
 }

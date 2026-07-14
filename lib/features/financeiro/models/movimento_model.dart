@@ -21,7 +21,7 @@ class MovimentoModel {
     this.compensado = 'S',
     this.origem = 'MANUAL',
     this.idOrigem,
-    required this.conta,
+    this.conta = 1,
     this.contaNome,
     required this.valor,
     required this.dtEmissao,

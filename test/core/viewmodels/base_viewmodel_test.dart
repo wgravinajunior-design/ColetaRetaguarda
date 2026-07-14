@@ -19,25 +19,25 @@ void main() {
     });
 
     test('initial state is idle', () {
-      expect(viewModel.state, 'idle');
+      expect(viewModel.state.name, 'idle');
       expect(viewModel.isLoading, false);
     });
 
     test('setLoading sets state to loading', () {
       viewModel.setLoading();
-      expect(viewModel.state, 'loading');
+      expect(viewModel.state.name, 'loading');
       expect(viewModel.isLoading, true);
     });
 
     test('setSuccess sets state to success', () {
       viewModel.setSuccess();
-      expect(viewModel.state, 'success');
+      expect(viewModel.state.name, 'success');
     });
 
     test('setError sets state to error and message', () {
       const errorMsg = 'Test error';
       viewModel.setError(errorMsg);
-      expect(viewModel.state, 'error');
+      expect(viewModel.state.name, 'error');
       expect(viewModel.errorMessage, errorMsg);
     });
 

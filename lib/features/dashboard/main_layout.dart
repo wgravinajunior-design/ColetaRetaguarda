@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../auth/auth_service.dart';
 import '../core/config/config_service.dart';
 import '../core/widgets/sync_status_widget.dart';
+import '../core/window/window_service.dart';
 
 class MainLayout extends StatelessWidget {
   final Widget child;
@@ -22,7 +23,7 @@ class MainLayout extends StatelessWidget {
           // Menu Lateral (Side Navigation)
           Container(
             width: 250,
-            color: Theme.of(context).colorScheme.surfaceVariant,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: Column(
               children: [
                 DrawerHeader(
@@ -41,57 +42,82 @@ class MainLayout extends StatelessWidget {
                     ],
                   ),
                 ),
-                _MenuTile(
-                  icon: Icons.dashboard,
-                  title: 'Dashboard',
-                  color: Colors.blue,
-                  onTap: () => context.go('/dashboard'),
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      _MenuTile(
+                        icon: Icons.dashboard,
+                        title: 'Dashboard',
+                        color: Colors.blue,
+                        onTap: () => context.go('/dashboard'),
+                      ),
+                      _MenuTile(
+                        icon: Icons.people,
+                        title: 'Produtores',
+                        color: Colors.green,
+                        onTap: () => context.go('/produtores'),
+                      ),
+                      _MenuTile(
+                        icon: Icons.local_shipping,
+                        title: 'Motoristas',
+                        color: Colors.orange,
+                        onTap: () => context.go('/motoristas'),
+                      ),
+                      _MenuTile(
+                        icon: Icons.badge,
+                        title: 'Colaboradores',
+                        color: Colors.deepPurple,
+                        onTap: () => context.go('/colaboradores'),
+                      ),
+                      _MenuTile(
+                        icon: Icons.local_shipping,
+                        title: 'Rotas',
+                        color: Colors.teal,
+                        onTap: () => context.go('/rotas'),
+                      ),
+                      _MenuTile(
+                        icon: Icons.ac_unit,
+                        title: 'Resfriadores',
+                        color: Colors.cyan,
+                        onTap: () => context.go('/resfriadores'),
+                      ),
+                      _MenuTile(
+                        icon: Icons.agriculture,
+                        title: 'Coleta',
+                        color: Colors.brown,
+                        onTap: () => context.go('/coleta'),
+                      ),
+                      _MenuTile(
+                        icon: Icons.payments,
+                        title: 'Pagamentos',
+                        color: Colors.green,
+                        onTap: () => context.go('/pagamentos'),
+                      ),
+                      _MenuTile(
+                        icon: Icons.attach_money,
+                        title: 'Financeiro',
+                        color: Colors.red,
+                        onTap: () => context.go('/financeiro'),
+                      ),
+                      _MenuTile(
+                        icon: Icons.sync,
+                        title: 'Sincronização',
+                        color: Colors.indigo,
+                        onTap: () => context.go('/sync'),
+                      ),
+                    ],
+                  ),
                 ),
-                _MenuTile(
-                  icon: Icons.people,
-                  title: 'Produtores',
-                  color: Colors.green,
-                  onTap: () => context.go('/produtores'),
-                ),
-                _MenuTile(
-                  icon: Icons.local_shipping,
-                  title: 'Motoristas',
-                  color: Colors.orange,
-                  onTap: () => context.go('/motoristas'),
-                ),
-                _MenuTile(
-                  icon: Icons.badge,
-                  title: 'Colaboradores',
-                  color: Colors.deepPurple,
-                  onTap: () => context.go('/colaboradores'),
-                ),
-                _MenuTile(
-                  icon: Icons.local_shipping,
-                  title: 'Rotas',
-                  color: Colors.teal,
-                  onTap: () => context.go('/rotas'),
-                ),
-                _MenuTile(
-                  icon: Icons.agriculture,
-                  title: 'Coleta',
-                  color: Colors.brown,
-                  onTap: () => context.go('/rotas'),
-                ),
-                _MenuTile(
-                  icon: Icons.attach_money,
-                  title: 'Financeiro',
-                  color: Colors.red,
-                  onTap: () => context.go('/financeiro'),
-                ),
-                const Spacer(),
                 const Divider(),
                 _MenuTile(
                   icon: Icons.logout,
                   title: 'Sair',
                   color: Colors.grey,
-                  onTap: () {
+                  onTap: () async {
                     context.read<AuthService>().logout();
-                    context.go('/login');
+                    await WindowService.modoLogin();
+                    if (context.mounted) context.go('/login');
                   },
                 ),
                 const SizedBox(height: 16),
@@ -141,7 +167,7 @@ class _MenuTileState extends State<_MenuTile> {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: _isHovered ? widget.color.withOpacity(0.1) : Colors.transparent,
+          color: _isHovered ? widget.color.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: ListTile(

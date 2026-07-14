@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'auth_service.dart';
 import '../core/config/config_service.dart';
+import '../core/database/database_inspector_screen.dart';
+import '../core/database/db_connection.dart';
+import '../core/window/window_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,10 +16,24 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
+  late final TextEditingController _usernameController;
+  late final TextEditingController _passwordController;
   bool _isLoading = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _usernameController = TextEditingController();
+    _passwordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleLogin() async {
     setState(() {
@@ -24,21 +41,39 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
+    // 1) Não permite login se a base de dados (Firebird) configurada não conectar
+    final conectado = await DbConnection().testarConexao();
+    if (!conectado) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage =
+            'Sem conexão com a base de dados configurada.\n'
+            'Verifique host, porta e caminho da base nas Configurações.';
+      });
+      return;
+    }
+
+    // 2) Valida credenciais na própria base
+    if (!mounted) return;
     final authService = context.read<AuthService>();
     final success = await authService.login(
       _usernameController.text,
       _passwordController.text,
     );
 
+    if (!mounted) return;
     setState(() {
       _isLoading = false;
     });
 
     if (success) {
+      // Sistema entra em tela cheia após autenticar
+      await WindowService.modoApp();
       if (mounted) context.go('/dashboard');
     } else {
       setState(() {
-        _errorMessage = 'Credenciais inválidas ou erro de conexão.';
+        _errorMessage = 'Credenciais inválidas.';
       });
     }
   }
@@ -76,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'v1.1.0',
+                              'v1.17.0',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey[600],
@@ -121,6 +156,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ? const CircularProgressIndicator()
                                     : const Text('ENTRAR'),
                               ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton.icon(
+                              icon: const Icon(Icons.storage, size: 18),
+                              label: const Text('Conferir banco de dados'),
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const DatabaseInspectorScreen(),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),

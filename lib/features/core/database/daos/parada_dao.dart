@@ -24,6 +24,8 @@ class ParadaDao extends BaseDao<ParadaModel> {
       gpsCapturaltitude: (map['gps_captura_longitude'] as num?)?.toDouble(),
       horarioChegada: map['horario_chegada'] as String?,
       horarioSaida: map['horario_saida'] as String?,
+      assinaturaBase64: map['assinatura_base64'] as String?,
+      fotoPath: map['foto_path'] as String?,
       dataCadastro: map['data_cadastro'] != null
           ? DateTime.tryParse(map['data_cadastro'] as String)
           : null,
@@ -49,6 +51,8 @@ class ParadaDao extends BaseDao<ParadaModel> {
       'gps_captura_longitude': obj.gpsCapturaltitude,
       'horario_chegada': obj.horarioChegada,
       'horario_saida': obj.horarioSaida,
+      'assinatura_base64': obj.assinaturaBase64,
+      'foto_path': obj.fotoPath,
       'data_cadastro': obj.dataCadastro?.toIso8601String(),
       'data_atualizacao': DateTime.now().toIso8601String(),
     };
@@ -75,7 +79,15 @@ class ParadaDao extends BaseDao<ParadaModel> {
     return List.generate(maps.length, (i) => fromMap(maps[i]));
   }
 
-  Future<int> updateStatus(int paradaId, String newStatus, {double? temperatura, double? volume, String? justificativa}) async {
+  Future<int> updateStatus(
+    int paradaId,
+    String newStatus, {
+    double? temperatura,
+    double? volume,
+    String? justificativa,
+    String? assinaturaBase64,
+    String? fotoPath,
+  }) async {
     final db = await database;
     final map = <String, dynamic>{
       'status': newStatus,
@@ -84,6 +96,8 @@ class ParadaDao extends BaseDao<ParadaModel> {
     if (temperatura != null) map['temperatura'] = temperatura as dynamic;
     if (volume != null) map['volume'] = volume as dynamic;
     if (justificativa != null) map['justificativa'] = justificativa;
+    if (assinaturaBase64 != null) map['assinatura_base64'] = assinaturaBase64;
+    if (fotoPath != null) map['foto_path'] = fotoPath;
 
     return db.update(
       tableName,
@@ -93,15 +107,23 @@ class ParadaDao extends BaseDao<ParadaModel> {
     );
   }
 
-  Future<int> registrarGPS(int paradaId, double latitude, double longitude) async {
+  Future<int> registrarGPS(
+    int paradaId,
+    double latitude,
+    double longitude, {
+    String? horarioChegada,
+  }) async {
     final db = await database;
+    final map = <String, dynamic>{
+      'gps_captura_latitude': latitude,
+      'gps_captura_longitude': longitude,
+      'data_atualizacao': DateTime.now().toIso8601String(),
+    };
+    if (horarioChegada != null) map['horario_chegada'] = horarioChegada;
+
     return db.update(
       tableName,
-      {
-        'gps_captura_latitude': latitude,
-        'gps_captura_longitude': longitude,
-        'data_atualizacao': DateTime.now().toIso8601String(),
-      },
+      map,
       where: 'id = ?',
       whereArgs: [paradaId],
     );

@@ -33,17 +33,17 @@ void main() {
       );
 
       final json = veiculo.toJson();
-      expect(json['placa'], 'XYZ-5678');
-      expect(json['marca'], 'Volvo');
+      expect(json['VEI_PLACA'], 'XYZ-5678');
+      expect(json['VEI_MARCA'], 'Volvo');
     });
 
     test('fromJson deserializes veiculo correctly', () {
       final json = {
-        'id': 1,
-        'placa': 'ABC-1234',
-        'marca': 'Mercedes',
-        'modelo': 'Sprinter',
-        'status': 'A',
+        'VEI_ID': 1,
+        'VEI_PLACA': 'ABC-1234',
+        'VEI_MARCA': 'Mercedes',
+        'VEI_MODELO': 'Sprinter',
+        'VEI_STATUS': 'A',
       };
 
       final veiculo = VeiculoModel.fromJson(json);

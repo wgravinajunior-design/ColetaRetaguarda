@@ -112,4 +112,37 @@ class SyncQueueDao extends BaseDao<SyncQueueItem> {
     );
     return Sqflite.firstIntValue(result) ?? 0;
   }
+
+  Future<int> countByStatus(String status) async {
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM $tableName WHERE status = ?',
+      [status],
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  /// Retorna todos os itens da fila, mais recentes primeiro.
+  Future<List<SyncQueueItem>> getAllOrdered() async {
+    final db = await database;
+    final maps = await db.query(tableName, orderBy: 'data_criacao DESC');
+    return List.generate(maps.length, (i) => fromMap(maps[i]));
+  }
+
+  /// Reenfileira itens com erro (status E → P, zera tentativas).
+  Future<int> resetErros() async {
+    final db = await database;
+    return db.update(
+      tableName,
+      {'status': 'P', 'tentativas': 0},
+      where: 'status = ?',
+      whereArgs: ['E'],
+    );
+  }
+
+  /// Remove itens já sincronizados com sucesso.
+  Future<int> limparSincronizados() async {
+    final db = await database;
+    return db.delete(tableName, where: 'status = ?', whereArgs: ['S']);
+  }
 }

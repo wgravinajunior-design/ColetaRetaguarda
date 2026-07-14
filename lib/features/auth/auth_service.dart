@@ -1,8 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:fbdb/fbdb.dart';
-import '../core/config/config_service.dart';
 import '../core/database/db_connection.dart';
 
 class AuthService extends ChangeNotifier {
@@ -69,7 +66,7 @@ class AuthService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
     await prefs.remove('auth_user');
-    
+
     _isAuthenticated = false;
     _userName = null;
     notifyListeners();

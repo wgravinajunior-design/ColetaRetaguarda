@@ -107,7 +107,7 @@ class _MapaRotaScreenState extends State<MapaRotaScreen> {
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -141,7 +141,7 @@ class _MapaRotaScreenState extends State<MapaRotaScreen> {
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -196,7 +196,7 @@ class _MapaRotaScreenState extends State<MapaRotaScreen> {
                 border: Border.all(color: Colors.white, width: 2),
                 boxShadow: [
                   BoxShadow(
-                    color: color.withOpacity(0.5),
+                    color: color.withValues(alpha: 0.5),
                     blurRadius: 8,
                   ),
                 ],
@@ -257,7 +257,7 @@ class _MapaRotaScreenState extends State<MapaRotaScreen> {
                       ),
                     ),
                     Text(
-                      parada.statusEmoji + ' ' + parada.statusLabel,
+                      '${parada.statusEmoji} ${parada.statusLabel}',
                       style: TextStyle(
                         color: MapService.getStatusColor(parada.status),
                         fontSize: 12,

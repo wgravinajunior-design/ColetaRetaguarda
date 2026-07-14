@@ -11,7 +11,7 @@ void main() {
     });
 
     test('initial state is idle', () {
-      expect(viewModel.state, 'idle');
+      expect(viewModel.state.name, 'idle');
       expect(viewModel.isLoading, false);
     });
 
@@ -131,7 +131,7 @@ void main() {
     test('can handle error state', () {
       const error = 'Erro ao carregar movimentos';
       viewModel.setError(error);
-      expect(viewModel.state, 'error');
+      expect(viewModel.state.name, 'error');
       expect(viewModel.errorMessage, error);
     });
   });

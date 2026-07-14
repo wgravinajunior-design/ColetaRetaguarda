@@ -11,7 +11,7 @@ void main() {
     });
 
     test('initial state is idle', () {
-      expect(viewModel.state, 'idle');
+      expect(viewModel.state.name, 'idle');
       expect(viewModel.isLoading, false);
     });
 
@@ -60,7 +60,7 @@ void main() {
     test('handles error state', () {
       const errorMsg = 'Erro ao carregar produtores';
       viewModel.setError(errorMsg);
-      expect(viewModel.state, 'error');
+      expect(viewModel.state.name, 'error');
       expect(viewModel.errorMessage, errorMsg);
     });
 

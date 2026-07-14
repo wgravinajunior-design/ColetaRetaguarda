@@ -74,4 +74,8 @@ class SyncService {
   }
 
   Future<int> getPendingCount() => _queueDao.countPending();
+  Future<int> getErrorCount() => _queueDao.countByStatus('E');
+  Future<List<SyncQueueItem>> getAllItems() => _queueDao.getAllOrdered();
+  Future<int> retryFailed() => _queueDao.resetErros();
+  Future<int> clearSynced() => _queueDao.limparSincronizados();
 }

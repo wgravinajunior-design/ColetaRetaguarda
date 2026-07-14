@@ -37,9 +37,45 @@ class _ProdutorListScreenState extends State<ProdutorListScreen> {
         onPressed: () => context.go('/produtores/novo'),
         child: const Icon(Icons.add),
       ),
-      body: viewModel.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildBody(viewModel),
+      body: Column(
+        children: [
+          _buildFiltros(viewModel),
+          const Divider(height: 1),
+          Expanded(
+            child: viewModel.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildBody(viewModel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFiltros(ProdutorViewModel viewModel) {
+    const filtros = [
+      ('A', 'Ativos'),
+      ('I', 'Inativos'),
+      (null, 'Todos'),
+    ];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          const Text('Status: ', style: TextStyle(fontWeight: FontWeight.w500)),
+          const SizedBox(width: 8),
+          ...filtros.map((f) {
+            final selecionado = viewModel.filtroStatus == f.$1;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: ChoiceChip(
+                label: Text(f.$2),
+                selected: selecionado,
+                onSelected: (_) => viewModel.aplicarFiltroStatus(f.$1),
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -86,6 +122,7 @@ class _ProdutorListScreenState extends State<ProdutorListScreen> {
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
                       final confirm = await showDialog<bool>(
                         context: context,
                         builder: (context) => AlertDialog(
@@ -104,7 +141,16 @@ class _ProdutorListScreenState extends State<ProdutorListScreen> {
                         ),
                       );
                       if (confirm == true && prod.id != null) {
-                        viewModel.deleteProdutor(prod.id!);
+                        final ok = await viewModel.deleteProdutor(prod.id!);
+                        if (!context.mounted) return;
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(ok
+                                ? 'Produtor inativado.'
+                                : (viewModel.errorMessage ?? 'Não foi possível excluir.')),
+                            backgroundColor: ok ? Colors.green : Colors.red,
+                          ),
+                        );
                       }
                     },
                   ),

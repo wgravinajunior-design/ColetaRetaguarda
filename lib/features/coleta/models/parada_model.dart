@@ -15,6 +15,8 @@ class ParadaModel {
   double? gpsCapturaltitude;
   String? horarioChegada;
   String? horarioSaida;
+  String? assinaturaBase64;
+  String? fotoPath;
   DateTime? dataCadastro;
 
   ParadaModel({
@@ -34,6 +36,8 @@ class ParadaModel {
     this.gpsCapturaltitude,
     this.horarioChegada,
     this.horarioSaida,
+    this.assinaturaBase64,
+    this.fotoPath,
     this.dataCadastro,
   });
 
@@ -55,6 +59,8 @@ class ParadaModel {
       gpsCapturaltitude: (json['gps_captura_longitude'] as num?)?.toDouble(),
       horarioChegada: json['horario_chegada'] as String?,
       horarioSaida: json['horario_saida'] as String?,
+      assinaturaBase64: json['assinatura_base64'] as String?,
+      fotoPath: json['foto_path'] as String?,
       dataCadastro: json['data_cadastro'] != null
           ? DateTime.tryParse(json['data_cadastro'] as String)
           : null,
@@ -79,6 +85,8 @@ class ParadaModel {
       'gps_captura_longitude': gpsCapturaltitude,
       'horario_chegada': horarioChegada,
       'horario_saida': horarioSaida,
+      'assinatura_base64': assinaturaBase64,
+      'foto_path': fotoPath,
       'data_cadastro': dataCadastro?.toIso8601String(),
     };
   }
@@ -100,6 +108,8 @@ class ParadaModel {
     double? gpsCapturaltitude,
     String? horarioChegada,
     String? horarioSaida,
+    String? assinaturaBase64,
+    String? fotoPath,
     DateTime? dataCadastro,
   }) {
     return ParadaModel(
@@ -119,6 +129,8 @@ class ParadaModel {
       gpsCapturaltitude: gpsCapturaltitude ?? this.gpsCapturaltitude,
       horarioChegada: horarioChegada ?? this.horarioChegada,
       horarioSaida: horarioSaida ?? this.horarioSaida,
+      assinaturaBase64: assinaturaBase64 ?? this.assinaturaBase64,
+      fotoPath: fotoPath ?? this.fotoPath,
       dataCadastro: dataCadastro ?? this.dataCadastro,
     );
   }

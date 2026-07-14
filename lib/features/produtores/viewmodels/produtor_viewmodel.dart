@@ -5,18 +5,24 @@ import '../repositories/pessoa_repository.dart';
 class ProdutorViewModel extends BaseViewModel<PessoaModel> {
   final PessoaRepository _repository = PessoaRepository();
 
-  Future<void> loadProdutores({String? query}) async {
+  // Filtro de status ativo por padrão ('A' = ativos).
+  String? _filtroStatus = 'A';
+  String? get filtroStatus => _filtroStatus;
+
+  Future<void> loadProdutores({String? query, String? status}) async {
+    _filtroStatus = status ?? _filtroStatus;
     setLoading();
     try {
-      final produtores = await _repository.getProdutores(query: query);
-      if (produtores.isEmpty) {
-        setItems(_repository.getMockProdutores());
-      } else {
-        setItems(produtores);
-      }
+      final produtores = await _repository.getProdutores(query: query, status: _filtroStatus);
+      setItems(produtores);
     } catch (e) {
       setError('Erro ao carregar produtores: $e');
     }
+  }
+
+  void aplicarFiltroStatus(String? status) {
+    _filtroStatus = status;
+    loadProdutores(status: status);
   }
 
   Future<bool> createProdutor(PessoaModel produtor) async {

@@ -9,7 +9,7 @@ class VeiculoViewModel extends BaseViewModel<VeiculoModel> {
     setLoading();
     try {
       final veiculos = await _repository.getVeiculos(query: query);
-      setItems(veiculos.isEmpty ? _repository.getMockVeiculos() : veiculos);
+      setItems(veiculos);
     } catch (e) {
       setError('Erro ao carregar veículos: $e');
     }

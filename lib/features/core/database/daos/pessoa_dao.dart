@@ -1,4 +1,3 @@
-import 'package:sqflite/sqflite.dart';
 import '../base_dao.dart';
 import '../../../produtores/models/pessoa_model.dart';
 

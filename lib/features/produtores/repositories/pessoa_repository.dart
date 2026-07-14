@@ -1,35 +1,34 @@
+import 'package:flutter/foundation.dart';
 import '../../../core/api/http_client.dart';
 import '../../core/database/daos/pessoa_dao.dart';
-import '../../core/database/sync_service.dart';
+import '../../core/database/firebird_service.dart';
 import '../models/pessoa_model.dart';
 
 class PessoaRepository {
   final ApiClient _apiClient = ApiClient();
   final PessoaDao _dao = PessoaDao();
-  final SyncService _syncService = SyncService();
+  final FirebirdService _firebird = FirebirdService();
 
-  Future<List<PessoaModel>> getProdutores({String? query}) async {
+  Future<List<PessoaModel>> getProdutores({String? query, String? status = 'A'}) async {
+    // Fonte primária: base Firebird configurada (TB_PESSOA, PES_FORNECEDOR='S')
     try {
-      final response = await _apiClient.get('/coleta/pessoas?tipo=P${query != null ? '&q=$query' : ''}');
-      if (response.success && response.data is List) {
-        final produtores = (response.data as List)
-            .map((p) => PessoaModel.fromJson(p as Map<String, dynamic>))
-            .toList();
-        // Sincroniza com banco local
-        for (var p in produtores) {
-          await _dao.insert(p);
-        }
-        return produtores;
-      }
+      final produtores = await _firebird.getProdutores(status: status);
+      if (query == null || query.isEmpty) return produtores;
+      final q = query.toLowerCase();
+      return produtores
+          .where((p) =>
+              p.rSocialNome.toLowerCase().contains(q) ||
+              p.cnpjCpf.toLowerCase().contains(q))
+          .toList();
     } catch (e) {
-      print('Erro ao carregar produtores da API: $e');
+      debugPrint('Erro ao carregar produtores do Firebird: $e');
     }
 
     // Fallback: tenta carregar do SQLite
     try {
       return await _dao.getProdutores();
     } catch (e) {
-      print('Erro ao carregar produtores do SQLite: $e');
+      debugPrint('Erro ao carregar produtores do SQLite: $e');
     }
 
     return _getMockProdutores();
@@ -48,13 +47,13 @@ class PessoaRepository {
         return motoristas;
       }
     } catch (e) {
-      print('Erro ao carregar motoristas da API: $e');
+      debugPrint('Erro ao carregar motoristas da API: $e');
     }
 
     try {
       return await _dao.getMotoristas();
     } catch (e) {
-      print('Erro ao carregar motoristas do SQLite: $e');
+      debugPrint('Erro ao carregar motoristas do SQLite: $e');
     }
 
     return [];
@@ -73,84 +72,31 @@ class PessoaRepository {
         return colaboradores;
       }
     } catch (e) {
-      print('Erro ao carregar colaboradores da API: $e');
+      debugPrint('Erro ao carregar colaboradores da API: $e');
     }
 
     try {
       return await _dao.getColaboradores();
     } catch (e) {
-      print('Erro ao carregar colaboradores do SQLite: $e');
+      debugPrint('Erro ao carregar colaboradores do SQLite: $e');
     }
 
     return [];
   }
 
   Future<PessoaModel?> createPessoa(PessoaModel pessoa) async {
-    try {
-      final response = await _apiClient.post('/coleta/pessoas', body: pessoa.toJson());
-      if (response.success && response.data != null) {
-        final created = PessoaModel.fromJson(response.data as Map<String, dynamic>);
-        await _dao.insert(created);
-        return created;
-      }
-    } catch (e) {
-      print('Erro ao criar pessoa na API: $e');
-    }
-
-    // Fallback: salva localmente e enfileira para sincronização
-    pessoa.id ??= DateTime.now().millisecondsSinceEpoch;
-    await _dao.insert(pessoa);
-    await _syncService.queueOperation(
-      tabela: 'tb_pessoa',
-      operacao: 'CREATE',
-      registroId: pessoa.id,
-      dados: pessoa.toJson(),
-    );
-    return pessoa;
+    // Grava direto na base Firebird (TB_PESSOA, marcado como fornecedor)
+    return await _firebird.criarProdutor(pessoa);
   }
 
   Future<bool> updatePessoa(PessoaModel pessoa) async {
     if (pessoa.id == null) return false;
-
-    try {
-      final response = await _apiClient.put('/coleta/pessoas/${pessoa.id}', body: pessoa.toJson());
-      if (response.success) {
-        await _dao.update(pessoa);
-        return true;
-      }
-    } catch (e) {
-      print('Erro ao atualizar pessoa na API: $e');
-    }
-
-    // Fallback: atualiza localmente e enfileira
-    await _dao.update(pessoa);
-    await _syncService.queueOperation(
-      tabela: 'tb_pessoa',
-      operacao: 'UPDATE',
-      registroId: pessoa.id,
-      dados: pessoa.toJson(),
-    );
-    return true;
+    return await _firebird.atualizarProdutor(pessoa);
   }
 
   Future<bool> deletePessoa(int id) async {
-    try {
-      await _apiClient.delete('/coleta/pessoas/$id');
-      await _dao.delete(id);
-      return true;
-    } catch (e) {
-      print('Erro ao deletar pessoa na API: $e');
-    }
-
-    // Fallback: deleta localmente e enfileira
-    await _dao.delete(id);
-    await _syncService.queueOperation(
-      tabela: 'tb_pessoa',
-      operacao: 'DELETE',
-      registroId: id,
-      dados: {'id': id},
-    );
-    return true;
+    // Exclusão lógica no ERP (marca inativo — não remove o registro)
+    return await _firebird.excluirProdutor(id);
   }
 
   List<PessoaModel> getMockProdutores() => _getMockProdutores();

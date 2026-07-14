@@ -32,4 +32,18 @@ class DbConnection {
       _db = null;
     }
   }
+
+  /// Testa a conexão com a base Firebird configurada nas configurações.
+  /// Retorna true se conseguiu conectar, false caso contrário.
+  /// Força uma nova conexão para refletir eventuais mudanças de configuração.
+  Future<bool> testarConexao() async {
+    try {
+      // Descarta conexão anterior para revalidar com a config atual
+      await disconnect();
+      await db; // tenta anexar
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 }

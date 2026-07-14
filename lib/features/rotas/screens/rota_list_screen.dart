@@ -91,7 +91,19 @@ class _RotaListScreenState extends State<RotaListScreen> {
                           ],
                         ),
                       )) {
-                        if (r.id != null) viewModel.deleteRota(r.id!);
+                        if (r.id != null) {
+                          final ok = await viewModel.deleteRota(r.id!);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(ok
+                                    ? 'Rota excluída.'
+                                    : (viewModel.errorMessage ?? 'Não foi possível excluir.')),
+                                backgroundColor: ok ? Colors.green : Colors.red,
+                              ),
+                            );
+                          }
+                        }
                       }
                     },
                   ),

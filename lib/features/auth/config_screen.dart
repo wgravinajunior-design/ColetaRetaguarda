@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:http/http.dart' as http;
 import '../core/config/config_service.dart';
 
 class ConfigScreen extends StatefulWidget {

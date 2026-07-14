@@ -1,134 +1,31 @@
-import '../../../core/api/http_client.dart';
-import '../../../core/api/api_endpoints.dart';
-import '../../core/database/daos/motorista_dao.dart';
-import '../../core/database/sync_service.dart';
+import '../../core/database/firebird_service.dart';
 import '../models/motorista_model.dart';
 
 class MotoristaRepository {
-  final ApiClient _apiClient = ApiClient();
-  final MotoristaDao _dao = MotoristaDao();
-  final SyncService _syncService = SyncService();
+  final FirebirdService _firebird = FirebirdService();
 
-  Future<List<MotoristaModel>> getMotoristas({String? query}) async {
-    try {
-      final response = await _apiClient.get(
-        '/coleta/motoristas${query != null ? '?q=$query' : ''}',
-      );
-
-      if (response.success && response.data is List) {
-        final motoristas = (response.data as List)
-            .map((e) => MotoristaModel.fromJson(e as Map<String, dynamic>))
-            .toList();
-        for (var m in motoristas) {
-          await _dao.insert(m);
-        }
-        return motoristas;
-      }
-    } catch (e) {
-      print('Erro ao buscar motoristas da API: $e');
-    }
-
-    try {
-      return await _dao.getAll();
-    } catch (e) {
-      print('Erro ao buscar motoristas do SQLite: $e');
-    }
-
-    return getMockMotoristas();
-  }
-
-  Future<MotoristaModel?> getMotoristaById(int id) async {
-    try {
-      final response = await _apiClient.get('/coleta/motoristas/$id');
-      if (response.success && response.data != null) {
-        final motorista = MotoristaModel.fromJson(response.data as Map<String, dynamic>);
-        await _dao.insert(motorista);
-        return motorista;
-      }
-    } catch (e) {
-      print('Erro ao buscar motorista $id da API: $e');
-    }
-
-    try {
-      return await _dao.getById(id);
-    } catch (e) {
-      print('Erro ao buscar motorista $id do SQLite: $e');
-    }
-
-    return null;
+  Future<List<MotoristaModel>> getMotoristas({String? query, String? status = 'A'}) async {
+    final motoristas = await _firebird.getMotoristas(status: status);
+    if (query == null || query.isEmpty) return motoristas;
+    final q = query.toLowerCase();
+    return motoristas
+        .where((m) =>
+            (m.nome ?? '').toLowerCase().contains(q) ||
+            m.cpf.toLowerCase().contains(q))
+        .toList();
   }
 
   Future<MotoristaModel?> createMotorista(MotoristaModel motorista) async {
-    try {
-      final response = await _apiClient.post(
-        '/coleta/motoristas',
-        body: motorista.toJson(),
-      );
-
-      if (response.success && response.data != null) {
-        final created = MotoristaModel.fromJson(response.data as Map<String, dynamic>);
-        await _dao.insert(created);
-        return created;
-      }
-    } catch (e) {
-      print('Erro ao criar motorista na API: $e');
-    }
-
-    motorista.id ??= DateTime.now().millisecondsSinceEpoch;
-    await _dao.insert(motorista);
-    await _syncService.queueOperation(
-      tabela: 'tb_motorista',
-      operacao: 'CREATE',
-      registroId: motorista.id,
-      dados: motorista.toJson(),
-    );
-    return motorista;
+    return await _firebird.criarMotorista(motorista);
   }
 
   Future<bool> updateMotorista(MotoristaModel motorista) async {
     if (motorista.id == null) return false;
-
-    try {
-      final response = await _apiClient.put(
-        '/coleta/motoristas/${motorista.id}',
-        body: motorista.toJson(),
-      );
-
-      if (response.success) {
-        await _dao.update(motorista);
-        return true;
-      }
-    } catch (e) {
-      print('Erro ao atualizar motorista na API: $e');
-    }
-
-    await _dao.update(motorista);
-    await _syncService.queueOperation(
-      tabela: 'tb_motorista',
-      operacao: 'UPDATE',
-      registroId: motorista.id,
-      dados: motorista.toJson(),
-    );
-    return true;
+    return await _firebird.atualizarMotorista(motorista);
   }
 
   Future<bool> deleteMotorista(int id) async {
-    try {
-      await _apiClient.delete('/coleta/motoristas/$id');
-      await _dao.delete(id);
-      return true;
-    } catch (e) {
-      print('Erro ao deletar motorista na API: $e');
-    }
-
-    await _dao.delete(id);
-    await _syncService.queueOperation(
-      tabela: 'tb_motorista',
-      operacao: 'DELETE',
-      registroId: id,
-      dados: {'id': id},
-    );
-    return true;
+    return await _firebird.excluirMotorista(id);
   }
 
   /// Mock data para testes

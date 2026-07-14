@@ -52,13 +52,13 @@ class ConnectivityService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('[Sync] Iniciando sincronização de $pendingCount itens pendentes...');
+      debugPrint('[Sync] Iniciando sincronização de $pendingCount itens pendentes...');
       await _syncService.syncPendingItems();
-      print('[Sync] Sincronização concluída com sucesso');
+      debugPrint('[Sync] Sincronização concluída com sucesso');
 
       await _updatePendingCount();
     } catch (e) {
-      print('[Sync] Erro durante sincronização: $e');
+      debugPrint('[Sync] Erro durante sincronização: $e');
     } finally {
       _isSyncing = false;
       notifyListeners();
@@ -69,7 +69,7 @@ class ConnectivityService extends ChangeNotifier {
     try {
       _pendingCount = await _queueDao.countPending();
     } catch (e) {
-      print('Erro ao contar itens pendentes: $e');
+      debugPrint('Erro ao contar itens pendentes: $e');
       _pendingCount = 0;
     }
   }

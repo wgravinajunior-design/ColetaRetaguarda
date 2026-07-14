@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:ini/ini.dart';
-import 'package:path/path.dart' as p;
 
 class ConfigService extends ChangeNotifier {
   static final ConfigService _instance = ConfigService._internal();

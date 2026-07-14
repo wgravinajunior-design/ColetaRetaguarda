@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'dart:io';
+import 'core/api/http_client.dart';
 import 'features/auth/auth_service.dart';
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/main_layout.dart';
@@ -30,11 +31,17 @@ import 'features/rotas/models/rota_model.dart';
 import 'features/veiculos/viewmodels/veiculo_viewmodel.dart';
 import 'features/rotas/viewmodels/rota_viewmodel.dart';
 import 'features/coleta/viewmodels/coleta_viewmodel.dart';
-import 'features/coleta/screens/coleta_rotas_screen.dart';
-import 'features/coleta/screens/coleta_parada_screen.dart';
-import 'features/coleta/models/parada_model.dart';
+import 'features/coleta/screens/coleta_list_screen.dart';
+import 'features/coleta/screens/pagamentos_screen.dart';
+import 'features/resfriadores/viewmodels/resfriador_viewmodel.dart';
+import 'features/resfriadores/models/resfriador_model.dart';
+import 'features/resfriadores/screens/resfriador_list_screen.dart';
+import 'features/resfriadores/screens/resfriador_form_screen.dart';
+import 'features/dashboard/dashboard_screen.dart';
+import 'features/core/database/sync_queue_screen.dart';
 import 'features/core/config/config_service.dart';
 import 'features/core/services/connectivity_service.dart';
+import 'features/core/window/window_service.dart';
 import 'features/auth/config_screen.dart';
 
 void main() async {
@@ -45,6 +52,9 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
+  // Abre a janela no modo login (pequena, centralizada) no desktop
+  await WindowService.init();
+
   final configService = ConfigService();
   await configService.loadConfig();
 
@@ -53,6 +63,9 @@ void main() async {
 
   final connectivityService = ConnectivityService();
   await connectivityService.init();
+
+  final apiClient = ApiClient();
+  await apiClient.init();
 
   runApp(
     MultiProvider(
@@ -67,6 +80,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => RotaViewModel()),
         ChangeNotifierProvider(create: (_) => FinanceiroViewModel()),
         ChangeNotifierProvider(create: (_) => ColetaViewModel()),
+        ChangeNotifierProvider(create: (_) => ResfriadorViewModel()),
       ],
       child: const ColetaRetaguardaApp(),
     ),
@@ -104,7 +118,7 @@ class ColetaRetaguardaApp extends StatelessWidget {
           routes: [
             GoRoute(
               path: '/dashboard',
-              builder: (context, state) => const Scaffold(body: Center(child: Text('Dashboard'))),
+              builder: (context, state) => const DashboardScreen(),
             ),
             GoRoute(
               path: '/produtores',
@@ -145,6 +159,26 @@ class ColetaRetaguardaApp extends StatelessWidget {
                 GoRoute(path: 'novo', builder: (context, state) => const RotaFormScreen()),
                 GoRoute(path: 'editar', builder: (context, state) => RotaFormScreen(rota: state.extra as RotaModel)),
               ]
+            ),
+            GoRoute(
+              path: '/coleta',
+              builder: (context, state) => const ColetaListScreen(),
+            ),
+            GoRoute(
+              path: '/pagamentos',
+              builder: (context, state) => const PagamentosScreen(),
+            ),
+            GoRoute(
+              path: '/resfriadores',
+              builder: (context, state) => const ResfriadorListScreen(),
+              routes: [
+                GoRoute(path: 'novo', builder: (context, state) => const ResfriadorFormScreen()),
+                GoRoute(path: 'editar', builder: (context, state) => ResfriadorFormScreen(resfriador: state.extra as ResfriadorModel)),
+              ],
+            ),
+            GoRoute(
+              path: '/sync',
+              builder: (context, state) => const SyncQueueScreen(),
             ),
             GoRoute(
               path: '/financeiro',

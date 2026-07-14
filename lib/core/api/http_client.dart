@@ -65,7 +65,10 @@ class ApiClient {
   ApiClient._internal() {
     _baseUrl = 'http://localhost:3000';
     _bearerToken = '';
-    _loadToken();
+  }
+
+  Future<void> init() async {
+    await _loadToken();
   }
 
   void setBaseUrl(String url) {
@@ -108,6 +111,24 @@ class ApiClient {
       headers['Authorization'] = 'Bearer $_bearerToken';
     }
     return headers;
+  }
+
+  String get baseUrl => _baseUrl;
+
+  /// Testa se o servidor/base está acessível.
+  /// Qualquer resposta HTTP (mesmo 404) indica que o servidor respondeu.
+  /// Retorna false em caso de erro de socket (conexão recusada) ou timeout.
+  Future<bool> checkConnection({Duration timeout = const Duration(seconds: 5)}) async {
+    try {
+      final url = Uri.parse(_baseUrl);
+      _log('>>> HEALTHCHECK $url');
+      final response = await http.get(url, headers: _getHeaders()).timeout(timeout);
+      _log('<<< healthcheck ${response.statusCode}');
+      return response.statusCode > 0;
+    } catch (e) {
+      _log('!!! healthcheck falhou: $e');
+      return false;
+    }
   }
 
   Future<ApiResponse> get(
