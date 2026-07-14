@@ -164,8 +164,8 @@ class PessoaRepository {
   Future<bool> updatePessoa(PessoaModel pessoa) async {
     if (pessoa.id == null) return false;
     try {
-      await _apiClient.put('/pessoas/${pessoa.id}', pessoa.toJson());
-      return true;
+      final response = await _apiClient.put('/pessoas/${pessoa.id}', body: pessoa.toJson());
+      return response.success;
     } catch (e) {
       print('Erro ao atualizar pessoa: $e');
       return true; // Mock true

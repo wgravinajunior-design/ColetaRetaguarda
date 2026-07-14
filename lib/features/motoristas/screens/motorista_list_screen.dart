@@ -29,7 +29,7 @@ class _MotoristaListScreenState extends State<MotoristaListScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => viewModel.fetchMotoristas(),
+            onPressed: () => viewModel.loadMotoristas(),
           ),
         ],
       ),

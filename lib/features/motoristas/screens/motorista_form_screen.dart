@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import '../../produtores/models/pessoa_model.dart';
+import '../models/motorista_model.dart';
 import '../viewmodels/motorista_viewmodel.dart';
 
 class MotoristaFormScreen extends StatefulWidget {
-  final PessoaModel? motorista;
-  
+  final MotoristaModel? motorista;
+
   const MotoristaFormScreen({super.key, this.motorista});
 
   @override
@@ -25,10 +25,10 @@ class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
   @override
   void initState() {
     super.initState();
-    _nomeController = TextEditingController(text: widget.motorista?.rSocialNome ?? '');
-    _apelidoController = TextEditingController(text: widget.motorista?.fantasiaApelido ?? '');
-    _cpfController = TextEditingController(text: widget.motorista?.cnpjCpf ?? '');
-    _rgController = TextEditingController(text: widget.motorista?.ieRg ?? '');
+    _nomeController = TextEditingController(text: widget.motorista?.nome ?? '');
+    _apelidoController = TextEditingController(text: widget.motorista?.apelido ?? '');
+    _cpfController = TextEditingController(text: widget.motorista?.cpf ?? '');
+    _rgController = TextEditingController(text: widget.motorista?.rg ?? '');
     _celularController = TextEditingController(text: widget.motorista?.celular ?? '');
   }
 
@@ -45,14 +45,13 @@ class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
   void _save() async {
     if (_formKey.currentState!.validate()) {
       final viewModel = context.read<MotoristaViewModel>();
-      
-      final pessoa = PessoaModel(
+
+      final motorista = MotoristaModel(
         id: widget.motorista?.id,
-        tipoPessoa: 'F',
-        rSocialNome: _nomeController.text,
-        fantasiaApelido: _apelidoController.text,
-        cnpjCpf: _cpfController.text,
-        ieRg: _rgController.text,
+        nome: _nomeController.text,
+        apelido: _apelidoController.text,
+        cpf: _cpfController.text,
+        rg: _rgController.text,
         endereco: widget.motorista?.endereco ?? '',
         numero: widget.motorista?.numero ?? '',
         complemento: widget.motorista?.complemento ?? '',
@@ -61,15 +60,15 @@ class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
         telefone: widget.motorista?.telefone ?? '',
         celular: _celularController.text,
         email: widget.motorista?.email ?? '',
-        contato: widget.motorista?.contato ?? '',
-        referencia: widget.motorista?.referencia ?? '',
         status: widget.motorista?.status ?? 'A',
-        cliente: 'N',
-        transportador: 'S',
-        contribuinte: 'N',
       );
 
-      final success = await viewModel.saveMotorista(pessoa);
+      bool success;
+      if (widget.motorista == null) {
+        success = await viewModel.createMotorista(motorista);
+      } else {
+        success = await viewModel.updateMotorista(motorista);
+      }
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Motorista salvo com sucesso!')),
