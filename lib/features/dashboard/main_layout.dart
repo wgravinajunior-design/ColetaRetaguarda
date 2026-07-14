@@ -35,7 +35,7 @@ class MainLayout extends StatelessWidget {
                         const Icon(Icons.business_center, size: 48, color: Colors.blue),
                       const SizedBox(height: 8),
                       const Text(
-                        'Coleta ERP',
+                        'ColetaUp',
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                     ],

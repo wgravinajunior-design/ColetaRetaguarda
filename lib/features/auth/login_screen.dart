@@ -52,70 +52,100 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: Card(
-                elevation: 8,
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (logoPath.isNotEmpty && File(logoPath).existsSync())
-                        Image.file(File(logoPath), height: 100, fit: BoxFit.contain)
-                      else
-                        const Icon(Icons.business_center, size: 64, color: Colors.blue),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Coleta ERP Retaguarda',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 32),
-                      if (_errorMessage != null)
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          color: Colors.red.shade100,
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(color: Colors.red.shade900),
-                          ),
+          Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: Card(
+                      elevation: 8,
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (logoPath.isNotEmpty && File(logoPath).existsSync())
+                              Image.file(File(logoPath), height: 100, fit: BoxFit.contain)
+                            else
+                              const Icon(Icons.business_center, size: 64, color: Colors.blue),
+                            const SizedBox(height: 16),
+                            Text(
+                              'ColetaUp',
+                              style: Theme.of(context).textTheme.headlineSmall,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'v1.1.0',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+                            if (_errorMessage != null)
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                color: Colors.red.shade100,
+                                child: Text(
+                                  _errorMessage!,
+                                  style: TextStyle(color: Colors.red.shade900),
+                                ),
+                              ),
+                            const SizedBox(height: 16),
+                            TextField(
+                              controller: _usernameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Usuário',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.person),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            TextField(
+                              controller: _passwordController,
+                              obscureText: true,
+                              decoration: const InputDecoration(
+                                labelText: 'Senha',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.lock),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _handleLogin,
+                                child: _isLoading
+                                    ? const CircularProgressIndicator()
+                                    : const Text('ENTRAR'),
+                              ),
+                            ),
+                          ],
                         ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _usernameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Usuário',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.person),
-                        ),
                       ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Senha',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.lock),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _handleLogin,
-                          child: _isLoading
-                              ? const CircularProgressIndicator()
-                              : const Text('ENTRAR'),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Column(
+                  children: [
+                    Text(
+                      '---------- Desenvolvido por Go Up Sistemas ----------',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[500],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           Positioned(
             top: 16,
