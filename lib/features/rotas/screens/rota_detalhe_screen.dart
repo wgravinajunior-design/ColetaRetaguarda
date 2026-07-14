@@ -52,13 +52,13 @@ class RotaDetalheScreen extends StatelessWidget {
             _BotaoAcao(
               icon: Icons.edit,
               label: 'Editar Rota',
-              color: Colors.blue,
+              color: Colors.blue.shade400,
               onPressed: () => context.go('/rotas/editar', extra: rota),
             ),
             _BotaoAcao(
               icon: Icons.info_outline,
               label: 'Visualizar Detalhes',
-              color: Colors.green,
+              color: Colors.blue.shade400,
               onPressed: () {
                 // Mostrar bottom sheet com detalhes
                 showModalBottomSheet(
@@ -70,7 +70,7 @@ class RotaDetalheScreen extends StatelessWidget {
             _BotaoAcao(
               icon: Icons.print,
               label: 'Imprimir Rota',
-              color: Colors.orange,
+              color: Colors.blue.shade400,
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Impressão em desenvolvimento')),
@@ -80,7 +80,7 @@ class RotaDetalheScreen extends StatelessWidget {
             _BotaoAcao(
               icon: Icons.map,
               label: 'Ver Mapa',
-              color: Colors.purple,
+              color: Colors.blue.shade400,
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Abrindo mapa...')),
@@ -90,7 +90,7 @@ class RotaDetalheScreen extends StatelessWidget {
             _BotaoAcao(
               icon: Icons.edit_attributes,
               label: 'Mudar Status',
-              color: Colors.red,
+              color: Colors.blue.shade400,
               onPressed: () {
                 _mostrarDialogoStatus(context);
               },
@@ -99,17 +99,17 @@ class RotaDetalheScreen extends StatelessWidget {
             // Seção de Coleta/Paradas
             Container(
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.brown.shade300, width: 2),
+                border: Border.all(color: Colors.blue.shade200, width: 1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
                 children: [
                   Container(
-                    color: Colors.brown.shade50,
+                    color: Colors.blue.shade50,
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        const Icon(Icons.agriculture, color: Colors.brown, size: 32),
+                        const Icon(Icons.agriculture, color: Colors.blue, size: 28),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -118,7 +118,7 @@ class RotaDetalheScreen extends StatelessWidget {
                               Text(
                                 'Gerenciar Coleta',
                                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: Colors.brown,
+                                  color: Colors.blue,
                                 ),
                               ),
                               Text(
@@ -135,15 +135,13 @@ class RotaDetalheScreen extends StatelessWidget {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 120,
-                      child: Column(
-                        children: [
-                          ElevatedButton.icon(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.brown,
+                              backgroundColor: Colors.blue,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                             icon: const Icon(Icons.play_arrow),
@@ -156,10 +154,12 @@ class RotaDetalheScreen extends StatelessWidget {
                               );
                             },
                           ),
-                          const SizedBox(height: 8),
-                          ElevatedButton.icon(
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
+                              backgroundColor: Colors.blue,
                             ),
                             icon: const Icon(Icons.add),
                             label: const Text('Adicionar Parada'),
@@ -169,8 +169,8 @@ class RotaDetalheScreen extends StatelessWidget {
                               );
                             },
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
