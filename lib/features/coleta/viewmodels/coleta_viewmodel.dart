@@ -2,10 +2,12 @@ import '../models/parada_model.dart';
 import '../repositories/parada_repository.dart';
 import '../../core/viewmodels/base_viewmodel.dart';
 import '../../core/services/location_service.dart';
+import '../../../core/offline/offline_request_queue.dart';
 
 class ColetaViewModel extends BaseViewModel<ParadaModel> {
   final ParadaRepository _repository = ParadaRepository();
   final LocationService _locationService = LocationService();
+  final OfflineRequestQueue _offlineQueue = OfflineRequestQueue();
   int? _currentRotaId;
   ParadaModel? _selectedParada;
 
@@ -19,9 +21,18 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
 
   Future<void> loadParadasFromRota(int rotaId) async {
     _currentRotaId = rotaId;
+
+    final cacheKey = '/paradas'.cacheKey('rota=$rotaId');
+    final cached = cacheManager.get<List<ParadaModel>>(cacheKey);
+    if (cached != null) {
+      setItems(cached);
+      return;
+    }
+
     setLoading();
     try {
       final paradas = await _repository.getParadasByRota(rotaId);
+      cacheManager.put(cacheKey, paradas, ttl: const Duration(minutes: 5));
       setItems(paradas);
     } catch (e) {
       setError('Erro ao carregar paradas: $e');
@@ -35,9 +46,18 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
   /// Carrega todas as coletas de todas as rotas, aplicando o filtro de status.
   Future<void> loadTodasColetas({String? status}) async {
     _filtroStatus = status;
+
+    final cacheKey = '/coletas'.cacheKey('status=${status ?? ""}');
+    final cached = cacheManager.get<List<ParadaModel>>(cacheKey);
+    if (cached != null) {
+      setItems(cached);
+      return;
+    }
+
     setLoading();
     try {
       final coletas = await _repository.getTodasColetas(status: status);
+      cacheManager.put(cacheKey, coletas, ttl: const Duration(minutes: 5));
       setItems(coletas);
     } catch (e) {
       setError('Erro ao carregar coletas: $e');
@@ -53,6 +73,8 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
     setItems(List.from(novaOrdem));
     try {
       await _repository.reordenarParadas(novaOrdem.map((p) => p.id!).toList());
+      cacheManager.removePattern('/paradas');
+      cacheManager.removePattern('/coletas');
       return true;
     } catch (e) {
       setError('Erro ao salvar ordem: $e');
@@ -123,12 +145,21 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
       }
 
       _capturandoGps = false;
+      cacheManager.removePattern('/paradas');
+      cacheManager.removePattern('/coletas');
       notifyListeners();
       return true;
     } catch (e) {
       _gpsError = 'Erro ao iniciar coleta: $e';
       _capturandoGps = false;
       setError('Erro ao iniciar coleta: $e');
+      // Enfileira para offline processing
+      await _offlineQueue.enqueue(
+        OfflineRequestMethod.put,
+        '/api/paradas/${parada.id}/iniciar',
+        body: {'status': 'E'},
+        priority: 1,
+      );
       return false;
     }
   }
@@ -165,10 +196,18 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
         setItems(List.from(items));
       }
 
+      cacheManager.removePattern('/paradas');
+      cacheManager.removePattern('/coletas');
       notifyListeners();
       return true;
     } catch (e) {
       setError('Erro ao finalizar coleta: $e');
+      await _offlineQueue.enqueue(
+        OfflineRequestMethod.put,
+        '/api/paradas/${parada.id}/finalizar',
+        body: {'status': 'C', 'temperatura': temperatura, 'volume': volume},
+        priority: 1,
+      );
       return false;
     }
   }
@@ -195,10 +234,18 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
         setItems(List.from(items));
       }
 
+      cacheManager.removePattern('/paradas');
+      cacheManager.removePattern('/coletas');
       notifyListeners();
       return true;
     } catch (e) {
       setError('Erro ao recusar coleta: $e');
+      await _offlineQueue.enqueue(
+        OfflineRequestMethod.put,
+        '/api/paradas/${parada.id}/recusar',
+        body: {'status': 'R', 'justificativa': justificativa},
+        priority: 1,
+      );
       return false;
     }
   }
@@ -211,10 +258,18 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
         gpsCapturaltitude: longitude,
       );
       _selectedParada = updated;
+      cacheManager.removePattern('/paradas');
+      cacheManager.removePattern('/coletas');
       notifyListeners();
       return true;
     } catch (e) {
       setError('Erro ao registrar GPS: $e');
+      await _offlineQueue.enqueue(
+        OfflineRequestMethod.put,
+        '/api/paradas/${parada.id}/gps',
+        body: {'latitude': latitude, 'longitude': longitude},
+        priority: 2,
+      );
       return false;
     }
   }

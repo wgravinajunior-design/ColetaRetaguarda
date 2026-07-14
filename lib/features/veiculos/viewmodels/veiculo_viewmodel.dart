@@ -1,14 +1,24 @@
 import '../../core/viewmodels/base_viewmodel.dart';
 import '../models/veiculo_model.dart';
 import '../repositories/veiculo_repository.dart';
+import '../../../core/offline/offline_request_queue.dart';
 
 class VeiculoViewModel extends BaseViewModel<VeiculoModel> {
   final VeiculoRepository _repository = VeiculoRepository();
+  final OfflineRequestQueue _offlineQueue = OfflineRequestQueue();
 
   Future<void> loadVeiculos({String? query}) async {
+    final cacheKey = '/veiculos'.cacheKey('query=${query ?? ""}');
+    final cached = cacheManager.get<List<VeiculoModel>>(cacheKey);
+    if (cached != null) {
+      setItems(cached);
+      return;
+    }
+
     setLoading();
     try {
       final veiculos = await _repository.getVeiculos(query: query);
+      cacheManager.put(cacheKey, veiculos, ttl: const Duration(minutes: 10));
       setItems(veiculos);
     } catch (e) {
       setError('Erro ao carregar veículos: $e');
@@ -22,11 +32,18 @@ class VeiculoViewModel extends BaseViewModel<VeiculoModel> {
       if (novo != null) {
         items.add(novo);
         setSuccess();
+        cacheManager.removePattern('/veiculos');
         return true;
       }
       return false;
     } catch (e) {
       setError('Erro: $e');
+      await _offlineQueue.enqueue(
+        OfflineRequestMethod.post,
+        '/api/veiculos',
+        body: v.toJson(),
+        priority: 3,
+      );
       return false;
     }
   }
@@ -38,11 +55,18 @@ class VeiculoViewModel extends BaseViewModel<VeiculoModel> {
         final i = items.indexWhere((x) => x.id == v.id);
         if (i != -1) items[i] = v;
         setSuccess();
+        cacheManager.removePattern('/veiculos');
         return true;
       }
       return false;
     } catch (e) {
       setError('Erro: $e');
+      await _offlineQueue.enqueue(
+        OfflineRequestMethod.put,
+        '/api/veiculos/${v.id}',
+        body: v.toJson(),
+        priority: 3,
+      );
       return false;
     }
   }
@@ -53,11 +77,17 @@ class VeiculoViewModel extends BaseViewModel<VeiculoModel> {
       if (await _repository.deleteVeiculo(id)) {
         items.removeWhere((x) => x.id == id);
         setSuccess();
+        cacheManager.removePattern('/veiculos');
         return true;
       }
       return false;
     } catch (e) {
       setError('Erro: $e');
+      await _offlineQueue.enqueue(
+        OfflineRequestMethod.delete,
+        '/api/veiculos/$id',
+        priority: 3,
+      );
       return false;
     }
   }

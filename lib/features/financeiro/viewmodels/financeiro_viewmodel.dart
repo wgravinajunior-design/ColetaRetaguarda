@@ -2,9 +2,11 @@ import '../../core/viewmodels/base_viewmodel.dart';
 import '../../core/database/firebird_service.dart';
 import '../models/movimento_model.dart';
 import '../repositories/financeiro_repository.dart';
+import '../../../core/offline/offline_request_queue.dart';
 
 class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
   final FinanceiroRepository _repository = FinanceiroRepository();
+  final OfflineRequestQueue _offlineQueue = OfflineRequestQueue();
 
   // Contas (caixa e bancos) e filtro selecionado
   List<ContaRef> _contas = [];
@@ -26,7 +28,16 @@ class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
 
   Future<void> loadContas() async {
     try {
+      // Tenta cache primeiro
+      final cached = cacheManager.get<List<ContaRef>>('/contas'.apiGetCacheKey());
+      if (cached != null) {
+        _contas = cached;
+        notifyListeners();
+        return;
+      }
+
       _contas = await _repository.getContas();
+      cacheManager.put('/contas'.apiGetCacheKey(), _contas, ttl: const Duration(minutes: 15));
       notifyListeners();
     } catch (_) {
       _contas = [];
@@ -35,6 +46,15 @@ class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
 
   Future<void> loadMovimentos({String? tipo, int? contaId}) async {
     _contaFiltro = contaId;
+
+    // Tenta cache primeiro
+    final cacheKey = '/movimentos'.cacheKey('conta=${contaId ?? ""}&tipo=${tipo ?? ""}');
+    final cached = cacheManager.get<List<MovimentoModel>>(cacheKey);
+    if (cached != null) {
+      setItems(cached);
+      return;
+    }
+
     setLoading();
     try {
       if (_contas.isEmpty) {
@@ -42,6 +62,7 @@ class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
       }
       _saldos = await _repository.getSaldosPorConta();
       final movimentos = await _repository.getMovimentos(contaId: contaId, tipo: tipo);
+      cacheManager.put(cacheKey, movimentos, ttl: const Duration(minutes: 10));
       setItems(movimentos);
     } catch (e) {
       setError('Erro ao carregar movimentos: $e');
@@ -59,11 +80,19 @@ class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
       if (novo != null) {
         items.add(novo);
         setSuccess();
+        cacheManager.removePattern('/movimentos');
         return true;
       }
       return false;
     } catch (e) {
       setError('Erro: $e');
+      // Enfileira para processamento offline
+      await _offlineQueue.enqueue(
+        OfflineRequestMethod.post,
+        '/api/movimentos',
+        body: mov.toJson(),
+        priority: 2,
+      );
       return false;
     }
   }
@@ -75,11 +104,19 @@ class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
         final index = items.indexWhere((m) => m.id == mov.id);
         if (index != -1) items[index] = mov;
         setSuccess();
+        cacheManager.removePattern('/movimentos');
         return true;
       }
       return false;
     } catch (e) {
       setError('Erro: $e');
+      // Enfileira para processamento offline
+      await _offlineQueue.enqueue(
+        OfflineRequestMethod.put,
+        '/api/movimentos/${mov.id}',
+        body: mov.toJson(),
+        priority: 2,
+      );
       return false;
     }
   }
@@ -90,11 +127,18 @@ class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
       if (await _repository.deleteMovimento(id)) {
         items.removeWhere((m) => m.id == id);
         setSuccess();
+        cacheManager.removePattern('/movimentos');
         return true;
       }
       return false;
     } catch (e) {
       setError('Erro: $e');
+      // Enfileira para processamento offline
+      await _offlineQueue.enqueue(
+        OfflineRequestMethod.delete,
+        '/api/movimentos/$id',
+        priority: 2,
+      );
       return false;
     }
   }
