@@ -24,10 +24,10 @@ class MotoristaRepository {
             .toList();
       }
 
-      return [];
+      return getMockMotoristas();
     } catch (e) {
       print('Erro ao buscar motoristas: $e');
-      rethrow;
+      return getMockMotoristas();
     }
   }
 
@@ -43,7 +43,7 @@ class MotoristaRepository {
       return null;
     } catch (e) {
       print('Erro ao buscar motorista $id: $e');
-      rethrow;
+      return null;
     }
   }
 
@@ -62,15 +62,13 @@ class MotoristaRepository {
       return null;
     } catch (e) {
       print('Erro ao criar motorista: $e');
-      rethrow;
+      return null;
     }
   }
 
   /// Atualiza motorista existente
   Future<bool> updateMotorista(MotoristaModel motorista) async {
-    if (motorista.id == null) {
-      throw ArgumentError('ID do motorista não pode ser nulo');
-    }
+    if (motorista.id == null) return false;
 
     try {
       final response = await _apiClient.put(
@@ -81,7 +79,7 @@ class MotoristaRepository {
       return response.success;
     } catch (e) {
       print('Erro ao atualizar motorista: $e');
-      rethrow;
+      return false;
     }
   }
 
@@ -92,7 +90,7 @@ class MotoristaRepository {
       return response.success;
     } catch (e) {
       print('Erro ao deletar motorista: $e');
-      rethrow;
+      return false;
     }
   }
 

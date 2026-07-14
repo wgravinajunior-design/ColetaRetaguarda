@@ -1,104 +1,73 @@
-import 'package:flutter/foundation.dart';
-import '../../produtores/models/pessoa_model.dart';
-import '../../produtores/repositories/pessoa_repository.dart';
+import '../../core/viewmodels/base_viewmodel.dart';
+import '../models/colaborador_model.dart';
+import '../repositories/colaborador_repository.dart';
 
-class ColaboradorViewModel extends ChangeNotifier {
-  final PessoaRepository _repository = PessoaRepository();
-  
-  List<PessoaModel> colaboradores = [];
-  bool isLoading = false;
-  String? errorMessage;
+class ColaboradorViewModel extends BaseViewModel<ColaboradorModel> {
+  final ColaboradorRepository _repository = ColaboradorRepository();
 
-  Future<void> fetchColaboradores() async {
-    isLoading = true;
-    errorMessage = null;
-    notifyListeners();
-
+  Future<void> loadColaboradores({String? query}) async {
+    setLoading();
     try {
-      final data = await _repository.getProdutores(); 
-      // Filtro para funcionário
-      colaboradores = data.where((p) => p.tipoPessoa == 'F' && p.transportador == 'N').toList();
-      
+      final colaboradores = await _repository.getColaboradores(query: query);
       if (colaboradores.isEmpty) {
-        colaboradores.add(
-          PessoaModel(
-            id: 20,
-            tipoPessoa: 'F',
-            rSocialNome: 'Ana Carolina Administrativo',
-            fantasiaApelido: 'Ana',
-            cnpjCpf: '444.555.666-77',
-            ieRg: 'MG-998877',
-            endereco: 'Rua Central',
-            numero: '45',
-            complemento: '',
-            bairro: 'Centro',
-            cep: '35000-000',
-            telefone: '(31) 3333-1234',
-            celular: '',
-            email: 'ana@empresa.com',
-            contato: '',
-            referencia: '',
-            status: 'A',
-            cliente: 'N',
-            transportador: 'N',
-            contribuinte: 'N',
-          )
-        );
+        setItems(_repository.getMockColaboradores());
+      } else {
+        setItems(colaboradores);
       }
     } catch (e) {
-      errorMessage = 'Erro ao carregar colaboradores: $e';
-    } finally {
-      isLoading = false;
-      notifyListeners();
+      setError('Erro ao carregar colaboradores: $e');
     }
   }
 
-  Future<bool> saveColaborador(PessoaModel colaborador) async {
-    isLoading = true;
-    notifyListeners();
-
-    bool success = false;
+  Future<bool> createColaborador(ColaboradorModel c) async {
+    setLoading();
     try {
-      if (colaborador.id == null) {
-        final novo = await _repository.createPessoa(colaborador);
-        if (novo != null) {
-          colaboradores.add(novo);
-          success = true;
-        }
-      } else {
-        success = await _repository.updatePessoa(colaborador);
-        if (success) {
-          final index = colaboradores.indexWhere((p) => p.id == colaborador.id);
-          if (index != -1) {
-            colaboradores[index] = colaborador;
-          }
-        }
+      final novo = await _repository.createColaborador(c);
+      if (novo != null) {
+        items.add(novo);
+        setSuccess();
+        return true;
       }
+      setError('Erro ao criar colaborador');
+      return false;
     } catch (e) {
-      errorMessage = 'Erro ao salvar colaborador: $e';
-    } finally {
-      isLoading = false;
-      notifyListeners();
+      setError('Erro: $e');
+      return false;
     }
-    return success;
+  }
+
+  Future<bool> updateColaborador(ColaboradorModel c) async {
+    setLoading();
+    try {
+      final success = await _repository.updateColaborador(c);
+      if (success) {
+        final index = items.indexWhere((x) => x.id == c.id);
+        if (index != -1) items[index] = c;
+        setSuccess();
+        return true;
+      }
+      setError('Erro ao atualizar');
+      return false;
+    } catch (e) {
+      setError('Erro: $e');
+      return false;
+    }
   }
 
   Future<bool> deleteColaborador(int id) async {
-    isLoading = true;
-    notifyListeners();
-
-    bool success = false;
+    setLoading();
     try {
-      success = await _repository.deletePessoa(id);
+      final success = await _repository.deleteColaborador(id);
       if (success) {
-        colaboradores.removeWhere((p) => p.id == id);
+        items.removeWhere((x) => x.id == id);
+        setSuccess();
+        return true;
       }
+      setError('Erro ao deletar');
+      return false;
     } catch (e) {
-      errorMessage = 'Erro ao deletar colaborador: $e';
-    } finally {
-      isLoading = false;
-      notifyListeners();
+      setError('Erro: $e');
+      return false;
     }
-    return success;
   }
 }
