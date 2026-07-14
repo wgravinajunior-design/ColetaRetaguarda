@@ -1,77 +1,68 @@
-import 'package:flutter/foundation.dart';
+import '../../core/viewmodels/base_viewmodel.dart';
 import '../models/pessoa_model.dart';
 import '../repositories/pessoa_repository.dart';
 
-class ProdutorViewModel extends ChangeNotifier {
+class ProdutorViewModel extends BaseViewModel<PessoaModel> {
   final PessoaRepository _repository = PessoaRepository();
-  
-  List<PessoaModel> produtores = [];
-  bool isLoading = false;
-  String? errorMessage;
 
-  Future<void> fetchProdutores() async {
-    isLoading = true;
-    errorMessage = null;
-    notifyListeners();
-
+  Future<void> loadProdutores({String? query}) async {
+    setLoading();
     try {
-      final data = await _repository.getProdutores();
-      // Filtrar apenas produtores (clientes), mas mock já traz certo
-      produtores = data.where((p) => p.cliente == 'S').toList();
+      final produtores = await _repository.getProdutores(query: query);
+      if (produtores.isEmpty) {
+        setItems(_repository.getMockProdutores());
+      } else {
+        setItems(produtores);
+      }
     } catch (e) {
-      errorMessage = 'Erro ao carregar produtores: $e';
-    } finally {
-      isLoading = false;
-      notifyListeners();
+      setError('Erro ao carregar produtores: $e');
     }
   }
 
-  Future<bool> saveProdutor(PessoaModel produtor) async {
-    isLoading = true;
-    notifyListeners();
-
-    bool success = false;
+  Future<bool> createProdutor(PessoaModel produtor) async {
+    setLoading();
     try {
-      if (produtor.id == null) {
-        final newProdutor = await _repository.createPessoa(produtor);
-        if (newProdutor != null) {
-          produtores.add(newProdutor);
-          success = true;
-        }
-      } else {
-        success = await _repository.updatePessoa(produtor);
-        if (success) {
-          final index = produtores.indexWhere((p) => p.id == produtor.id);
-          if (index != -1) {
-            produtores[index] = produtor;
-          }
-        }
+      final novo = await _repository.createPessoa(produtor);
+      if (novo != null) {
+        items.add(novo);
+        setSuccess();
+        return true;
       }
+      return false;
     } catch (e) {
-      errorMessage = 'Erro ao salvar produtor: $e';
-    } finally {
-      isLoading = false;
-      notifyListeners();
+      setError('Erro: $e');
+      return false;
     }
-    return success;
+  }
+
+  Future<bool> updateProdutor(PessoaModel produtor) async {
+    setLoading();
+    try {
+      if (await _repository.updatePessoa(produtor)) {
+        final index = items.indexWhere((p) => p.id == produtor.id);
+        if (index != -1) items[index] = produtor;
+        setSuccess();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      setError('Erro: $e');
+      return false;
+    }
   }
 
   Future<bool> deleteProdutor(int id) async {
-    isLoading = true;
-    notifyListeners();
-
-    bool success = false;
+    setLoading();
     try {
-      success = await _repository.deletePessoa(id);
-      if (success) {
-        produtores.removeWhere((p) => p.id == id);
+      if (await _repository.deletePessoa(id)) {
+        items.removeWhere((p) => p.id == id);
+        setSuccess();
+        return true;
       }
+      return false;
     } catch (e) {
-      errorMessage = 'Erro ao deletar produtor: $e';
-    } finally {
-      isLoading = false;
-      notifyListeners();
+      setError('Erro: $e');
+      return false;
     }
-    return success;
   }
 }

@@ -1,80 +1,61 @@
-import 'package:flutter/foundation.dart';
+import '../../core/viewmodels/base_viewmodel.dart';
 import '../models/movimento_model.dart';
 import '../repositories/financeiro_repository.dart';
 
-class FinanceiroViewModel extends ChangeNotifier {
+class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
   final FinanceiroRepository _repository = FinanceiroRepository();
-  
-  List<MovimentoModel> movimentos = [];
-  bool isLoading = false;
-  String? errorMessage;
 
-  double get totalReceitas => movimentos
-      .where((m) => m.tipo == 'C' && m.status != 'C') // Considerando 'C' como cancelado, talvez usar m.status == 'C' (Confirmado). Ajustar conforme BD.
-      .fold(0, (sum, m) => sum + m.valor);
+  double get totalReceitas =>
+      items.where((m) => m.tipo == 'C').fold(0, (sum, m) => sum + m.valor);
 
-  double get totalDespesas => movimentos
-      .where((m) => m.tipo == 'D')
-      .fold(0, (sum, m) => sum + m.valor);
+  double get totalDespesas =>
+      items.where((m) => m.tipo == 'D').fold(0, (sum, m) => sum + m.valor);
 
   double get saldoFinal => totalReceitas - totalDespesas;
 
-  Future<void> fetchMovimentos() async {
-    isLoading = true;
-    errorMessage = null;
-    notifyListeners();
-
+  Future<void> loadMovimentos({String? tipo}) async {
+    setLoading();
     try {
-      movimentos = await _repository.getMovimentos();
+      var movimentos = await _repository.getMovimentos();
+      if (tipo != null) {
+        movimentos = movimentos.where((m) => m.tipo == tipo).toList();
+      }
+      setItems(movimentos.isEmpty
+          ? _repository.getMockMovimentos()
+          : movimentos);
     } catch (e) {
-      errorMessage = 'Erro ao carregar movimentos: $e';
-    } finally {
-      isLoading = false;
-      notifyListeners();
+      setError('Erro ao carregar movimentos: $e');
     }
   }
 
-  Future<bool> saveMovimento(MovimentoModel mov) async {
-    isLoading = true;
-    notifyListeners();
-
-    bool success = false;
+  Future<bool> createMovimento(MovimentoModel mov) async {
+    setLoading();
     try {
-      if (mov.id == null) {
-        final novo = await _repository.createMovimento(mov);
-        if (novo != null) {
-          movimentos.add(novo);
-          success = true;
-        }
-      } else {
-        // A API de Delphi parece ter PUT para update
-        // Para mock estamos apenas reinserindo
+      final novo = await _repository.createMovimento(mov);
+      if (novo != null) {
+        items.add(novo);
+        setSuccess();
+        return true;
       }
+      return false;
     } catch (e) {
-      errorMessage = 'Erro ao salvar movimento: $e';
-    } finally {
-      isLoading = false;
-      notifyListeners();
+      setError('Erro: $e');
+      return false;
     }
-    return success;
   }
 
   Future<bool> deleteMovimento(int id) async {
-    isLoading = true;
-    notifyListeners();
-
-    bool success = false;
+    setLoading();
     try {
-      success = await _repository.deleteMovimento(id);
-      if (success) {
-        movimentos.removeWhere((m) => m.id == id);
+      if (await _repository.deleteMovimento(id)) {
+        items.removeWhere((m) => m.id == id);
+        setSuccess();
+        return true;
       }
+      return false;
     } catch (e) {
-      errorMessage = 'Erro ao deletar movimento: $e';
-    } finally {
-      isLoading = false;
-      notifyListeners();
+      setError('Erro: $e');
+      return false;
     }
-    return success;
   }
 }
