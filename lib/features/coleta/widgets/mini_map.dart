@@ -50,7 +50,6 @@ class MiniMap extends StatelessWidget {
                     initialZoom: 15,
                     maxZoom: 19,
                     minZoom: 5,
-                    interactiveFlags: InteractiveFlag.none,
                   ),
                   children: [
                     TileLayer(
