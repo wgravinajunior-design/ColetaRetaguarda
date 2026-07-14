@@ -88,7 +88,7 @@ class RotaDetalheScreen extends StatelessWidget {
               },
             ),
             _BotaoAcao(
-              icon: Icons.traffic_light,
+              icon: Icons.edit_attributes,
               label: 'Mudar Status',
               color: Colors.red,
               onPressed: () {
