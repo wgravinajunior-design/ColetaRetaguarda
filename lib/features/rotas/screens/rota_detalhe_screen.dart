@@ -43,57 +43,72 @@ class RotaDetalheScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            // Botões de ação
+            // Botões de ação em grid
             Text(
               'Ações',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
-            _BotaoAcao(
-              icon: Icons.edit,
-              label: 'Editar Rota',
-              color: Colors.blue.shade400,
-              onPressed: () => context.go('/rotas/editar', extra: rota),
-            ),
-            _BotaoAcao(
-              icon: Icons.info_outline,
-              label: 'Visualizar Detalhes',
-              color: Colors.blue.shade400,
-              onPressed: () {
-                // Mostrar bottom sheet com detalhes
-                showModalBottomSheet(
-                  context: context,
-                  builder: (context) => _DetalhesBottomSheet(rota: rota),
-                );
-              },
-            ),
-            _BotaoAcao(
-              icon: Icons.print,
-              label: 'Imprimir Rota',
-              color: Colors.blue.shade400,
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Impressão em desenvolvimento')),
-                );
-              },
-            ),
-            _BotaoAcao(
-              icon: Icons.map,
-              label: 'Ver Mapa',
-              color: Colors.blue.shade400,
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Abrindo mapa...')),
-                );
-              },
-            ),
-            _BotaoAcao(
-              icon: Icons.edit_attributes,
-              label: 'Mudar Status',
-              color: Colors.blue.shade400,
-              onPressed: () {
-                _mostrarDialogoStatus(context);
-              },
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                SizedBox(
+                  width: (MediaQuery.of(context).size.width - 48) / 2,
+                  child: _BotaoAcaoCompacto(
+                    icon: Icons.edit,
+                    label: 'Editar',
+                    onPressed: () => context.go('/rotas/editar', extra: rota),
+                  ),
+                ),
+                SizedBox(
+                  width: (MediaQuery.of(context).size.width - 48) / 2,
+                  child: _BotaoAcaoCompacto(
+                    icon: Icons.info_outline,
+                    label: 'Detalhes',
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        builder: (context) => _DetalhesBottomSheet(rota: rota),
+                      );
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: (MediaQuery.of(context).size.width - 48) / 2,
+                  child: _BotaoAcaoCompacto(
+                    icon: Icons.print,
+                    label: 'Imprimir',
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Impressão em desenvolvimento')),
+                      );
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: (MediaQuery.of(context).size.width - 48) / 2,
+                  child: _BotaoAcaoCompacto(
+                    icon: Icons.map,
+                    label: 'Mapa',
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Abrindo mapa...')),
+                      );
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: (MediaQuery.of(context).size.width - 48) / 2,
+                  child: _BotaoAcaoCompacto(
+                    icon: Icons.edit_attributes,
+                    label: 'Status',
+                    onPressed: () {
+                      _mostrarDialogoStatus(context);
+                    },
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             // Seção de Coleta/Paradas
@@ -242,32 +257,51 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-class _BotaoAcao extends StatelessWidget {
+class _BotaoAcaoCompacto extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color color;
   final VoidCallback onPressed;
 
-  const _BotaoAcao({
+  const _BotaoAcaoCompacto({
     required this.icon,
     required this.label,
-    required this.color,
     required this.onPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          padding: const EdgeInsets.symmetric(vertical: 12),
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.blue.shade300, width: 1.5),
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Colors.blue.shade400, size: 24),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.blue.shade600,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-        icon: Icon(icon),
-        label: Text(label),
-        onPressed: onPressed,
-      ).expand(),
+      ),
     );
   }
 }
@@ -386,11 +420,3 @@ class _StatusOption extends StatelessWidget {
   }
 }
 
-extension on Widget {
-  Widget expand() {
-    return SizedBox(
-      width: double.infinity,
-      child: this,
-    );
-  }
-}
