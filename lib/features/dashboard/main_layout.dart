@@ -75,7 +75,7 @@ class MainLayout extends StatelessWidget {
                   icon: Icons.agriculture,
                   title: 'Coleta',
                   color: Colors.brown,
-                  onTap: () => context.go('/coleta'),
+                  onTap: () => context.go('/rotas'),
                 ),
                 _MenuTile(
                   icon: Icons.attach_money,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../viewmodels/rota_viewmodel.dart';
+import '../../coleta/screens/coleta_rotas_screen.dart';
 
 class RotaListScreen extends StatefulWidget {
   const RotaListScreen({super.key});
@@ -66,12 +67,6 @@ class _RotaListScreenState extends State<RotaListScreen> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.play_arrow),
-                    label: const Text('Coletar'),
-                    onPressed: () => context.go('/coleta', extra: r),
-                  ),
-                  const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.edit),
                     onPressed: () => context.go('/rotas/editar', extra: r),
@@ -102,6 +97,13 @@ class _RotaListScreenState extends State<RotaListScreen> {
                   ),
                 ],
               ),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => ColetaRotasScreen(rota: r),
+                  ),
+                );
+              },
             ),
           ),
         );
