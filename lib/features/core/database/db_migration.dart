@@ -127,6 +127,30 @@ const String createMovimentoTable = '''
   );
 ''';
 
+const String createParadaTable = '''
+  CREATE TABLE IF NOT EXISTS tb_parada (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rota_id INTEGER NOT NULL,
+    pessoa_id INTEGER,
+    pessoa_nome TEXT NOT NULL,
+    cnpj_cpf TEXT,
+    endereco TEXT,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    status TEXT DEFAULT 'P',
+    temperatura REAL,
+    volume REAL,
+    justificativa TEXT,
+    gps_captura_latitude REAL,
+    gps_captura_longitude REAL,
+    horario_chegada TEXT,
+    horario_saida TEXT,
+    data_cadastro TEXT,
+    data_atualizacao TEXT,
+    FOREIGN KEY (rota_id) REFERENCES tb_rota(id)
+  );
+''';
+
 const String createSyncQueueTable = '''
   CREATE TABLE IF NOT EXISTS tb_sync_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -149,6 +173,7 @@ List<String> getMigrations() {
     createColaboradorTable,
     createVeiculoTable,
     createRotaTable,
+    createParadaTable,
     createMovimentoTable,
     createSyncQueueTable,
   ];

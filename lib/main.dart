@@ -29,6 +29,10 @@ import 'features/veiculos/models/veiculo_model.dart';
 import 'features/rotas/models/rota_model.dart';
 import 'features/veiculos/viewmodels/veiculo_viewmodel.dart';
 import 'features/rotas/viewmodels/rota_viewmodel.dart';
+import 'features/coleta/viewmodels/coleta_viewmodel.dart';
+import 'features/coleta/screens/coleta_rotas_screen.dart';
+import 'features/coleta/screens/coleta_parada_screen.dart';
+import 'features/coleta/models/parada_model.dart';
 import 'features/core/config/config_service.dart';
 import 'features/core/services/connectivity_service.dart';
 import 'features/auth/config_screen.dart';
@@ -62,6 +66,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => VeiculoViewModel()),
         ChangeNotifierProvider(create: (_) => RotaViewModel()),
         ChangeNotifierProvider(create: (_) => FinanceiroViewModel()),
+        ChangeNotifierProvider(create: (_) => ColetaViewModel()),
       ],
       child: const ColetaRetaguardaApp(),
     ),
@@ -140,6 +145,16 @@ class ColetaRetaguardaApp extends StatelessWidget {
                 GoRoute(path: 'novo', builder: (context, state) => const RotaFormScreen()),
                 GoRoute(path: 'editar', builder: (context, state) => RotaFormScreen(rota: state.extra as RotaModel)),
               ]
+            ),
+            GoRoute(
+              path: '/coleta',
+              builder: (context, state) => ColetaRotasScreen(rota: state.extra as RotaModel),
+              routes: [
+                GoRoute(
+                  path: 'parada/:id',
+                  builder: (context, state) => ColetaParadaScreen(parada: state.extra as ParadaModel),
+                ),
+              ],
             ),
             GoRoute(
               path: '/financeiro',

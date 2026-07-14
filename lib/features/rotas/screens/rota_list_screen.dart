@@ -54,43 +54,55 @@ class _RotaListScreenState extends State<RotaListScreen> {
 
     return ListView.builder(
       itemCount: viewModel.items.length,
+      padding: const EdgeInsets.all(8),
       itemBuilder: (context, index) {
         final r = viewModel.items[index];
-        return ListTile(
-          title: Text(r.descricao),
-          subtitle: Text('${r.paradas} paradas • ${r.kmEstimado?.toStringAsFixed(1) ?? '0'} km'),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () => context.go('/rotas/editar', extra: r),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () async {
-                  if (await showDialog(
-                    context: context,
-                    builder: (c) => AlertDialog(
-                      title: const Text('Confirmar'),
-                      content: const Text('Deletar rota?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(c, false),
-                          child: const Text('Cancelar'),
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: ListTile(
+              title: Text(r.descricao, style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('${r.paradas} paradas • ${r.kmEstimado?.toStringAsFixed(1) ?? '0'} km'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Coletar'),
+                    onPressed: () => context.go('/coleta', extra: r),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () => context.go('/rotas/editar', extra: r),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () async {
+                      if (await showDialog(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          title: const Text('Confirmar'),
+                          content: const Text('Deletar rota?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(c, false),
+                              child: const Text('Cancelar'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(c, true),
+                              child: const Text('Deletar'),
+                            ),
+                          ],
                         ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(c, true),
-                          child: const Text('Deletar'),
-                        ),
-                      ],
-                    ),
-                  )) {
-                    if (r.id != null) viewModel.deleteRota(r.id!);
-                  }
-                },
+                      )) {
+                        if (r.id != null) viewModel.deleteRota(r.id!);
+                      }
+                    },
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
