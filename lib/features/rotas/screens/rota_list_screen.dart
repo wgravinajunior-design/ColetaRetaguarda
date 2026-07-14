@@ -1,40 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import '../viewmodels/colaborador_viewmodel.dart';
+import '../viewmodels/rota_viewmodel.dart';
 
-class ColaboradorListScreen extends StatefulWidget {
-  const ColaboradorListScreen({super.key});
+class RotaListScreen extends StatefulWidget {
+  const RotaListScreen({super.key});
 
   @override
-  State<ColaboradorListScreen> createState() => _ColaboradorListScreenState();
+  State<RotaListScreen> createState() => _RotaListScreenState();
 }
 
-class _ColaboradorListScreenState extends State<ColaboradorListScreen> {
+class _RotaListScreenState extends State<RotaListScreen> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ColaboradorViewModel>().loadColaboradores();
+      context.read<RotaViewModel>().loadRotas();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<ColaboradorViewModel>();
+    final viewModel = context.watch<RotaViewModel>();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestão de Colaboradores'),
+        title: const Text('Gestão de Rotas'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => viewModel.fetchColaboradores(),
+            onPressed: () => viewModel.loadRotas(),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.go('/colaboradores/novo'),
+        onPressed: () => context.go('/rotas/novo'),
         child: const Icon(Icons.add),
       ),
       body: viewModel.isLoading
@@ -43,42 +43,37 @@ class _ColaboradorListScreenState extends State<ColaboradorListScreen> {
     );
   }
 
-  Widget _buildBody(ColaboradorViewModel viewModel) {
+  Widget _buildBody(RotaViewModel viewModel) {
     if (viewModel.errorMessage != null) {
-      return Center(
-        child: Text(
-          viewModel.errorMessage!,
-          style: const TextStyle(color: Colors.red),
-        ),
-      );
+      return Center(child: Text(viewModel.errorMessage!));
     }
 
     if (viewModel.items.isEmpty) {
-      return const Center(child: Text('Nenhum colaborador encontrado.'));
+      return const Center(child: Text('Nenhuma rota encontrada.'));
     }
 
     return ListView.builder(
       itemCount: viewModel.items.length,
       itemBuilder: (context, index) {
-        final colab = viewModel.items[index];
+        final r = viewModel.items[index];
         return ListTile(
-          title: Text(colab.nome ?? '-'),
-          subtitle: Text(colab.cpf),
+          title: Text(r.descricao),
+          subtitle: Text('${r.paradas} paradas • ${r.kmEstimado?.toStringAsFixed(1) ?? '0'} km'),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: const Icon(Icons.edit, color: Colors.blue),
-                onPressed: () => context.go('/colaboradores/editar', extra: colab),
+                icon: const Icon(Icons.edit),
+                onPressed: () => context.go('/rotas/editar', extra: r),
               ),
               IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
+                icon: const Icon(Icons.delete),
                 onPressed: () async {
-                  final confirm = await showDialog<bool>(
+                  if (await showDialog(
                     context: context,
                     builder: (c) => AlertDialog(
                       title: const Text('Confirmar'),
-                      content: const Text('Deletar colaborador?'),
+                      content: const Text('Deletar rota?'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(c, false),
@@ -90,9 +85,8 @@ class _ColaboradorListScreenState extends State<ColaboradorListScreen> {
                         ),
                       ],
                     ),
-                  );
-                  if (confirm == true && colab.id != null) {
-                    viewModel.deleteColaborador(colab.id!);
+                  )) {
+                    if (r.id != null) viewModel.deleteRota(r.id!);
                   }
                 },
               ),

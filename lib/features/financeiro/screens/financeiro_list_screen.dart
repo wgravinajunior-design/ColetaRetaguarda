@@ -18,7 +18,7 @@ class _FinanceiroListScreenState extends State<FinanceiroListScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<FinanceiroViewModel>().fetchMovimentos();
+      context.read<FinanceiroViewModel>().loadMovimentos();
     });
   }
 
@@ -92,7 +92,7 @@ class _FinanceiroListScreenState extends State<FinanceiroListScreen> {
     if (viewModel.errorMessage != null) {
       return Center(child: Text(viewModel.errorMessage!, style: const TextStyle(color: Colors.red)));
     }
-    if (viewModel.movimentos.isEmpty) {
+    if (viewModel.items.isEmpty) {
       return const Center(child: Text('Nenhum movimento encontrado.'));
     }
 
@@ -112,7 +112,7 @@ class _FinanceiroListScreenState extends State<FinanceiroListScreen> {
               DataColumn(label: Text('Status')),
               DataColumn(label: Text('Ações')),
             ],
-            rows: viewModel.movimentos.map((mov) {
+            rows: viewModel.items.map((mov) {
               final isReceita = mov.tipo == 'C';
               return DataRow(cells: [
                 DataCell(Text(mov.id?.toString() ?? '-')),

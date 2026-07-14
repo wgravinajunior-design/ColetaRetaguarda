@@ -15,7 +15,7 @@ class _ProdutorListScreenState extends State<ProdutorListScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ProdutorViewModel>().fetchProdutores();
+      context.read<ProdutorViewModel>().loadProdutores();
     });
   }
 
