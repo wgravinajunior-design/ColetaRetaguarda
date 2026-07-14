@@ -157,7 +157,7 @@ class _ColetaListScreenState extends State<ColetaListScreen> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.brown,
+                      backgroundColor: Colors.blue,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     icon: const Icon(Icons.play_arrow),
