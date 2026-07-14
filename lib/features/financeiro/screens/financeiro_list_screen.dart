@@ -57,10 +57,10 @@ class _FinanceiroListScreenState extends State<FinanceiroListScreen> {
   Widget _buildSaldosPorConta(FinanceiroViewModel viewModel) {
     if (viewModel.saldos.isEmpty) return const SizedBox.shrink();
     return SizedBox(
-      height: 96,
+      height: 100,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         itemCount: viewModel.saldos.length,
         separatorBuilder: (_, _) => const SizedBox(width: 12),
         itemBuilder: (context, i) {
@@ -68,8 +68,8 @@ class _FinanceiroListScreenState extends State<FinanceiroListScreen> {
           final cor = s.isBanco ? Colors.indigo : Colors.teal;
           final saldoNeg = s.saldo < 0;
           return Container(
-            width: 200,
-            padding: const EdgeInsets.all(12),
+            width: 180,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(10),
@@ -78,27 +78,25 @@ class _FinanceiroListScreenState extends State<FinanceiroListScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(s.isBanco ? Icons.account_balance : Icons.point_of_sale, size: 16, color: cor),
-                    const SizedBox(width: 6),
-                    Expanded(
+                    Icon(s.isBanco ? Icons.account_balance : Icons.point_of_sale, size: 14, color: cor),
+                    const SizedBox(width: 4),
+                    Flexible(
                       child: Text(s.descricao,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11)),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(s.isBanco ? 'Banco' : 'Caixa', style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-                const SizedBox(height: 4),
+                Text(s.isBanco ? 'Banco' : 'Caixa', style: TextStyle(fontSize: 9, color: Colors.grey[600])),
                 Text(
                   formatCurrency.format(s.saldo),
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: saldoNeg ? Colors.red : Colors.green[800],
                   ),

@@ -36,4 +36,16 @@ class ResfriadorModel {
       status: status ?? this.status,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'numeroId': numeroId,
+      'marcaModelo': marcaModelo,
+      'capacidadeLitros': capacidadeLitros,
+      'anoFabricacao': anoFabricacao,
+      'ultimaManutencao': ultimaManutencao,
+      'status': status,
+    };
+  }
 }

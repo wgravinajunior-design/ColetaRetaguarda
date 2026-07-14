@@ -57,6 +57,7 @@ dependencies:
   signature: ^5.5.0
   image_picker: ^1.1.2
   window_manager: ^0.4.3
+  crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:

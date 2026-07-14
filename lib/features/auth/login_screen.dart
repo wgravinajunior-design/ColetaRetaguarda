@@ -36,174 +36,197 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
+    // Validação de entrada
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text;
+
+    if (username.isEmpty) {
+      setState(() {
+        _errorMessage = 'Digite seu usuário';
+      });
+      return;
+    }
+
+    if (password.isEmpty) {
+      setState(() {
+        _errorMessage = 'Digite sua senha';
+      });
+      return;
+    }
+
+    if (password.length < 3) {
+      setState(() {
+        _errorMessage = 'Senha inválida';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
-    // 1) Não permite login se a base de dados (Firebird) configurada não conectar
-    final conectado = await DbConnection().testarConexao();
-    if (!conectado) {
+    try {
+      // 1) Valida conexão com banco de dados (Firebird)
+      final conectado = await DbConnection().testarConexao();
+      if (!conectado) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+          _errorMessage =
+              'Sem conexão com a base de dados configurada.\n'
+              'Verifique host, porta e caminho nas Configurações.';
+        });
+        return;
+      }
+
+      // 2) Autentica contra a base de dados
+      if (!mounted) return;
+      final authService = context.read<AuthService>();
+      final loginError = await authService.login(username, password);
+
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage =
-            'Sem conexão com a base de dados configurada.\n'
-            'Verifique host, porta e caminho da base nas Configurações.';
       });
-      return;
-    }
 
-    // 2) Valida credenciais na própria base
-    if (!mounted) return;
-    final authService = context.read<AuthService>();
-    final loginError = await authService.login(
-      _usernameController.text,
-      _passwordController.text,
-    );
-
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (loginError == null) {
-      // Login bem-sucedido
-      // Sistema entra em tela cheia após autenticar
-      await WindowService.modoApp();
-      if (mounted) context.go('/dashboard');
-    } else {
-      setState(() {
-        _errorMessage = loginError;
-      });
+      if (loginError == null) {
+        // Login bem-sucedido
+        // Sistema entra em tela cheia após autenticar
+        await WindowService.modoApp();
+        if (mounted) context.go('/dashboard');
+      } else {
+        setState(() {
+          _errorMessage = loginError;
+          // Limpa campo de senha por segurança
+          _passwordController.clear();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Erro inesperado durante login. Tente novamente.';
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Escuta as alterações no ConfigService para atualizar a logo automaticamente após salvar
     final config = context.watch<ConfigService>();
     final logoPath = config.logoPath;
 
     return Scaffold(
       body: Stack(
         children: [
-          Column(
-            children: [
-              Expanded(
-                child: Center(
-                  child: ConstrainedBox(
+          SingleChildScrollView(
+            child: Container(
+              constraints: BoxConstraints(minHeight: MediaQuery.of(context).size.height),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 400),
                     child: Card(
                       elevation: 8,
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
                       child: Padding(
-                        padding: const EdgeInsets.all(32),
+                        padding: const EdgeInsets.all(24),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (logoPath.isNotEmpty && File(logoPath).existsSync())
-                              Image.file(File(logoPath), height: 100, fit: BoxFit.contain)
+                              Image.file(File(logoPath), height: 80, fit: BoxFit.contain)
                             else
-                              const Icon(Icons.business_center, size: 64, color: Colors.blue),
-                            const SizedBox(height: 16),
-                            Text(
-                              'ColetaUp',
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'v1.17.0',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            const SizedBox(height: 32),
+                              const Icon(Icons.business_center, size: 56, color: Colors.blue),
+                            const SizedBox(height: 12),
+                            Text('ColetaUp', style: Theme.of(context).textTheme.headlineSmall),
+                            const SizedBox(height: 4),
+                            Text('v1.17.0', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                            const SizedBox(height: 20),
                             if (_errorMessage != null)
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 color: Colors.red.shade100,
-                                child: Text(
-                                  _errorMessage!,
-                                  style: TextStyle(color: Colors.red.shade900),
-                                ),
+                                child: Text(_errorMessage!, style: TextStyle(color: Colors.red.shade900, fontSize: 12)),
                               ),
-                            const SizedBox(height: 16),
+                            if (_errorMessage != null) const SizedBox(height: 12),
                             TextField(
                               controller: _usernameController,
+                              enabled: !_isLoading,
+                              onSubmitted: (_) => !_isLoading ? _handleLogin() : null,
                               decoration: const InputDecoration(
                                 labelText: 'Usuário',
                                 border: OutlineInputBorder(),
                                 prefixIcon: Icon(Icons.person),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                helperText: 'Digite seu nome de usuário',
                               ),
+                              textInputAction: TextInputAction.next,
+                              autofocus: true,
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             TextField(
                               controller: _passwordController,
+                              enabled: !_isLoading,
                               obscureText: true,
+                              onSubmitted: (_) => !_isLoading ? _handleLogin() : null,
                               decoration: const InputDecoration(
                                 labelText: 'Senha',
                                 border: OutlineInputBorder(),
                                 prefixIcon: Icon(Icons.lock),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                helperText: 'Sua senha segura',
                               ),
+                              textInputAction: TextInputAction.done,
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 16),
                             SizedBox(
                               width: double.infinity,
-                              height: 48,
+                              height: 44,
                               child: ElevatedButton(
                                 onPressed: _isLoading ? null : _handleLogin,
                                 child: _isLoading
-                                    ? const CircularProgressIndicator()
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
                                     : const Text('ENTRAR'),
                               ),
                             ),
                             const SizedBox(height: 8),
                             TextButton.icon(
-                              icon: const Icon(Icons.storage, size: 18),
-                              label: const Text('Conferir banco de dados'),
+                              icon: const Icon(Icons.storage, size: 16),
+                              label: const Text('Conferir banco de dados', style: TextStyle(fontSize: 12)),
                               onPressed: () {
                                 Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const DatabaseInspectorScreen(),
-                                  ),
+                                  MaterialPageRoute(builder: (_) => const DatabaseInspectorScreen()),
                                 );
                               },
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              '---------- Desenvolvido por Go Up Sistemas ----------',
+                              style: TextStyle(fontSize: 10, color: Colors.grey[500], fontStyle: FontStyle.italic),
                             ),
                           ],
                         ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Column(
-                  children: [
-                    Text(
-                      '---------- Desenvolvido por Go Up Sistemas ----------',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[500],
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
           Positioned(
-            top: 16,
-            right: 16,
+            top: 12,
+            right: 12,
             child: IconButton(
-              icon: const Icon(Icons.settings),
+              icon: const Icon(Icons.settings, size: 24),
               tooltip: 'Configurações do Sistema',
-              onPressed: () {
-                context.push('/config');
-              },
+              onPressed: () => context.push('/config'),
             ),
           ),
         ],
