@@ -11,72 +11,121 @@ class RotaRepository {
 
   Future<List<RotaModel>> getRotas({String? query}) async {
     try {
-      final params = <String, String>{};
-      if (query != null) params['search'] = query;
-
       final response = await _apiClient.get(
-        ApiEndpoints.rotas,
-        queryParams: params.isNotEmpty ? params : null,
+        '/coleta/rotas${query != null ? '?q=$query' : ''}',
       );
 
       if (response.success && response.data is List) {
-        return (response.data as List)
+        final rotas = (response.data as List)
             .map((e) => RotaModel.fromJson(e as Map<String, dynamic>))
             .toList();
+        for (var r in rotas) {
+          await _dao.insert(r);
+        }
+        return rotas;
       }
-      return getMockRotas();
     } catch (e) {
-      return getMockRotas();
+      print('Erro ao carregar rotas da API: $e');
     }
+
+    try {
+      return await _dao.getAll();
+    } catch (e) {
+      print('Erro ao carregar rotas do SQLite: $e');
+    }
+
+    return getMockRotas();
   }
 
   Future<RotaModel?> getRotaById(int id) async {
     try {
-      final response = await _apiClient.get('${ApiEndpoints.rotas}/$id');
+      final response = await _apiClient.get('/coleta/rotas/$id');
       if (response.success && response.data != null) {
-        return RotaModel.fromJson(response.data as Map<String, dynamic>);
+        final rota = RotaModel.fromJson(response.data as Map<String, dynamic>);
+        await _dao.insert(rota);
+        return rota;
       }
-      return null;
     } catch (e) {
-      return null;
+      print('Erro ao carregar rota $id da API: $e');
     }
+
+    try {
+      return await _dao.getById(id);
+    } catch (e) {
+      print('Erro ao carregar rota $id do SQLite: $e');
+    }
+
+    return null;
   }
 
   Future<RotaModel?> createRota(RotaModel r) async {
     try {
       final response = await _apiClient.post(
-        ApiEndpoints.rotas,
+        '/coleta/rotas',
         body: r.toJson(),
       );
       if (response.success && response.data != null) {
-        return RotaModel.fromJson(response.data as Map<String, dynamic>);
+        final created = RotaModel.fromJson(response.data as Map<String, dynamic>);
+        await _dao.insert(created);
+        return created;
       }
-      return null;
     } catch (e) {
-      return null;
+      print('Erro ao criar rota na API: $e');
     }
+
+    r.id ??= DateTime.now().millisecondsSinceEpoch;
+    await _dao.insert(r);
+    await _syncService.queueOperation(
+      tabela: 'tb_rota',
+      operacao: 'CREATE',
+      registroId: r.id,
+      dados: r.toJson(),
+    );
+    return r;
   }
 
   Future<bool> updateRota(RotaModel r) async {
     if (r.id == null) return false;
     try {
       final response = await _apiClient.put(
-        '${ApiEndpoints.rotas}/${r.id}',
+        '/coleta/rotas/${r.id}',
         body: r.toJson(),
       );
-      return response.success;
+      if (response.success) {
+        await _dao.update(r);
+        return true;
+      }
     } catch (e) {
-      return false;
+      print('Erro ao atualizar rota na API: $e');
     }
+
+    await _dao.update(r);
+    await _syncService.queueOperation(
+      tabela: 'tb_rota',
+      operacao: 'UPDATE',
+      registroId: r.id,
+      dados: r.toJson(),
+    );
+    return true;
   }
 
   Future<bool> deleteRota(int id) async {
     try {
-      final response = await _apiClient.delete('${ApiEndpoints.rotas}/$id');
-      return response.success;
+      await _apiClient.delete('/coleta/rotas/$id');
+      await _dao.delete(id);
+      return true;
     } catch (e) {
-      return false;
+      print('Erro ao deletar rota na API: $e');
     }
+
+    await _dao.delete(id);
+    await _syncService.queueOperation(
+      tabela: 'tb_rota',
+      operacao: 'DELETE',
+      registroId: id,
+      dados: {'id': id},
+    );
+    return true;
   }
 
   List<RotaModel> getMockRotas() {

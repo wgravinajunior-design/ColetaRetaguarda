@@ -1,85 +1,42 @@
 import '../../../core/api/http_client.dart';
-import '../../core/database/db_connection.dart';
+import '../../core/database/daos/movimento_dao.dart';
+import '../../core/database/sync_service.dart';
 import '../models/movimento_model.dart';
 
 class FinanceiroRepository {
   final ApiClient _apiClient = ApiClient();
+  final MovimentoDao _dao = MovimentoDao();
+  final SyncService _syncService = SyncService();
 
   Future<List<MovimentoModel>> getMovimentos({String? tipo, String? dataInicio, String? dataFim}) async {
-    final result = <MovimentoModel>[];
     try {
-      final db = await DbConnection().db;
-      final q = db.query();
-      
-      // Montar a query dinamicamente. Por padrão, no Delphi vimos que a tabela é TB_MOVIMENTO_CONTA
-      String sql = 'SELECT * FROM TB_MOVIMENTO_CONTA WHERE 1=1';
-      final params = <dynamic>[];
-      
-      if (tipo != null && tipo.isNotEmpty) {
-        // Ajuste conforme o nome da coluna real no seu banco, presumindo MVC_TIPO
-        sql += ' AND MVC_TIPO = ?';
-        params.add(tipo);
+      final response = await _apiClient.get(
+        '/coleta/movimento-conta${tipo != null ? '?tipo=$tipo' : ''}',
+      );
+
+      if (response.success && response.data is List) {
+        final movimentos = (response.data as List)
+            .map((m) => MovimentoModel.fromJson(m as Map<String, dynamic>))
+            .toList();
+        for (var m in movimentos) {
+          await _dao.insert(m);
+        }
+        return movimentos;
       }
-      // Se houver campos de data na sua tabela, adicionar filtro aqui. Ex: MVC_DATA
-      
-      await q.openCursor(sql: sql, parameters: params);
-      
-      await for (var row in q.rows()) {
-        result.add(MovimentoModel(
-          // Tratar o id, assumindo MVC_ID ou ID
-          id: int.tryParse(row['MVC_ID']?.toString() ?? row['ID']?.toString() ?? '0') ?? 0,
-          tipo: row['MVC_TIPO']?.toString() ?? '',
-          status: row['MVC_STATUS']?.toString() ?? '',
-          conta: int.tryParse(row['MVC_CONTA']?.toString() ?? '0') ?? 0,
-          contaNome: 'Conta ${row['MVC_CONTA']}', // Se tiver inner join, pega nome
-          valor: double.tryParse(row['MVC_VALOR']?.toString() ?? '0') ?? 0.0,
-          dtEmissao: row['MVC_DATA_EMISSAO']?.toString() ?? '',
-          dtCompensado: row['MVC_DATA_COMPENSADO']?.toString() ?? '',
-          historico: row['MVC_HISTORICO']?.toString() ?? '',
-        ));
-      }
-      
-      await q.close();
-      return result;
     } catch (e) {
-      print('Erro real ao carregar movimentos do Firebird: $e');
+      print('Erro ao carregar movimentos da API: $e');
     }
 
-    // Mock fallback para testes sem API
-    return [
-      MovimentoModel(
-        id: 1,
-        tipo: 'C',
-        status: 'C',
-        conta: 1,
-        contaNome: 'Banco do Brasil',
-        valor: 1500.0,
-        dtEmissao: '2026-07-01',
-        dtCompensado: '2026-07-01',
-        historico: 'Venda de Soja',
-      ),
-      MovimentoModel(
-        id: 2,
-        tipo: 'D',
-        status: 'C',
-        conta: 1,
-        contaNome: 'Banco do Brasil',
-        valor: 500.0,
-        dtEmissao: '2026-07-05',
-        dtCompensado: '2026-07-05',
-        historico: 'Pagamento de Frete',
-      ),
-      MovimentoModel(
-        id: 3,
-        tipo: 'D',
-        status: 'P',
-        conta: 1,
-        contaNome: 'Banco do Brasil',
-        valor: 250.0,
-        dtEmissao: '2026-07-10',
-        historico: 'Manutenção Veículo',
-      ),
-    ];
+    try {
+      if (tipo != null) {
+        return await _dao.getByTipo(tipo);
+      }
+      return await _dao.getAll();
+    } catch (e) {
+      print('Erro ao carregar movimentos do SQLite: $e');
+    }
+
+    return getMockMovimentos();
   }
 
   Future<MovimentoModel?> createMovimento(MovimentoModel mov) async {
@@ -89,24 +46,24 @@ class FinanceiroRepository {
         body: mov.toJson(),
       );
 
-      if (response.success) {
-        return mov;
+      if (response.success && response.data != null) {
+        final created = MovimentoModel.fromJson(response.data as Map<String, dynamic>);
+        await _dao.insert(created);
+        return created;
       }
     } catch (e) {
-      print('Erro ao criar movimento: $e');
+      print('Erro ao criar movimento na API: $e');
     }
-    
-    // Mock success
-    return MovimentoModel(
-      id: DateTime.now().millisecondsSinceEpoch % 10000,
-      tipo: mov.tipo,
-      conta: mov.conta,
-      contaNome: mov.contaNome ?? 'Conta Padrão',
-      valor: mov.valor,
-      dtEmissao: mov.dtEmissao,
-      dtCompensado: mov.dtCompensado,
-      historico: mov.historico,
+
+    mov.id ??= DateTime.now().millisecondsSinceEpoch;
+    await _dao.insert(mov);
+    await _syncService.queueOperation(
+      tabela: 'tb_movimento_conta',
+      operacao: 'CREATE',
+      registroId: mov.id,
+      dados: mov.toJson(),
     );
+    return mov;
   }
 
   Future<bool> updateMovimento(MovimentoModel mov) async {
@@ -116,21 +73,41 @@ class FinanceiroRepository {
         '/coleta/movimento-conta/${mov.id}',
         body: mov.toJson(),
       );
-      return response.success;
+      if (response.success) {
+        await _dao.update(mov);
+        return true;
+      }
     } catch (e) {
-      print('Erro ao atualizar movimento: $e');
+      print('Erro ao atualizar movimento na API: $e');
     }
-    return true; // Mock success
+
+    await _dao.update(mov);
+    await _syncService.queueOperation(
+      tabela: 'tb_movimento_conta',
+      operacao: 'UPDATE',
+      registroId: mov.id,
+      dados: mov.toJson(),
+    );
+    return true;
   }
 
   Future<bool> deleteMovimento(int id) async {
     try {
       await _apiClient.delete('/coleta/movimento-conta/$id');
+      await _dao.delete(id);
       return true;
     } catch (e) {
-      print('Erro ao deletar movimento: $e');
+      print('Erro ao deletar movimento na API: $e');
     }
-    return true; // Mock success
+
+    await _dao.delete(id);
+    await _syncService.queueOperation(
+      tabela: 'tb_movimento_conta',
+      operacao: 'DELETE',
+      registroId: id,
+      dados: {'id': id},
+    );
+    return true;
   }
 
   List<MovimentoModel> getMockMovimentos() {
