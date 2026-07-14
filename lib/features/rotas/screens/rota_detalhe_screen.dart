@@ -43,27 +43,23 @@ class RotaDetalheScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            // Botões de ação em grid
+            // Botões de ação em linha horizontal
             Text(
               'Ações',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                SizedBox(
-                  width: (MediaQuery.of(context).size.width - 48) / 2,
-                  child: _BotaoAcaoCompacto(
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _BotaoAcaoPequeno(
                     icon: Icons.edit,
                     label: 'Editar',
                     onPressed: () => context.go('/rotas/editar', extra: rota),
                   ),
-                ),
-                SizedBox(
-                  width: (MediaQuery.of(context).size.width - 48) / 2,
-                  child: _BotaoAcaoCompacto(
+                  const SizedBox(width: 8),
+                  _BotaoAcaoPequeno(
                     icon: Icons.info_outline,
                     label: 'Detalhes',
                     onPressed: () {
@@ -73,10 +69,8 @@ class RotaDetalheScreen extends StatelessWidget {
                       );
                     },
                   ),
-                ),
-                SizedBox(
-                  width: (MediaQuery.of(context).size.width - 48) / 2,
-                  child: _BotaoAcaoCompacto(
+                  const SizedBox(width: 8),
+                  _BotaoAcaoPequeno(
                     icon: Icons.print,
                     label: 'Imprimir',
                     onPressed: () {
@@ -85,10 +79,8 @@ class RotaDetalheScreen extends StatelessWidget {
                       );
                     },
                   ),
-                ),
-                SizedBox(
-                  width: (MediaQuery.of(context).size.width - 48) / 2,
-                  child: _BotaoAcaoCompacto(
+                  const SizedBox(width: 8),
+                  _BotaoAcaoPequeno(
                     icon: Icons.map,
                     label: 'Mapa',
                     onPressed: () {
@@ -97,18 +89,16 @@ class RotaDetalheScreen extends StatelessWidget {
                       );
                     },
                   ),
-                ),
-                SizedBox(
-                  width: (MediaQuery.of(context).size.width - 48) / 2,
-                  child: _BotaoAcaoCompacto(
+                  const SizedBox(width: 8),
+                  _BotaoAcaoPequeno(
                     icon: Icons.edit_attributes,
                     label: 'Status',
                     onPressed: () {
                       _mostrarDialogoStatus(context);
                     },
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 24),
             // Seção de Coleta/Paradas
@@ -257,12 +247,12 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-class _BotaoAcaoCompacto extends StatelessWidget {
+class _BotaoAcaoPequeno extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
 
-  const _BotaoAcaoCompacto({
+  const _BotaoAcaoPequeno({
     required this.icon,
     required this.label,
     required this.onPressed,
@@ -272,28 +262,29 @@ class _BotaoAcaoCompacto extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.blue.shade300, width: 1.5),
-        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade300, width: 1),
+        borderRadius: BorderRadius.circular(6),
         color: Colors.white,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, color: Colors.blue.shade400, size: 24),
-                const SizedBox(height: 4),
+                Icon(icon, color: Colors.blue.shade400, size: 20),
+                const SizedBox(height: 2),
                 Text(
                   label,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.blue.shade600,
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
