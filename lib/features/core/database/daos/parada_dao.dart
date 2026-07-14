@@ -1,5 +1,5 @@
 import '../base_dao.dart';
-import '../../coleta/models/parada_model.dart';
+import '../../../coleta/models/parada_model.dart';
 
 class ParadaDao extends BaseDao<ParadaModel> {
   @override
@@ -77,12 +77,12 @@ class ParadaDao extends BaseDao<ParadaModel> {
 
   Future<int> updateStatus(int paradaId, String newStatus, {double? temperatura, double? volume, String? justificativa}) async {
     final db = await database;
-    final map = {
+    final map = <String, dynamic>{
       'status': newStatus,
       'data_atualizacao': DateTime.now().toIso8601String(),
     };
-    if (temperatura != null) map['temperatura'] = temperatura;
-    if (volume != null) map['volume'] = volume;
+    if (temperatura != null) map['temperatura'] = temperatura as dynamic;
+    if (volume != null) map['volume'] = volume as dynamic;
     if (justificativa != null) map['justificativa'] = justificativa;
 
     return db.update(

@@ -13,7 +13,7 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
 
   Future<void> loadParadasFromRota(int rotaId) async {
     _currentRotaId = rotaId;
-    setLoading(true);
+    setLoading();
     try {
       final paradas = await _repository.getParadasByRota(rotaId);
       setItems(paradas);
