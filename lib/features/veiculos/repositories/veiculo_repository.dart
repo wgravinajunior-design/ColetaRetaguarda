@@ -1,5 +1,4 @@
 import '../../../core/api/http_client.dart';
-import '../../../core/api/api_endpoints.dart';
 import '../../core/database/daos/veiculo_dao.dart';
 import '../../core/database/sync_service.dart';
 import '../models/veiculo_model.dart';
