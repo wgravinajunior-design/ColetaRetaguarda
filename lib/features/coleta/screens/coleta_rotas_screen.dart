@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../models/parada_model.dart';
 import '../viewmodels/coleta_viewmodel.dart';
+import '../screens/mapa_rota_screen.dart';
 import '../../rotas/models/rota_model.dart';
 
 class ColetaRotasScreen extends StatefulWidget {
@@ -28,6 +29,22 @@ class _ColetaRotasScreenState extends State<ColetaRotasScreen> {
       appBar: AppBar(
         title: Text('Coleta - ${widget.rota.descricao}'),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.map),
+            tooltip: 'Ver Mapa da Rota',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => MapaRotaScreen(
+                    paradas: viewModel.items,
+                    rotaDescricao: widget.rota.descricao,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Consumer<ColetaViewModel>(
         builder: (context, viewModel, _) {

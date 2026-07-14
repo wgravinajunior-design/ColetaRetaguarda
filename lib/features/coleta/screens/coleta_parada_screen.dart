@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/parada_model.dart';
 import '../viewmodels/coleta_viewmodel.dart';
+import '../widgets/mini_map.dart';
 
 class ColetaParadaScreen extends StatefulWidget {
   final ParadaModel parada;
@@ -244,6 +245,13 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
                   ],
                 ),
               ),
+            ),
+            const SizedBox(height: 16),
+            // Mini mapa da parada
+            MiniMap(
+              latitude: widget.parada.latitude,
+              longitude: widget.parada.longitude,
+              title: 'Localização da Parada',
             ),
             const SizedBox(height: 16),
             // Dados de coleta
