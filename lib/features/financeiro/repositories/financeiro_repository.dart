@@ -109,6 +109,20 @@ class FinanceiroRepository {
     );
   }
 
+  Future<bool> updateMovimento(MovimentoModel mov) async {
+    if (mov.id == null) return false;
+    try {
+      final response = await _apiClient.put(
+        '/coleta/movimento-conta/${mov.id}',
+        body: mov.toJson(),
+      );
+      return response.success;
+    } catch (e) {
+      print('Erro ao atualizar movimento: $e');
+    }
+    return true; // Mock success
+  }
+
   Future<bool> deleteMovimento(int id) async {
     try {
       await _apiClient.delete('/coleta/movimento-conta/$id');
@@ -117,5 +131,42 @@ class FinanceiroRepository {
       print('Erro ao deletar movimento: $e');
     }
     return true; // Mock success
+  }
+
+  List<MovimentoModel> getMockMovimentos() {
+    return [
+      MovimentoModel(
+        id: 1,
+        tipo: 'C',
+        status: 'C',
+        conta: 1,
+        contaNome: 'Banco do Brasil',
+        valor: 1500.0,
+        dtEmissao: '2026-07-01',
+        dtCompensado: '2026-07-01',
+        historico: 'Venda de Soja',
+      ),
+      MovimentoModel(
+        id: 2,
+        tipo: 'D',
+        status: 'C',
+        conta: 1,
+        contaNome: 'Banco do Brasil',
+        valor: 500.0,
+        dtEmissao: '2026-07-05',
+        dtCompensado: '2026-07-05',
+        historico: 'Pagamento de Frete',
+      ),
+      MovimentoModel(
+        id: 3,
+        tipo: 'D',
+        status: 'P',
+        conta: 1,
+        contaNome: 'Banco do Brasil',
+        valor: 250.0,
+        dtEmissao: '2026-07-10',
+        historico: 'Manutenção Veículo',
+      ),
+    ];
   }
 }

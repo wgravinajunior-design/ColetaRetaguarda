@@ -29,7 +29,7 @@ class _ProdutorListScreenState extends State<ProdutorListScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => viewModel.fetchProdutores(),
+            onPressed: () => viewModel.loadProdutores(),
           ),
         ],
       ),
@@ -53,7 +53,7 @@ class _ProdutorListScreenState extends State<ProdutorListScreen> {
       );
     }
 
-    if (viewModel.produtores.isEmpty) {
+    if (viewModel.items.isEmpty) {
       return const Center(child: Text('Nenhum produtor encontrado.'));
     }
 
@@ -70,7 +70,7 @@ class _ProdutorListScreenState extends State<ProdutorListScreen> {
             DataColumn(label: Text('Telefone')),
             DataColumn(label: Text('Ações')),
           ],
-          rows: viewModel.produtores.map((prod) {
+          rows: viewModel.items.map((prod) {
             return DataRow(cells: [
               DataCell(Text(prod.id?.toString() ?? '-')),
               DataCell(Text(prod.rSocialNome)),

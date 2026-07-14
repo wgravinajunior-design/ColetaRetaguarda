@@ -45,13 +45,25 @@ class _ProdutorFormScreenState extends State<ProdutorFormScreen> {
 
     final p = PessoaModel(
       id: widget.produtor?.id,
+      tipoPessoa: 'P',
       rSocialNome: nomeController.text,
+      fantasiaApelido: '',
       cnpjCpf: cnpjCpfController.text,
+      ieRg: '',
       endereco: enderecoController.text,
+      numero: '',
+      complemento: '',
+      bairro: '',
+      cep: '',
+      telefone: '',
       celular: celularController.text,
       email: emailController.text,
+      contato: '',
+      referencia: '',
       status: 'A',
-      cliente: true,
+      cliente: 'S',
+      transportador: 'N',
+      contribuinte: 'N',
     );
 
     bool success;

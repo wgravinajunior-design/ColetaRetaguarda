@@ -29,7 +29,7 @@ class _ColaboradorListScreenState extends State<ColaboradorListScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => viewModel.fetchColaboradores(),
+            onPressed: () => viewModel.loadColaboradores(),
           ),
         ],
       ),

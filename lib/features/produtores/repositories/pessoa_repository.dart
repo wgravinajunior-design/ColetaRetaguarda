@@ -5,7 +5,7 @@ import '../models/pessoa_model.dart';
 class PessoaRepository {
   final ApiClient _apiClient = ApiClient();
 
-  Future<List<PessoaModel>> getProdutores() async {
+  Future<List<PessoaModel>> getProdutores({String? query}) async {
     final result = <PessoaModel>[];
     try {
       final db = await DbConnection().db;
@@ -181,6 +181,8 @@ class PessoaRepository {
       return true; // Mock true
     }
   }
+
+  List<PessoaModel> getMockProdutores() => _getMockProdutores();
 
   List<PessoaModel> _getMockProdutores() {
     return [

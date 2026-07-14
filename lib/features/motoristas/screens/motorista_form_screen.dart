@@ -16,6 +16,7 @@ class MotoristaFormScreen extends StatefulWidget {
 class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
   late TextEditingController nomeController;
   late TextEditingController cpfController;
+  late TextEditingController rgController;
   late TextEditingController cnhController;
   late TextEditingController celularController;
   late TextEditingController emailController;
@@ -25,6 +26,7 @@ class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
     super.initState();
     nomeController = TextEditingController(text: widget.motorista?.nome ?? '');
     cpfController = TextEditingController(text: widget.motorista?.cpf ?? '');
+    rgController = TextEditingController(text: widget.motorista?.rg ?? '');
     cnhController = TextEditingController(text: widget.motorista?.cnh ?? '');
     celularController = TextEditingController(text: widget.motorista?.celular ?? '');
     emailController = TextEditingController(text: widget.motorista?.email ?? '');
@@ -34,6 +36,7 @@ class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
   void dispose() {
     nomeController.dispose();
     cpfController.dispose();
+    rgController.dispose();
     cnhController.dispose();
     celularController.dispose();
     emailController.dispose();
@@ -47,6 +50,7 @@ class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
       id: widget.motorista?.id,
       nome: nomeController.text,
       cpf: cpfController.text,
+      rg: rgController.text,
       cnh: cnhController.text,
       celular: celularController.text,
       email: emailController.text,
@@ -86,6 +90,11 @@ class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
             TextField(
               controller: cpfController,
               decoration: const InputDecoration(labelText: 'CPF'),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: rgController,
+              decoration: const InputDecoration(labelText: 'RG'),
             ),
             const SizedBox(height: 16),
             TextField(

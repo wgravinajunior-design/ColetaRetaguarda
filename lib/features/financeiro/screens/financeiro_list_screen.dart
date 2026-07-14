@@ -32,7 +32,7 @@ class _FinanceiroListScreenState extends State<FinanceiroListScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => viewModel.fetchMovimentos(),
+            onPressed: () => viewModel.loadMovimentos(),
           ),
         ],
       ),

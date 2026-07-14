@@ -44,6 +44,22 @@ class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
     }
   }
 
+  Future<bool> updateMovimento(MovimentoModel mov) async {
+    setLoading();
+    try {
+      if (await _repository.updateMovimento(mov)) {
+        final index = items.indexWhere((m) => m.id == mov.id);
+        if (index != -1) items[index] = mov;
+        setSuccess();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      setError('Erro: $e');
+      return false;
+    }
+  }
+
   Future<bool> deleteMovimento(int id) async {
     setLoading();
     try {
