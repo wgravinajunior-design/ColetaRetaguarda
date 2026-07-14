@@ -30,6 +30,7 @@ import 'features/rotas/models/rota_model.dart';
 import 'features/veiculos/viewmodels/veiculo_viewmodel.dart';
 import 'features/rotas/viewmodels/rota_viewmodel.dart';
 import 'features/coleta/viewmodels/coleta_viewmodel.dart';
+import 'features/coleta/screens/coleta_list_screen.dart';
 import 'features/coleta/screens/coleta_rotas_screen.dart';
 import 'features/coleta/screens/coleta_parada_screen.dart';
 import 'features/coleta/models/parada_model.dart';
@@ -148,13 +149,7 @@ class ColetaRetaguardaApp extends StatelessWidget {
             ),
             GoRoute(
               path: '/coleta',
-              builder: (context, state) => ColetaRotasScreen(rota: state.extra as RotaModel),
-              routes: [
-                GoRoute(
-                  path: 'parada/:id',
-                  builder: (context, state) => ColetaParadaScreen(parada: state.extra as ParadaModel),
-                ),
-              ],
+              builder: (context, state) => const ColetaListScreen(),
             ),
             GoRoute(
               path: '/financeiro',

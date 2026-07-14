@@ -1,4 +1,4 @@
-const int dbVersion = 1;
+const int dbVersion = 2;
 
 // Schema SQL para criar tabelas SQLite
 const String createPessoaTable = '''
