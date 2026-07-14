@@ -57,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // 2) Valida credenciais na própria base
     if (!mounted) return;
     final authService = context.read<AuthService>();
-    final success = await authService.login(
+    final loginError = await authService.login(
       _usernameController.text,
       _passwordController.text,
     );
@@ -67,13 +67,14 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = false;
     });
 
-    if (success) {
+    if (loginError == null) {
+      // Login bem-sucedido
       // Sistema entra em tela cheia após autenticar
       await WindowService.modoApp();
       if (mounted) context.go('/dashboard');
     } else {
       setState(() {
-        _errorMessage = 'Credenciais inválidas.';
+        _errorMessage = loginError;
       });
     }
   }

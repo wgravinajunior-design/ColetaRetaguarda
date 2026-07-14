@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -63,8 +64,31 @@ class ApiClient {
   }
 
   ApiClient._internal() {
+    // Padrão: localhost em desenvolvimento
+    // Será sobrescrito por ConfigService em produção
     _baseUrl = 'http://localhost:3000';
     _bearerToken = '';
+  }
+
+  /// Força HTTPS em produção
+  /// Valida que a URL não use HTTP em release builds
+  void validateAndSetBaseUrl(String url) {
+    if (url.isEmpty) {
+      throw ArgumentError('Base URL não pode estar vazia');
+    }
+
+    // Em release, exigir HTTPS (exceto localhost)
+    if (!url.contains('localhost') && !url.contains('127.0.0.1')) {
+      if (url.startsWith('http://')) {
+        throw ArgumentError('HTTPS obrigatório em produção: $url');
+      }
+      if (!url.startsWith('https://')) {
+        throw ArgumentError('URL inválida (deve começar com https://): $url');
+      }
+    }
+
+    _baseUrl = url;
+    _log('Base URL validada: $_baseUrl');
   }
 
   Future<void> init() async {
@@ -98,8 +122,7 @@ class ApiClient {
     final timestamp = DateTime.now().toString().split('.')[0];
     final logMsg = '[$timestamp] $message';
     _onLog?.call(logMsg);
-    // ignore: avoid_print
-    print(logMsg);
+    debugPrint(logMsg);
   }
 
   Map<String, String> _getHeaders() {
