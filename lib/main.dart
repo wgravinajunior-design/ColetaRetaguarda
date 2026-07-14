@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'dart:io';
 import 'features/auth/auth_service.dart';
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/main_layout.dart';
@@ -33,6 +35,11 @@ import 'features/auth/config_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (Platform.isWindows || Platform.isLinux) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
 
   final configService = ConfigService();
   await configService.loadConfig();

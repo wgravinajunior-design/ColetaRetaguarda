@@ -4,7 +4,7 @@ import 'sqlite_service.dart';
 abstract class BaseDao<T> {
   String get tableName;
 
-  Database get database => SqliteService().database as Database;
+  Future<Database> get database => SqliteService().database;
 
   T fromMap(Map<String, dynamic> map);
   Map<String, dynamic> toMap(T obj);
