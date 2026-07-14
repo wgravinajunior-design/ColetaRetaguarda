@@ -5,9 +5,9 @@ class RotaModel {
   int? motoristaId;
   int? veiculoId;
   String status; // 'A'=Ativo, 'P'=Parada, 'I'=Inativo
-  DateTime? dataPrevista;
-  DateTime? dataInicio;
-  DateTime? dataFim;
+  String? dataPrevista;
+  String? dataInicio;
+  String? dataFim;
   int? paradas;
   double? kmEstimado;
   double? kmRealizado;

@@ -1,5 +1,5 @@
 import 'dart:convert';
-import '../api/http_client.dart';
+import '../../../core/api/http_client.dart';
 import 'daos/sync_queue_dao.dart';
 
 class SyncService {
