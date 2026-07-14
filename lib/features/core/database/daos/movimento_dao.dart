@@ -1,5 +1,5 @@
 import '../base_dao.dart';
-import '../../financeiro/models/movimento_model.dart';
+import '../../../financeiro/models/movimento_model.dart';
 
 class MovimentoDao extends BaseDao<MovimentoModel> {
   @override

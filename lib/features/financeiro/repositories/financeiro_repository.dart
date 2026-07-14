@@ -55,15 +55,25 @@ class FinanceiroRepository {
       print('Erro ao criar movimento na API: $e');
     }
 
-    mov.id ??= DateTime.now().millisecondsSinceEpoch;
-    await _dao.insert(mov);
+    final movWithId = mov.id != null ? mov : MovimentoModel(
+      id: DateTime.now().millisecondsSinceEpoch,
+      tipo: mov.tipo,
+      status: mov.status,
+      conta: mov.conta,
+      contaNome: mov.contaNome,
+      valor: mov.valor,
+      dtEmissao: mov.dtEmissao,
+      dtCompensado: mov.dtCompensado,
+      historico: mov.historico,
+    );
+    await _dao.insert(movWithId);
     await _syncService.queueOperation(
       tabela: 'tb_movimento_conta',
       operacao: 'CREATE',
-      registroId: mov.id,
-      dados: mov.toJson(),
+      registroId: movWithId.id,
+      dados: movWithId.toJson(),
     );
-    return mov;
+    return movWithId;
   }
 
   Future<bool> updateMovimento(MovimentoModel mov) async {

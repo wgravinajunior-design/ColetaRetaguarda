@@ -28,22 +28,27 @@ import 'features/rotas/models/rota_model.dart';
 import 'features/veiculos/viewmodels/veiculo_viewmodel.dart';
 import 'features/rotas/viewmodels/rota_viewmodel.dart';
 import 'features/core/config/config_service.dart';
+import 'features/core/services/connectivity_service.dart';
 import 'features/auth/config_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   final configService = ConfigService();
   await configService.loadConfig();
 
   final authService = AuthService();
   await authService.checkLoginStatus();
 
+  final connectivityService = ConnectivityService();
+  await connectivityService.init();
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: configService),
         ChangeNotifierProvider.value(value: authService),
+        ChangeNotifierProvider.value(value: connectivityService),
         ChangeNotifierProvider(create: (_) => ProdutorViewModel()),
         ChangeNotifierProvider(create: (_) => MotoristaViewModel()),
         ChangeNotifierProvider(create: (_) => ColaboradorViewModel()),

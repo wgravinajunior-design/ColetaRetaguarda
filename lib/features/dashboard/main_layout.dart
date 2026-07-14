@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../auth/auth_service.dart';
 import '../core/config/config_service.dart';
+import '../core/widgets/sync_status_widget.dart';
 
 class MainLayout extends StatelessWidget {
   final Widget child;
@@ -81,7 +82,12 @@ class MainLayout extends StatelessWidget {
           ),
           // Área de Conteúdo
           Expanded(
-            child: child,
+            child: Column(
+              children: [
+                const SyncStatusWidget(),
+                Expanded(child: child),
+              ],
+            ),
           ),
         ],
       ),

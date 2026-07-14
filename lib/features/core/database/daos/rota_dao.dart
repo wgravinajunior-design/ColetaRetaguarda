@@ -1,5 +1,5 @@
 import '../base_dao.dart';
-import '../../rotas/models/rota_model.dart';
+import '../../../rotas/models/rota_model.dart';
 
 class RotaDao extends BaseDao<RotaModel> {
   @override

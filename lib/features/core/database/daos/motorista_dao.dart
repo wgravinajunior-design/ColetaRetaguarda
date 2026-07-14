@@ -1,5 +1,5 @@
 import '../base_dao.dart';
-import '../../motoristas/models/motorista_model.dart';
+import '../../../motoristas/models/motorista_model.dart';
 
 class MotoristaDao extends BaseDao<MotoristaModel> {
   @override
