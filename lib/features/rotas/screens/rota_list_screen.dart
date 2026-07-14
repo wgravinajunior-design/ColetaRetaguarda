@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../viewmodels/rota_viewmodel.dart';
-import '../../coleta/screens/coleta_rotas_screen.dart';
+import 'rota_detalhe_screen.dart';
 
 class RotaListScreen extends StatefulWidget {
   const RotaListScreen({super.key});
@@ -100,7 +100,7 @@ class _RotaListScreenState extends State<RotaListScreen> {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => ColetaRotasScreen(rota: r),
+                    builder: (context) => RotaDetalheScreen(rota: r),
                   ),
                 );
               },
