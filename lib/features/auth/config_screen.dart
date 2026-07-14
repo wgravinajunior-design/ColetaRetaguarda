@@ -170,12 +170,14 @@ class _ConfigScreenState extends State<ConfigScreen> {
                       ],
                     ),
                     const SizedBox(height: 32),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.spaceBetween,
                       children: [
                         ElevatedButton.icon(
                           onPressed: _isTesting ? null : _testConnection,
-                          icon: _isTesting 
+                          icon: _isTesting
                               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                               : const Icon(Icons.wifi),
                           label: const Text('Testar Conexão'),
@@ -184,18 +186,13 @@ class _ConfigScreenState extends State<ConfigScreen> {
                             foregroundColor: Colors.white,
                           ),
                         ),
-                        Row(
-                          children: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: const Text('Cancelar'),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              onPressed: _saveConfig,
-                              child: const Text('Salvar'),
-                            ),
-                          ],
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Cancelar'),
+                        ),
+                        ElevatedButton(
+                          onPressed: _saveConfig,
+                          child: const Text('Salvar'),
                         ),
                       ],
                     ),
