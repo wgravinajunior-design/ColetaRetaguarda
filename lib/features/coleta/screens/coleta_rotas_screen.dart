@@ -30,17 +30,21 @@ class _ColetaRotasScreenState extends State<ColetaRotasScreen> {
         title: Text('Coleta - ${widget.rota.descricao}'),
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.map),
-            tooltip: 'Ver Mapa da Rota',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => MapaRotaScreen(
-                    paradas: viewModel.items,
-                    rotaDescricao: widget.rota.descricao,
-                  ),
-                ),
+          Consumer<ColetaViewModel>(
+            builder: (context, viewModel, _) {
+              return IconButton(
+                icon: const Icon(Icons.map),
+                tooltip: 'Ver Mapa da Rota',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => MapaRotaScreen(
+                        paradas: viewModel.items,
+                        rotaDescricao: widget.rota.descricao,
+                      ),
+                    ),
+                  );
+                },
               );
             },
           ),

@@ -68,8 +68,8 @@ class _MapaRotaScreenState extends State<MapaRotaScreen> {
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              center: center,
-              zoom: 13,
+              initialCenter: center,
+              initialZoom: 13,
               maxZoom: 19,
               minZoom: 5,
             ),

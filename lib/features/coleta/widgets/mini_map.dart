@@ -46,8 +46,8 @@ class MiniMap extends StatelessWidget {
                 ),
                 child: FlutterMap(
                   options: MapOptions(
-                    center: LatLng(latitude, longitude),
-                    zoom: 15,
+                    initialCenter: LatLng(latitude, longitude),
+                    initialZoom: 15,
                     maxZoom: 19,
                     minZoom: 5,
                     interactiveFlags: InteractiveFlag.none,
