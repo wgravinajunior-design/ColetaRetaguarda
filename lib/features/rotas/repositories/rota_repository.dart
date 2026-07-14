@@ -1,9 +1,13 @@
 import '../../../core/api/http_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../core/database/daos/rota_dao.dart';
+import '../../core/database/sync_service.dart';
 import '../models/rota_model.dart';
 
 class RotaRepository {
   final ApiClient _apiClient = ApiClient();
+  final RotaDao _dao = RotaDao();
+  final SyncService _syncService = SyncService();
 
   Future<List<RotaModel>> getRotas({String? query}) async {
     try {

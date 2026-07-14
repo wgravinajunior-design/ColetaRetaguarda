@@ -1,97 +1,134 @@
 import '../../../core/api/http_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../core/database/daos/motorista_dao.dart';
+import '../../core/database/sync_service.dart';
 import '../models/motorista_model.dart';
 
 class MotoristaRepository {
   final ApiClient _apiClient = ApiClient();
+  final MotoristaDao _dao = MotoristaDao();
+  final SyncService _syncService = SyncService();
 
-  /// Busca todos os motoristas
   Future<List<MotoristaModel>> getMotoristas({String? query}) async {
     try {
-      final params = <String, String>{};
-      if (query != null && query.isNotEmpty) {
-        params['search'] = query;
-      }
-
       final response = await _apiClient.get(
-        ApiEndpoints.pessoas,
-        queryParams: params.isNotEmpty ? params : null,
+        '/coleta/motoristas${query != null ? '?q=$query' : ''}',
       );
 
       if (response.success && response.data is List) {
-        return (response.data as List)
+        final motoristas = (response.data as List)
             .map((e) => MotoristaModel.fromJson(e as Map<String, dynamic>))
             .toList();
+        for (var m in motoristas) {
+          await _dao.insert(m);
+        }
+        return motoristas;
       }
-
-      return getMockMotoristas();
     } catch (e) {
-      print('Erro ao buscar motoristas: $e');
-      return getMockMotoristas();
+      print('Erro ao buscar motoristas da API: $e');
     }
+
+    try {
+      return await _dao.getAll();
+    } catch (e) {
+      print('Erro ao buscar motoristas do SQLite: $e');
+    }
+
+    return getMockMotoristas();
   }
 
-  /// Busca motorista por ID
   Future<MotoristaModel?> getMotoristaById(int id) async {
     try {
-      final response = await _apiClient.get(ApiEndpoints.pessoaById(id));
-
+      final response = await _apiClient.get('/coleta/motoristas/$id');
       if (response.success && response.data != null) {
-        return MotoristaModel.fromJson(response.data as Map<String, dynamic>);
+        final motorista = MotoristaModel.fromJson(response.data as Map<String, dynamic>);
+        await _dao.insert(motorista);
+        return motorista;
       }
-
-      return null;
     } catch (e) {
-      print('Erro ao buscar motorista $id: $e');
-      return null;
+      print('Erro ao buscar motorista $id da API: $e');
     }
+
+    try {
+      return await _dao.getById(id);
+    } catch (e) {
+      print('Erro ao buscar motorista $id do SQLite: $e');
+    }
+
+    return null;
   }
 
-  /// Cria novo motorista
   Future<MotoristaModel?> createMotorista(MotoristaModel motorista) async {
     try {
       final response = await _apiClient.post(
-        ApiEndpoints.pessoas,
+        '/coleta/motoristas',
         body: motorista.toJson(),
       );
 
       if (response.success && response.data != null) {
-        return MotoristaModel.fromJson(response.data as Map<String, dynamic>);
+        final created = MotoristaModel.fromJson(response.data as Map<String, dynamic>);
+        await _dao.insert(created);
+        return created;
       }
-
-      return null;
     } catch (e) {
-      print('Erro ao criar motorista: $e');
-      return null;
+      print('Erro ao criar motorista na API: $e');
     }
+
+    motorista.id ??= DateTime.now().millisecondsSinceEpoch;
+    await _dao.insert(motorista);
+    await _syncService.queueOperation(
+      tabela: 'tb_motorista',
+      operacao: 'CREATE',
+      registroId: motorista.id,
+      dados: motorista.toJson(),
+    );
+    return motorista;
   }
 
-  /// Atualiza motorista existente
   Future<bool> updateMotorista(MotoristaModel motorista) async {
     if (motorista.id == null) return false;
 
     try {
       final response = await _apiClient.put(
-        ApiEndpoints.pessoaById(motorista.id!),
+        '/coleta/motoristas/${motorista.id}',
         body: motorista.toJson(),
       );
 
-      return response.success;
+      if (response.success) {
+        await _dao.update(motorista);
+        return true;
+      }
     } catch (e) {
-      print('Erro ao atualizar motorista: $e');
-      return false;
+      print('Erro ao atualizar motorista na API: $e');
     }
+
+    await _dao.update(motorista);
+    await _syncService.queueOperation(
+      tabela: 'tb_motorista',
+      operacao: 'UPDATE',
+      registroId: motorista.id,
+      dados: motorista.toJson(),
+    );
+    return true;
   }
 
-  /// Deleta motorista
   Future<bool> deleteMotorista(int id) async {
     try {
-      final response = await _apiClient.delete(ApiEndpoints.pessoaById(id));
-      return response.success;
+      await _apiClient.delete('/coleta/motoristas/$id');
+      await _dao.delete(id);
+      return true;
     } catch (e) {
-      print('Erro ao deletar motorista: $e');
-      return false;
+      print('Erro ao deletar motorista na API: $e');
     }
+
+    await _dao.delete(id);
+    await _syncService.queueOperation(
+      tabela: 'tb_motorista',
+      operacao: 'DELETE',
+      registroId: id,
+      dados: {'id': id},
+    );
+    return true;
   }
 
   /// Mock data para testes
