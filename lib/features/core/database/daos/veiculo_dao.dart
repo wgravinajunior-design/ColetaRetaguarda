@@ -9,15 +9,15 @@ class VeiculoDao extends BaseDao<VeiculoModel> {
   VeiculoModel fromMap(Map<String, dynamic> map) {
     return VeiculoModel(
       id: map['id'] as int?,
-      placa: map['placa'] as String? ?? '',
-      marca: map['marca'] as String?,
-      modelo: map['modelo'] as String?,
-      cor: map['cor'] as String?,
-      ano: map['ano'] as String?,
-      tipo: map['tipo'] as String?,
-      renavam: map['renavam'] as String?,
-      chassi: map['chassi'] as String?,
-      status: map['status'] as String? ?? 'A',
+      placa: (map['placa'] as String?) ?? '',
+      marca: (map['marca'] as String?) ?? '',
+      modelo: (map['modelo'] as String?) ?? '',
+      cor: (map['cor'] as String?) ?? '',
+      ano: (map['ano'] as String?) ?? '',
+      tipo: (map['tipo'] as String?) ?? '',
+      renavam: (map['renavam'] as String?) ?? '',
+      chassi: map['chassi'] as String? ?? '',
+      status: (map['status'] as String?) ?? 'A',
     );
   }
 

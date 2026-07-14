@@ -9,14 +9,14 @@ class MovimentoDao extends BaseDao<MovimentoModel> {
   MovimentoModel fromMap(Map<String, dynamic> map) {
     return MovimentoModel(
       id: map['id'] as int?,
-      tipo: map['tipo'] as String? ?? '',
-      status: map['status'] as String?,
-      conta: map['conta'] as int?,
-      contaNome: map['conta_nome'] as String?,
+      tipo: (map['tipo'] as String?) ?? '',
+      status: (map['status'] as String?) ?? '',
+      conta: (map['conta'] as int?) ?? 0,
+      contaNome: map['conta_nome'] as String? ?? '',
       valor: (map['valor'] as num?)?.toDouble() ?? 0.0,
-      dtEmissao: map['dt_emissao'] as String? ?? '',
-      dtCompensado: map['dt_compensado'] as String?,
-      historico: map['historico'] as String? ?? '',
+      dtEmissao: (map['dt_emissao'] as String?) ?? '',
+      dtCompensado: map['dt_compensado'] as String? ?? '',
+      historico: (map['historico'] as String?) ?? '',
     );
   }
 
