@@ -14,132 +14,100 @@ class MotoristaFormScreen extends StatefulWidget {
 }
 
 class _MotoristaFormScreenState extends State<MotoristaFormScreen> {
-  final _formKey = GlobalKey<FormState>();
-  
-  late TextEditingController _nomeController;
-  late TextEditingController _apelidoController;
-  late TextEditingController _cpfController;
-  late TextEditingController _rgController;
-  late TextEditingController _celularController;
+  late TextEditingController nomeController;
+  late TextEditingController cpfController;
+  late TextEditingController cnhController;
+  late TextEditingController celularController;
+  late TextEditingController emailController;
 
   @override
   void initState() {
     super.initState();
-    _nomeController = TextEditingController(text: widget.motorista?.nome ?? '');
-    _apelidoController = TextEditingController(text: widget.motorista?.apelido ?? '');
-    _cpfController = TextEditingController(text: widget.motorista?.cpf ?? '');
-    _rgController = TextEditingController(text: widget.motorista?.rg ?? '');
-    _celularController = TextEditingController(text: widget.motorista?.celular ?? '');
+    nomeController = TextEditingController(text: widget.motorista?.nome ?? '');
+    cpfController = TextEditingController(text: widget.motorista?.cpf ?? '');
+    cnhController = TextEditingController(text: widget.motorista?.cnh ?? '');
+    celularController = TextEditingController(text: widget.motorista?.celular ?? '');
+    emailController = TextEditingController(text: widget.motorista?.email ?? '');
   }
 
   @override
   void dispose() {
-    _nomeController.dispose();
-    _apelidoController.dispose();
-    _cpfController.dispose();
-    _rgController.dispose();
-    _celularController.dispose();
+    nomeController.dispose();
+    cpfController.dispose();
+    cnhController.dispose();
+    celularController.dispose();
+    emailController.dispose();
     super.dispose();
   }
 
   void _save() async {
-    if (_formKey.currentState!.validate()) {
-      final viewModel = context.read<MotoristaViewModel>();
+    final viewModel = context.read<MotoristaViewModel>();
 
-      final motorista = MotoristaModel(
-        id: widget.motorista?.id,
-        nome: _nomeController.text,
-        apelido: _apelidoController.text,
-        cpf: _cpfController.text,
-        rg: _rgController.text,
-        endereco: widget.motorista?.endereco ?? '',
-        numero: widget.motorista?.numero ?? '',
-        complemento: widget.motorista?.complemento ?? '',
-        bairro: widget.motorista?.bairro ?? '',
-        cep: widget.motorista?.cep ?? '',
-        telefone: widget.motorista?.telefone ?? '',
-        celular: _celularController.text,
-        email: widget.motorista?.email ?? '',
-        status: widget.motorista?.status ?? 'A',
+    final m = MotoristaModel(
+      id: widget.motorista?.id,
+      nome: nomeController.text,
+      cpf: cpfController.text,
+      cnh: cnhController.text,
+      celular: celularController.text,
+      email: emailController.text,
+      status: 'A',
+    );
+
+    bool success;
+    if (widget.motorista == null) {
+      success = await viewModel.createMotorista(m);
+    } else {
+      success = await viewModel.updateMotorista(m);
+    }
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Motorista salvo com sucesso!')),
       );
-
-      bool success;
-      if (widget.motorista == null) {
-        success = await viewModel.createMotorista(motorista);
-      } else {
-        success = await viewModel.updateMotorista(motorista);
-      }
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Motorista salvo com sucesso!')),
-        );
-        context.pop();
-      }
+      context.go('/motoristas');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.motorista != null;
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'Editar Motorista' : 'Novo Motorista'),
+        title: Text(widget.motorista == null ? 'Novo Motorista' : 'Editar Motorista'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Form(
-              key: _formKey,
-              child: ListView(
-                children: [
-                  TextFormField(
-                    controller: _nomeController,
-                    decoration: const InputDecoration(labelText: 'Nome Completo'),
-                    validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _apelidoController,
-                    decoration: const InputDecoration(labelText: 'Apelido'),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _cpfController,
-                    decoration: const InputDecoration(labelText: 'CPF'),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _rgController,
-                    decoration: const InputDecoration(labelText: 'RG'),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _celularController,
-                    decoration: const InputDecoration(labelText: 'Celular'),
-                    validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
-                  ),
-                  const SizedBox(height: 32),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => context.pop(),
-                        child: const Text('Cancelar'),
-                      ),
-                      const SizedBox(width: 16),
-                      ElevatedButton(
-                        onPressed: _save,
-                        child: const Text('Salvar'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              controller: nomeController,
+              decoration: const InputDecoration(labelText: 'Nome'),
             ),
-          ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: cpfController,
+              decoration: const InputDecoration(labelText: 'CPF'),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: cnhController,
+              decoration: const InputDecoration(labelText: 'CNH'),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: celularController,
+              decoration: const InputDecoration(labelText: 'Celular'),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(labelText: 'Email'),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: _save,
+              child: const Text('Salvar'),
+            ),
+          ],
         ),
       ),
     );

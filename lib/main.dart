@@ -17,9 +17,16 @@ import 'features/financeiro/viewmodels/financeiro_viewmodel.dart';
 import 'features/financeiro/screens/financeiro_list_screen.dart';
 import 'features/financeiro/screens/financeiro_form_screen.dart';
 import 'features/veiculos/screens/veiculo_list_screen.dart';
+import 'features/veiculos/screens/veiculo_form_screen.dart';
 import 'features/rotas/screens/rota_list_screen.dart';
+import 'features/rotas/screens/rota_form_screen.dart';
 import 'features/produtores/models/pessoa_model.dart';
 import 'features/motoristas/models/motorista_model.dart';
+import 'features/colaboradores/models/colaborador_model.dart';
+import 'features/veiculos/models/veiculo_model.dart';
+import 'features/rotas/models/rota_model.dart';
+import 'features/veiculos/viewmodels/veiculo_viewmodel.dart';
+import 'features/rotas/viewmodels/rota_viewmodel.dart';
 import 'features/core/config/config_service.dart';
 import 'features/auth/config_screen.dart';
 
@@ -40,6 +47,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ProdutorViewModel()),
         ChangeNotifierProvider(create: (_) => MotoristaViewModel()),
         ChangeNotifierProvider(create: (_) => ColaboradorViewModel()),
+        ChangeNotifierProvider(create: (_) => VeiculoViewModel()),
+        ChangeNotifierProvider(create: (_) => RotaViewModel()),
         ChangeNotifierProvider(create: (_) => FinanceiroViewModel()),
       ],
       child: const ColetaRetaguardaApp(),
@@ -101,16 +110,24 @@ class ColetaRetaguardaApp extends StatelessWidget {
               builder: (context, state) => const ColaboradorListScreen(),
               routes: [
                 GoRoute(path: 'novo', builder: (context, state) => const ColaboradorFormScreen()),
-                GoRoute(path: 'editar', builder: (context, state) => ColaboradorFormScreen(colaborador: state.extra as PessoaModel)),
+                GoRoute(path: 'editar', builder: (context, state) => ColaboradorFormScreen(colaborador: state.extra as ColaboradorModel)),
               ]
             ),
             GoRoute(
               path: '/veiculos',
               builder: (context, state) => const VeiculoListScreen(),
+              routes: [
+                GoRoute(path: 'novo', builder: (context, state) => const VeiculoFormScreen()),
+                GoRoute(path: 'editar', builder: (context, state) => VeiculoFormScreen(veiculo: state.extra as VeiculoModel)),
+              ]
             ),
             GoRoute(
               path: '/rotas',
               builder: (context, state) => const RotaListScreen(),
+              routes: [
+                GoRoute(path: 'novo', builder: (context, state) => const RotaFormScreen()),
+                GoRoute(path: 'editar', builder: (context, state) => RotaFormScreen(rota: state.extra as RotaModel)),
+              ]
             ),
             GoRoute(
               path: '/financeiro',
