@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import '../logging/app_logger.dart';
 
 /// Mock Sentry service para crash reporting

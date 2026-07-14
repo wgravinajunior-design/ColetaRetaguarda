@@ -76,27 +76,29 @@ class _FinanceiroListScreenState extends State<FinanceiroListScreen> {
               border: Border.all(color: cor.withValues(alpha: 0.3)),
             ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(s.isBanco ? Icons.account_balance : Icons.point_of_sale, size: 16, color: cor),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(s.descricao,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(s.isBanco ? 'Banco' : 'Caixa', style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   formatCurrency.format(s.saldo),
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: saldoNeg ? Colors.red : Colors.green[800],
                   ),
@@ -285,26 +287,33 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formatCurrency = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-    
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, color: color, size: 28),
+                Icon(icon, color: color, size: 24),
                 const SizedBox(width: 8),
-                Text(title, style: TextStyle(color: Colors.grey[700], fontSize: 16, fontWeight: FontWeight.w500)),
+                Flexible(
+                  child: Text(
+                    title,
+                    style: TextStyle(color: Colors.grey[700], fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Text(
               formatCurrency.format(value),
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color),
             ),
           ],
         ),

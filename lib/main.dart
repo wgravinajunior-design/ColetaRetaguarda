@@ -43,6 +43,12 @@ import 'features/core/config/config_service.dart';
 import 'features/core/services/connectivity_service.dart';
 import 'features/core/window/window_service.dart';
 import 'features/auth/config_screen.dart';
+import 'features/settings/settings_screen.dart';
+import 'core/theme/app_theme.dart';
+import 'core/localization/app_strings.dart';
+import 'core/analytics/analytics_service.dart';
+import 'core/widgets/notification_toast.dart';
+import 'core/widgets/connection_status_banner.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,6 +73,16 @@ void main() async {
   final apiClient = ApiClient();
   await apiClient.init();
 
+  // Inicializa serviços de tema e localização
+  final appStrings = AppStrings();
+  await appStrings.initialize();
+
+  final appTheme = AppTheme();
+  await appTheme.loadThemePreference();
+
+  final analytics = AnalyticsService();
+  analytics.trackEvent('app_started');
+
   runApp(
     MultiProvider(
       providers: [
@@ -87,8 +103,24 @@ void main() async {
   );
 }
 
-class ColetaRetaguardaApp extends StatelessWidget {
+class ColetaRetaguardaApp extends StatefulWidget {
   const ColetaRetaguardaApp({super.key});
+
+  @override
+  State<ColetaRetaguardaApp> createState() => _ColetaRetaguardaAppState();
+}
+
+class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
+  late AppTheme _appTheme;
+
+  @override
+  void initState() {
+    super.initState();
+    _appTheme = AppTheme();
+    _appTheme.setOnThemeChanged((_) {
+      setState(() {});
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -181,6 +213,10 @@ class ColetaRetaguardaApp extends StatelessWidget {
               builder: (context, state) => const SyncQueueScreen(),
             ),
             GoRoute(
+              path: '/settings',
+              builder: (context, state) => const SettingsScreen(),
+            ),
+            GoRoute(
               path: '/financeiro',
               builder: (context, state) => const FinanceiroListScreen(),
               routes: [
@@ -192,14 +228,18 @@ class ColetaRetaguardaApp extends StatelessWidget {
       ],
     );
 
-    return MaterialApp.router(
-      title: 'Coleta ERP',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue, brightness: Brightness.light),
-        useMaterial3: true,
+    return NotificationToast(
+      child: MaterialApp.router(
+        title: 'Coleta ERP',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.getLightTheme(),
+        darkTheme: AppTheme.getDarkTheme(),
+        themeMode: _appTheme.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+        routerConfig: router,
+        builder: (context, child) => ConnectionStatusBanner(
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
-      routerConfig: router,
     );
   }
 }

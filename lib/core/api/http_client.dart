@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../network/retry_policy.dart';
 
 class ApiResponse<T> {
   final bool success;
@@ -57,6 +58,8 @@ class ApiClient {
   late String _bearerToken;
   final Duration _timeout = const Duration(seconds: 30);
   final int _maxRetries = 3;
+  final RetryHelper _retryHelper = RetryHelper();
+  final RetryPolicy _retryPolicy = const RetryPolicy(maxAttempts: 3);
   Function(String)? _onLog;
 
   factory ApiClient() {

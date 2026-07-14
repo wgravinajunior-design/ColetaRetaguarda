@@ -77,16 +77,16 @@ class MainLayout extends StatelessWidget {
                         onTap: () => context.go('/rotas'),
                       ),
                       _MenuTile(
-                        icon: Icons.ac_unit,
-                        title: 'Resfriadores',
-                        color: Colors.cyan,
-                        onTap: () => context.go('/resfriadores'),
-                      ),
-                      _MenuTile(
                         icon: Icons.agriculture,
                         title: 'Coleta',
                         color: Colors.brown,
                         onTap: () => context.go('/coleta'),
+                      ),
+                      _MenuTile(
+                        icon: Icons.ac_unit,
+                        title: 'Resfriadores',
+                        color: Colors.cyan,
+                        onTap: () => context.go('/resfriadores'),
                       ),
                       _MenuTile(
                         icon: Icons.payments,
