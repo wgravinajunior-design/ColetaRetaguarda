@@ -17,6 +17,7 @@ import 'features/financeiro/viewmodels/financeiro_viewmodel.dart';
 import 'features/financeiro/screens/financeiro_list_screen.dart';
 import 'features/financeiro/screens/financeiro_form_screen.dart';
 import 'features/produtores/models/pessoa_model.dart';
+import 'features/motoristas/models/motorista_model.dart';
 import 'features/core/config/config_service.dart';
 import 'features/auth/config_screen.dart';
 
@@ -90,7 +91,7 @@ class ColetaRetaguardaApp extends StatelessWidget {
               builder: (context, state) => const MotoristaListScreen(),
               routes: [
                 GoRoute(path: 'novo', builder: (context, state) => const MotoristaFormScreen()),
-                GoRoute(path: 'editar', builder: (context, state) => MotoristaFormScreen(motorista: state.extra as PessoaModel)),
+                GoRoute(path: 'editar', builder: (context, state) => MotoristaFormScreen(motorista: state.extra as MotoristaModel?)),
               ]
             ),
             GoRoute(
