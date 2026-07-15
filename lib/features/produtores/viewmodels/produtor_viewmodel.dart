@@ -1,11 +1,12 @@
 import '../../core/viewmodels/base_viewmodel.dart';
 import '../models/pessoa_model.dart';
 import '../repositories/pessoa_repository.dart';
-import '../../../core/offline/offline_request_queue.dart';
+import '../../core/database/sync_service.dart';
+import '../../core/sync/sync_handlers.dart';
 
 class ProdutorViewModel extends BaseViewModel<PessoaModel> {
   final PessoaRepository _repository = PessoaRepository();
-  final OfflineRequestQueue _offlineQueue = OfflineRequestQueue();
+  final SyncService _syncService = SyncService();
 
   // Filtro de status ativo por padrão ('A' = ativos).
   String? _filtroStatus = 'A';
@@ -53,14 +54,13 @@ class ProdutorViewModel extends BaseViewModel<PessoaModel> {
       }
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      // Enfileira para processamento offline
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.post,
-        '/api/produtores',
-        body: produtor.toJson(),
-        priority: 3,
+      // Base indisponível: enfileira a operação para replay no Firebird.
+      await _syncService.queueOperation(
+        tabela: SyncEntities.produtor,
+        operacao: 'CREATE',
+        dados: produtor.toJson(),
       );
+      setError('Sem conexão com a base. Cadastro salvo na fila offline e será sincronizado automaticamente.');
       return false;
     }
   }
@@ -77,14 +77,13 @@ class ProdutorViewModel extends BaseViewModel<PessoaModel> {
       }
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      // Enfileira para processamento offline
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.put,
-        '/api/produtores/${produtor.id}',
-        body: produtor.toJson(),
-        priority: 3,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.produtor,
+        operacao: 'UPDATE',
+        registroId: produtor.id,
+        dados: produtor.toJson(),
       );
+      setError('Sem conexão com a base. Alteração salva na fila offline e será sincronizada automaticamente.');
       return false;
     }
   }
@@ -100,13 +99,13 @@ class ProdutorViewModel extends BaseViewModel<PessoaModel> {
       }
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      // Enfileira para processamento offline
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.delete,
-        '/api/produtores/$id',
-        priority: 3,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.produtor,
+        operacao: 'DELETE',
+        registroId: id,
+        dados: {'id': id},
       );
+      setError('Sem conexão com a base. Exclusão salva na fila offline e será sincronizada automaticamente.');
       return false;
     }
   }

@@ -1,11 +1,12 @@
 import '../../core/viewmodels/base_viewmodel.dart';
 import '../models/colaborador_model.dart';
 import '../repositories/colaborador_repository.dart';
-import '../../../core/offline/offline_request_queue.dart';
+import '../../core/database/sync_service.dart';
+import '../../core/sync/sync_handlers.dart';
 
 class ColaboradorViewModel extends BaseViewModel<ColaboradorModel> {
   final ColaboradorRepository _repository = ColaboradorRepository();
-  final OfflineRequestQueue _offlineQueue = OfflineRequestQueue();
+  final SyncService _syncService = SyncService();
 
   Future<void> loadColaboradores({String? query}) async {
     // Tenta cache primeiro
@@ -43,13 +44,12 @@ class ColaboradorViewModel extends BaseViewModel<ColaboradorModel> {
       setError('Erro ao criar colaborador');
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.post,
-        '/api/colaboradores',
-        body: c.toJson(),
-        priority: 3,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.colaborador,
+        operacao: 'CREATE',
+        dados: c.toJson(),
       );
+      setError('Sem conexão com a base. Cadastro salvo na fila offline e será sincronizado automaticamente.');
       return false;
     }
   }
@@ -68,13 +68,13 @@ class ColaboradorViewModel extends BaseViewModel<ColaboradorModel> {
       setError('Erro ao atualizar');
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.put,
-        '/api/colaboradores/${c.id}',
-        body: c.toJson(),
-        priority: 3,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.colaborador,
+        operacao: 'UPDATE',
+        registroId: c.id,
+        dados: c.toJson(),
       );
+      setError('Sem conexão com a base. Alteração salva na fila offline e será sincronizada automaticamente.');
       return false;
     }
   }
@@ -92,12 +92,13 @@ class ColaboradorViewModel extends BaseViewModel<ColaboradorModel> {
       setError('Erro ao deletar');
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.delete,
-        '/api/colaboradores/$id',
-        priority: 3,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.colaborador,
+        operacao: 'DELETE',
+        registroId: id,
+        dados: {'id': id},
       );
+      setError('Sem conexão com a base. Exclusão salva na fila offline e será sincronizada automaticamente.');
       return false;
     }
   }

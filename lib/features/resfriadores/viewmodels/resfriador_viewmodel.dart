@@ -1,11 +1,12 @@
 import '../../core/viewmodels/base_viewmodel.dart';
 import '../models/resfriador_model.dart';
 import '../repositories/resfriador_repository.dart';
-import '../../../core/offline/offline_request_queue.dart';
+import '../../core/database/sync_service.dart';
+import '../../core/sync/sync_handlers.dart';
 
 class ResfriadorViewModel extends BaseViewModel<ResfriadorModel> {
   final ResfriadorRepository _repository = ResfriadorRepository();
-  final OfflineRequestQueue _offlineQueue = OfflineRequestQueue();
+  final SyncService _syncService = SyncService();
 
   Future<void> load({String? query}) async {
     final cacheKey = '/resfriadores'.cacheKey('query=${query ?? ""}');
@@ -37,13 +38,12 @@ class ResfriadorViewModel extends BaseViewModel<ResfriadorModel> {
       }
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.post,
-        '/api/resfriadores',
-        body: r.toJson(),
-        priority: 3,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.resfriador,
+        operacao: 'CREATE',
+        dados: r.toJson(),
       );
+      setError('Sem conexão com a base. Cadastro salvo na fila offline e será sincronizado automaticamente.');
       return false;
     }
   }
@@ -60,13 +60,13 @@ class ResfriadorViewModel extends BaseViewModel<ResfriadorModel> {
       }
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.put,
-        '/api/resfriadores/${r.id}',
-        body: r.toJson(),
-        priority: 3,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.resfriador,
+        operacao: 'UPDATE',
+        registroId: r.id,
+        dados: r.toJson(),
       );
+      setError('Sem conexão com a base. Alteração salva na fila offline e será sincronizada automaticamente.');
       return false;
     }
   }
@@ -82,12 +82,13 @@ class ResfriadorViewModel extends BaseViewModel<ResfriadorModel> {
       }
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.delete,
-        '/api/resfriadores/$id',
-        priority: 3,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.resfriador,
+        operacao: 'DELETE',
+        registroId: id,
+        dados: {'id': id},
       );
+      setError('Sem conexão com a base. Exclusão salva na fila offline e será sincronizada automaticamente.');
       return false;
     }
   }

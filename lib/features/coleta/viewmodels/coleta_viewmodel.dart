@@ -2,12 +2,10 @@ import '../models/parada_model.dart';
 import '../repositories/parada_repository.dart';
 import '../../core/viewmodels/base_viewmodel.dart';
 import '../../core/services/location_service.dart';
-import '../../../core/offline/offline_request_queue.dart';
 
 class ColetaViewModel extends BaseViewModel<ParadaModel> {
   final ParadaRepository _repository = ParadaRepository();
   final LocationService _locationService = LocationService();
-  final OfflineRequestQueue _offlineQueue = OfflineRequestQueue();
   int? _currentRotaId;
   ParadaModel? _selectedParada;
 
@@ -153,13 +151,8 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
       _gpsError = 'Erro ao iniciar coleta: $e';
       _capturandoGps = false;
       setError('Erro ao iniciar coleta: $e');
-      // Enfileira para offline processing
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.put,
-        '/api/paradas/${parada.id}/iniciar',
-        body: {'status': 'E'},
-        priority: 1,
-      );
+      // A persistência offline já é feita pelo ParadaRepository
+      // (grava no SQLite + enfileira em tb_sync_queue).
       return false;
     }
   }
@@ -202,12 +195,7 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
       return true;
     } catch (e) {
       setError('Erro ao finalizar coleta: $e');
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.put,
-        '/api/paradas/${parada.id}/finalizar',
-        body: {'status': 'C', 'temperatura': temperatura, 'volume': volume},
-        priority: 1,
-      );
+      // Persistência offline garantida pelo ParadaRepository (SQLite + tb_sync_queue).
       return false;
     }
   }
@@ -240,12 +228,7 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
       return true;
     } catch (e) {
       setError('Erro ao recusar coleta: $e');
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.put,
-        '/api/paradas/${parada.id}/recusar',
-        body: {'status': 'R', 'justificativa': justificativa},
-        priority: 1,
-      );
+      // Persistência offline garantida pelo ParadaRepository (SQLite + tb_sync_queue).
       return false;
     }
   }
@@ -264,12 +247,7 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
       return true;
     } catch (e) {
       setError('Erro ao registrar GPS: $e');
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.put,
-        '/api/paradas/${parada.id}/gps',
-        body: {'latitude': latitude, 'longitude': longitude},
-        priority: 2,
-      );
+      // Persistência offline garantida pelo ParadaRepository (SQLite + tb_sync_queue).
       return false;
     }
   }

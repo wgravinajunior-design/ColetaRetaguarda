@@ -48,4 +48,16 @@ class ResfriadorModel {
       'status': status,
     };
   }
+
+  factory ResfriadorModel.fromJson(Map<String, dynamic> json) {
+    return ResfriadorModel(
+      id: json['id'] as int?,
+      numeroId: json['numeroId'] as String? ?? '',
+      marcaModelo: json['marcaModelo'] as String? ?? '',
+      capacidadeLitros: (json['capacidadeLitros'] as num?)?.toDouble() ?? 0,
+      anoFabricacao: json['anoFabricacao'] as int?,
+      ultimaManutencao: json['ultimaManutencao'] as String?,
+      status: json['status'] as String? ?? 'ATIVO',
+    );
+  }
 }

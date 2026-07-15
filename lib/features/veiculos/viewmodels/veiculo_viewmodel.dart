@@ -1,11 +1,12 @@
 import '../../core/viewmodels/base_viewmodel.dart';
 import '../models/veiculo_model.dart';
 import '../repositories/veiculo_repository.dart';
-import '../../../core/offline/offline_request_queue.dart';
+import '../../core/database/sync_service.dart';
+import '../../core/sync/sync_handlers.dart';
 
 class VeiculoViewModel extends BaseViewModel<VeiculoModel> {
   final VeiculoRepository _repository = VeiculoRepository();
-  final OfflineRequestQueue _offlineQueue = OfflineRequestQueue();
+  final SyncService _syncService = SyncService();
 
   Future<void> loadVeiculos({String? query}) async {
     final cacheKey = '/veiculos'.cacheKey('query=${query ?? ""}');
@@ -37,13 +38,12 @@ class VeiculoViewModel extends BaseViewModel<VeiculoModel> {
       }
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.post,
-        '/api/veiculos',
-        body: v.toJson(),
-        priority: 3,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.veiculo,
+        operacao: 'CREATE',
+        dados: v.toJson(),
       );
+      setError('Sem conexão com a base. Cadastro salvo na fila offline e será sincronizado automaticamente.');
       return false;
     }
   }
@@ -60,13 +60,13 @@ class VeiculoViewModel extends BaseViewModel<VeiculoModel> {
       }
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.put,
-        '/api/veiculos/${v.id}',
-        body: v.toJson(),
-        priority: 3,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.veiculo,
+        operacao: 'UPDATE',
+        registroId: v.id,
+        dados: v.toJson(),
       );
+      setError('Sem conexão com a base. Alteração salva na fila offline e será sincronizada automaticamente.');
       return false;
     }
   }
@@ -82,12 +82,13 @@ class VeiculoViewModel extends BaseViewModel<VeiculoModel> {
       }
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.delete,
-        '/api/veiculos/$id',
-        priority: 3,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.veiculo,
+        operacao: 'DELETE',
+        registroId: id,
+        dados: {'id': id},
       );
+      setError('Sem conexão com a base. Exclusão salva na fila offline e será sincronizada automaticamente.');
       return false;
     }
   }

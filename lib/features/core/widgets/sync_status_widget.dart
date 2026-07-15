@@ -71,15 +71,17 @@ class SyncStatusWidget extends StatelessWidget {
                     ),
                   ),
                 ),
-                TextButton(
+                TextButton.icon(
                   onPressed: () => connectivity.syncPending(),
-                  child: const Text('Sincronizar'),
+                  icon: const Icon(Icons.sync, size: 16),
+                  label: const Text('Sincronizar agora'),
                 ),
               ],
             ),
           );
         }
 
+        // Online e sem pendências: mantém o botão "Sincronizar agora" disponível.
         return Container(
           color: Colors.green.shade100,
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -87,12 +89,19 @@ class SyncStatusWidget extends StatelessWidget {
             children: [
               Icon(Icons.cloud_done, size: 18, color: Colors.green.shade700),
               const SizedBox(width: 12),
-              Text(
-                'Sincronizado',
-                style: TextStyle(
-                  color: Colors.green.shade700,
-                  fontWeight: FontWeight.w500,
+              Expanded(
+                child: Text(
+                  'Sincronizado',
+                  style: TextStyle(
+                    color: Colors.green.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
+              ),
+              TextButton.icon(
+                onPressed: () => connectivity.syncPending(),
+                icon: const Icon(Icons.sync, size: 16),
+                label: const Text('Sincronizar agora'),
               ),
             ],
           ),

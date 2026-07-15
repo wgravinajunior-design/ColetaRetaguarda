@@ -19,6 +19,12 @@ class ConnectivityService extends ChangeNotifier {
   bool get isSyncing => _isSyncing;
 
   StreamSubscription? _subscription;
+  Timer? _periodicTimer;
+
+  /// Intervalo do retry periódico da fila (rede pode estar "online" mas o
+  /// Firebird momentaneamente indisponível — o timer garante nova tentativa
+  /// mesmo sem mudança de conectividade).
+  static const Duration _periodicInterval = Duration(seconds: 60);
 
   Future<void> init() async {
     // Verifica status inicial
@@ -29,6 +35,12 @@ class ConnectivityService extends ChangeNotifier {
 
     // Monitora mudanças de conectividade
     _subscription = _connectivity.onConnectivityChanged.listen(_handleConnectivityChange);
+
+    // Retry periódico enquanto houver pendências
+    _periodicTimer = Timer.periodic(_periodicInterval, (_) => _autoSync());
+
+    // Tenta escoar o que já estava pendente ao abrir
+    await _autoSync();
   }
 
   Future<void> _handleConnectivityChange(ConnectivityResult result) async {
@@ -37,12 +49,29 @@ class ConnectivityService extends ChangeNotifier {
 
     if (_isOnline != wasOnline) {
       notifyListeners();
+      // Acabou de voltar online: sincroniza imediatamente.
+      if (_isOnline) {
+        await _autoSync();
+      }
     }
+  }
 
-    // Se voltou online e tem itens pendentes, sincroniza
-    if (_isOnline && _pendingCount > 0) {
+  /// Sincronização automática: atualiza a contagem real e, se online e houver
+  /// pendências, dispara o processamento. Não depende de contagem em cache.
+  Future<void> _autoSync() async {
+    if (!_isOnline || _isSyncing) return;
+    await _updatePendingCount();
+    if (_pendingCount > 0) {
       await syncPending();
+    } else {
+      notifyListeners();
     }
+  }
+
+  /// Atualiza a contagem de pendências (para o badge) sem sincronizar.
+  Future<void> refreshPendingCount() async {
+    await _updatePendingCount();
+    notifyListeners();
   }
 
   Future<void> syncPending() async {
@@ -77,6 +106,7 @@ class ConnectivityService extends ChangeNotifier {
   @override
   void dispose() {
     _subscription?.cancel();
+    _periodicTimer?.cancel();
     super.dispose();
   }
 }

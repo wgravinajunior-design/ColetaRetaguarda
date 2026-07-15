@@ -163,6 +163,38 @@ class ParadaRepository {
     return localParada;
   }
 
+  // ─── Replay da fila de sincronização (somente Firebird) ────────────────────
+  // Estes métodos são chamados pelo SyncService ao reprocessar itens pendentes.
+  // Diferente dos métodos acima, NÃO fazem fallback local nem re-enfileiram:
+  // apenas tentam a base. Se falhar, lançam e o item permanece pendente
+  // (sem duplicar na fila).
+
+  Future<bool> replayCriar(ParadaModel parada) async {
+    final criada = await _firebird.criarParada(parada);
+    return criada != null;
+  }
+
+  Future<bool> replayAtualizarStatus({
+    required int paradaId,
+    required String novoStatus,
+    double? temperatura,
+    double? volume,
+    String? justificativa,
+    String? assinaturaBase64,
+    String? fotoPath,
+  }) async {
+    await _firebird.atualizarStatusColeta(
+      paradaId: paradaId,
+      novoStatus: novoStatus,
+      temperatura: temperatura,
+      volume: volume,
+      justificativa: justificativa,
+      assinaturaBase64: assinaturaBase64,
+      fotoPath: fotoPath,
+    );
+    return true;
+  }
+
   List<ParadaModel> getMockParadas() {
     return [
       ParadaModel(

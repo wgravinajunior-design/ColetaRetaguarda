@@ -1,11 +1,12 @@
 import '../../core/viewmodels/base_viewmodel.dart';
 import '../models/motorista_model.dart';
 import '../repositories/motorista_repository.dart';
-import '../../../core/offline/offline_request_queue.dart';
+import '../../core/database/sync_service.dart';
+import '../../core/sync/sync_handlers.dart';
 
 class MotoristaViewModel extends BaseViewModel<MotoristaModel> {
   final MotoristaRepository _repository = MotoristaRepository();
-  final OfflineRequestQueue _offlineQueue = OfflineRequestQueue();
+  final SyncService _syncService = SyncService();
 
   String _searchQuery = '';
 
@@ -43,14 +44,12 @@ class MotoristaViewModel extends BaseViewModel<MotoristaModel> {
       setError('Erro ao criar motorista');
       return false;
     } catch (e) {
-      setError('Erro ao criar motorista: $e');
-      // Enfileira para processamento offline
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.post,
-        '/api/motoristas',
-        body: motorista.toJson(),
-        priority: 3,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.motorista,
+        operacao: 'CREATE',
+        dados: motorista.toJson(),
       );
+      setError('Sem conexão com a base. Cadastro salvo na fila offline e será sincronizado automaticamente.');
       return false;
     }
   }
@@ -71,14 +70,13 @@ class MotoristaViewModel extends BaseViewModel<MotoristaModel> {
       setError('Erro ao atualizar motorista');
       return false;
     } catch (e) {
-      setError('Erro ao atualizar motorista: $e');
-      // Enfileira para processamento offline
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.put,
-        '/api/motoristas/${motorista.id}',
-        body: motorista.toJson(),
-        priority: 3,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.motorista,
+        operacao: 'UPDATE',
+        registroId: motorista.id,
+        dados: motorista.toJson(),
       );
+      setError('Sem conexão com a base. Alteração salva na fila offline e será sincronizada automaticamente.');
       return false;
     }
   }
@@ -96,13 +94,13 @@ class MotoristaViewModel extends BaseViewModel<MotoristaModel> {
       setError('Erro ao deletar motorista');
       return false;
     } catch (e) {
-      setError('Erro ao deletar motorista: $e');
-      // Enfileira para processamento offline
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.delete,
-        '/api/motoristas/$id',
-        priority: 3,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.motorista,
+        operacao: 'DELETE',
+        registroId: id,
+        dados: {'id': id},
       );
+      setError('Sem conexão com a base. Exclusão salva na fila offline e será sincronizada automaticamente.');
       return false;
     }
   }

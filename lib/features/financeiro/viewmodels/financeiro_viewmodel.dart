@@ -2,11 +2,12 @@ import '../../core/viewmodels/base_viewmodel.dart';
 import '../../core/database/firebird_service.dart';
 import '../models/movimento_model.dart';
 import '../repositories/financeiro_repository.dart';
-import '../../../core/offline/offline_request_queue.dart';
+import '../../core/database/sync_service.dart';
+import '../../core/sync/sync_handlers.dart';
 
 class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
   final FinanceiroRepository _repository = FinanceiroRepository();
-  final OfflineRequestQueue _offlineQueue = OfflineRequestQueue();
+  final SyncService _syncService = SyncService();
 
   // Contas (caixa e bancos) e filtro selecionado
   List<ContaRef> _contas = [];
@@ -85,14 +86,12 @@ class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
       }
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      // Enfileira para processamento offline
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.post,
-        '/api/movimentos',
-        body: mov.toJson(),
-        priority: 2,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.movimento,
+        operacao: 'CREATE',
+        dados: mov.toJson(),
       );
+      setError('Sem conexão com a base. Lançamento salvo na fila offline e será sincronizado automaticamente.');
       return false;
     }
   }
@@ -109,14 +108,13 @@ class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
       }
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      // Enfileira para processamento offline
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.put,
-        '/api/movimentos/${mov.id}',
-        body: mov.toJson(),
-        priority: 2,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.movimento,
+        operacao: 'UPDATE',
+        registroId: mov.id,
+        dados: mov.toJson(),
       );
+      setError('Sem conexão com a base. Alteração salva na fila offline e será sincronizada automaticamente.');
       return false;
     }
   }
@@ -132,13 +130,13 @@ class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
       }
       return false;
     } catch (e) {
-      setError('Erro: $e');
-      // Enfileira para processamento offline
-      await _offlineQueue.enqueue(
-        OfflineRequestMethod.delete,
-        '/api/movimentos/$id',
-        priority: 2,
+      await _syncService.queueOperation(
+        tabela: SyncEntities.movimento,
+        operacao: 'DELETE',
+        registroId: id,
+        dados: {'id': id},
       );
+      setError('Sem conexão com a base. Exclusão salva na fila offline e será sincronizada automaticamente.');
       return false;
     }
   }

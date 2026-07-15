@@ -8,6 +8,7 @@ import 'core/api/http_client.dart';
 import 'core/backend/api_server.dart';
 import 'features/auth/auth_service.dart';
 import 'features/core/database/sync_service.dart';
+import 'features/core/sync/sync_handlers.dart';
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/main_layout.dart';
 import 'features/produtores/viewmodels/produtor_viewmodel.dart';
@@ -50,9 +51,7 @@ import 'features/settings/settings_screen.dart';
 import 'core/theme/app_theme.dart';
 import 'core/localization/app_strings.dart';
 import 'core/analytics/analytics_service.dart';
-import 'core/widgets/notification_toast.dart';
 import 'core/widgets/connection_status_banner.dart';
-import 'core/backend/api_server.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,12 +73,16 @@ void main() async {
   final authService = AuthService();
   await authService.checkLoginStatus();
 
-  final connectivityService = ConnectivityService();
-  await connectivityService.init();
-
-  // Inicializa auto-sync para sincronizar quando volta online
+  // Registra os handlers de replay da fila (entidade → repository/Firebird)
+  // ANTES de iniciar a conectividade, que já dispara o processamento da fila.
+  registerSyncHandlers();
   final syncService = SyncService();
   syncService.setupAutoSync();
+
+  // Ao iniciar, o ConnectivityService escoa o que ficou pendente e agenda o
+  // retry periódico + o disparo automático quando a rede volta.
+  final connectivityService = ConnectivityService();
+  await connectivityService.init();
 
   final apiClient = ApiClient();
   await apiClient.init();

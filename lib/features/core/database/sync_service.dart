@@ -1,11 +1,33 @@
 import 'dart:async';
 import 'dart:convert';
-import '../../../core/api/http_client.dart';
 import 'daos/sync_queue_dao.dart';
 
+/// Handler que reexecuta uma operação enfileirada contra a fonte de verdade
+/// (repository → Firebird). Recebe a operação, o id do registro (quando houver)
+/// e os dados. Retorna true se a operação foi aplicada com sucesso.
+typedef SyncOperationHandler = Future<bool> Function(
+  String operacao,
+  int? registroId,
+  Map<String, dynamic> dados,
+);
+
+/// Fila de sincronização única e persistida (tb_sync_queue).
+///
+/// Singleton: handlers registrados uma vez valem para todas as instâncias
+/// (viewmodels, repositories e connectivity_service compartilham o estado).
+///
+/// O replay NÃO é feito por HTTP — cada entidade registra um handler que
+/// reexecuta a escrita no repository/Firebird correspondente. Assim uma
+/// operação feita offline é realmente reaplicada quando a base volta.
 class SyncService {
+  static final SyncService _instance = SyncService._internal();
+  factory SyncService() => _instance;
+  SyncService._internal();
+
   final SyncQueueDao _queueDao = SyncQueueDao();
-  final ApiClient _apiClient = ApiClient();
+
+  /// Handlers de replay por entidade (chave = tabela usada em queueOperation).
+  final Map<String, SyncOperationHandler> _handlers = {};
 
   // Callbacks para notificar UI
   final _onSyncStart = StreamController<void>.broadcast();
@@ -21,11 +43,15 @@ class SyncService {
   Stream<String> get onSyncError => _onSyncError.stream;
   bool get isSyncing => _isSyncing;
 
-  /// Inicializa auto-sync quando volta online
-  void setupAutoSync() {
-    // TODO: Implementar auto-sync quando ConnectivityService tiver stream de eventos
-    // Por enquanto, sync pode ser disparado manualmente chamando syncPendingItems()
+  /// Registra o handler de replay de uma entidade. Chamado no bootstrap
+  /// (registerSyncHandlers) para cada repository.
+  void registerHandler(String tabela, SyncOperationHandler handler) {
+    _handlers[tabela] = handler;
   }
+
+  /// Compat: no modelo atual o auto-sync é disparado pelo ConnectivityService
+  /// (ao voltar online) e no bootstrap. Mantido como no-op para chamadas legadas.
+  void setupAutoSync() {}
 
   /// Fila uma operação para sincronizar depois
   Future<void> queueOperation({
@@ -107,35 +133,26 @@ class SyncService {
   }
 
   Future<void> _syncItem(SyncQueueItem item) async {
-    final endpoint = _getEndpoint(item.tabela);
-    final dados = jsonDecode(item.dados);
-
-    switch (item.operacao.toUpperCase()) {
-      case 'CREATE':
-        await _apiClient.post(endpoint, body: dados);
-        break;
-      case 'UPDATE':
-        if (item.registroId != null) {
-          await _apiClient.put('$endpoint/${item.registroId}', body: dados);
-        }
-        break;
-      case 'DELETE':
-        if (item.registroId != null) {
-          await _apiClient.delete('$endpoint/${item.registroId}');
-        }
-        break;
+    final handler = _handlers[item.tabela];
+    if (handler == null) {
+      throw StateError('Sem handler de replay para "${item.tabela}"');
     }
-  }
 
-  String _getEndpoint(String tabela) {
-    return switch (tabela) {
-      'tb_pessoa' => '/coleta/pessoas',
-      'tb_motorista' => '/coleta/motoristas',
-      'tb_veiculo' => '/coleta/veiculos',
-      'tb_rota' => '/coleta/rotas',
-      'tb_movimento_conta' => '/coleta/movimento-conta',
-      _ => '/coleta/$tabela',
-    };
+    final dados = (item.dados.isNotEmpty)
+        ? jsonDecode(item.dados) as Map<String, dynamic>
+        : <String, dynamic>{};
+
+    final ok = await handler(
+      item.operacao.toUpperCase(),
+      item.registroId,
+      dados,
+    );
+
+    if (!ok) {
+      throw Exception(
+        'Replay recusado: ${item.tabela}/${item.operacao} (id ${item.registroId})',
+      );
+    }
   }
 
   Future<int> getPendingCount() => _queueDao.countPending();
