@@ -33,6 +33,7 @@ class ApiServer {
     try {
       final router = Router()
         ..get('/health', _health)
+        ..get('/ping', _health) // alias usado pelo teste de conexão do app mobile
         ..post('/auth/login', _login)
         ..get('/coleta/pessoas', _listPessoas)
         ..post('/coleta/pessoas', _createPessoa)
@@ -53,7 +54,17 @@ class ApiServer {
         ..get('/coleta/paradas', _listParadas)
         ..post('/coleta/paradas', _createParada)
         ..put('/coleta/paradas/<id>', _updateParada)
-        ..post('/coleta/paradas/<id>/foto', _uploadFotoParada);
+        ..post('/coleta/paradas/<id>/foto', _uploadFotoParada)
+        // ── Endpoints do app mobile (contrato: {success, data} + tabelas reais
+        //    do ERP COLETAS_ROTA/COLETAS_DETALHE). Ver reconciliação fase 2/3.
+        ..get('/coleta/produtores', _listProdutores)
+        ..get('/coleta/colaboradores', _listColaboradores)
+        ..get('/coleta/resfriadores', _listResfriadores)
+        ..get('/coleta/rotas/<id>/detalhes', _listRotaDetalhes)
+        ..put('/coleta/detalhes/<id>', _updateDetalhe)
+        ..post('/coleta/detalhes/<id>/foto', _uploadFotoParada)
+        ..post('/coleta/sync', _syncBulk)
+        ..delete('/auth/logout', _logout);
 
       // Middleware (caching, logging, CORS, rate limiting, compression)
       final handler = shelf.Pipeline()
@@ -333,6 +344,280 @@ class ApiServer {
     } catch (e) {
       return _errorResponse(500, 'Erro ao listar pessoas: $e');
     }
+  }
+
+  /// GET /coleta/produtores — contrato do app mobile.
+  /// Devolve {success, data:[...]} com os nomes de campo que o mobile espera.
+  /// Reusa a query de fornecedores (TB_PESSOA, PES_FORNECEDOR='S') do _listPessoas.
+  static Future<shelf.Response> _listProdutores(shelf.Request request) async {
+    final tokenData = _validateBearerToken(request);
+    if (tokenData == null) {
+      return _errorResponse(401, 'Token inválido ou expirado');
+    }
+
+    try {
+      final db = await DbConnection().db;
+      final query = db.query();
+      await query.openCursor(
+        sql: 'SELECT PES_ID, PES_RSOCIAL_NOME, PES_ENDERECO, PES_LATITUDE, '
+            'PES_LONGITUDE, PES_VOLUME_MEDIO, PES_HR_COLETA, PES_KM, '
+            'PES_STATUS FROM TB_PESSOA WHERE PES_FORNECEDOR = \'S\' '
+            'ORDER BY PES_RSOCIAL_NOME',
+      );
+
+      final items = <Map<String, dynamic>>[];
+      await for (var row in query.rows()) {
+        items.add({
+          'id': row['PES_ID'],
+          'nome': row['PES_RSOCIAL_NOME'],
+          'endereco': row['PES_ENDERECO'] ?? '',
+          'latitude': row['PES_LATITUDE'] ?? 0.0,
+          'longitude': row['PES_LONGITUDE'] ?? 0.0,
+          'volume_medio_diario': row['PES_VOLUME_MEDIO'] ?? 0.0,
+          'horario_coleta_previsto': row['PES_HR_COLETA'] ?? '',
+          'km_ate_tanque_principal': row['PES_KM'] ?? 0.0,
+          // TB_PESSOA não tem coluna de resfriador vinculado; mobile aceita null.
+          'id_resfriador': null,
+          'status': row['PES_STATUS'] == 'A' ? 'ATIVO' : 'INATIVO',
+        });
+      }
+
+      await query.close();
+
+      return shelf.Response.ok(
+        jsonEncode({'success': true, 'data': items}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } catch (e) {
+      return _errorResponse(500, 'Erro ao listar produtores: $e');
+    }
+  }
+
+  /// GET /coleta/colaboradores — STUB. Não há query de colaboradores no
+  /// firebird_service para espelhar e o mapeamento de colunas (funcao_cargo,
+  /// permissoes) em TB_PESSOA ainda não foi definido. Devolve lista vazia para
+  /// não quebrar o app; implementar quando o schema de colaborador for confirmado.
+  static Future<shelf.Response> _listColaboradores(shelf.Request request) async {
+    final tokenData = _validateBearerToken(request);
+    if (tokenData == null) {
+      return _errorResponse(401, 'Token inválido ou expirado');
+    }
+    return shelf.Response.ok(
+      jsonEncode({'success': true, 'data': <Map<String, dynamic>>[]}),
+      headers: {'Content-Type': 'application/json'},
+    );
+  }
+
+  /// GET /coleta/resfriadores — contrato do app mobile.
+  /// Subconjunto seguro de TB_RESFRIADOR (colunas confirmadas em uso pelo
+  /// firebird_service); demais campos ficam com default no app.
+  static Future<shelf.Response> _listResfriadores(shelf.Request request) async {
+    final tokenData = _validateBearerToken(request);
+    if (tokenData == null) {
+      return _errorResponse(401, 'Token inválido ou expirado');
+    }
+    try {
+      final db = await DbConnection().db;
+      final query = db.query();
+      await query.openCursor(
+        sql: 'SELECT RES_ID, RES_NUMERO_ID, RES_MARCA_MODELO, RES_STATUS '
+            'FROM TB_RESFRIADOR '
+            "WHERE (RES_STATUS IS NULL OR RES_STATUS <> 'INATIVO') "
+            'ORDER BY RES_NUMERO_ID',
+      );
+      final items = <Map<String, dynamic>>[];
+      await for (var row in query.rows()) {
+        items.add({
+          'id': row['RES_ID'],
+          'numero_identificador': row['RES_NUMERO_ID'] ?? '',
+          'marca_modelo': row['RES_MARCA_MODELO'] ?? '',
+          'ano_fabricacao': 0,
+          'capacidade_litros': 0.0,
+          'ultima_manutencao': null,
+          'status': (row['RES_STATUS'] == null || row['RES_STATUS'] == 'INATIVO')
+              ? 'INATIVO'
+              : 'ATIVO',
+        });
+      }
+      await query.close();
+      return shelf.Response.ok(
+        jsonEncode({'success': true, 'data': items}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } catch (e) {
+      return _errorResponse(500, 'Erro ao listar resfriadores: $e');
+    }
+  }
+
+  /// GET /coleta/rotas/&lt;id&gt;/detalhes — paradas de uma rota (COLETAS_DETALHE).
+  /// Espelha o SELECT de coletas do firebird_service; os nomes de coluna já
+  /// coincidem com os campos que o mobile espera.
+  static Future<shelf.Response> _listRotaDetalhes(
+      shelf.Request request, String id) async {
+    final tokenData = _validateBearerToken(request);
+    if (tokenData == null) {
+      return _errorResponse(401, 'Token inválido ou expirado');
+    }
+    final rotaId = int.tryParse(id) ?? 0;
+    if (rotaId == 0) return _errorResponse(400, 'ID inválido');
+    try {
+      final db = await DbConnection().db;
+      final query = db.query();
+      await query.openCursor(
+        sql: 'SELECT ID, ID_COLETA_ROTA, ID_PRODUTOR, ORDEM_VISITA, STATUS, '
+            'VOLUME_COLETADO_LITROS, TEMPERATURA_LEITE_C, MOTIVO_ADIAMENTO, '
+            'FOTO_CAMINHO, DATA_HORA_REGISTRO '
+            'FROM COLETAS_DETALHE WHERE ID_COLETA_ROTA = ? ORDER BY ORDEM_VISITA',
+        parameters: [rotaId],
+      );
+      final items = <Map<String, dynamic>>[];
+      await for (var row in query.rows()) {
+        items.add({
+          'id': row['ID'],
+          'id_coleta_rota': row['ID_COLETA_ROTA'],
+          'id_produtor': row['ID_PRODUTOR'],
+          'ordem_visita': row['ORDEM_VISITA'] ?? 0,
+          'data_hora_registro': row['DATA_HORA_REGISTRO'],
+          'volume_coletado_litros': row['VOLUME_COLETADO_LITROS'] ?? 0.0,
+          'temperatura_leite_c': row['TEMPERATURA_LEITE_C'] ?? 0.0,
+          'observacao': '',
+          'motivo_adiamento': row['MOTIVO_ADIAMENTO'] ?? '',
+          'status': row['STATUS'] ?? 'PENDENTE',
+          'foto_caminho': row['FOTO_CAMINHO'],
+        });
+      }
+      await query.close();
+      return shelf.Response.ok(
+        jsonEncode({'success': true, 'data': items}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } catch (e) {
+      return _errorResponse(500, 'Erro ao listar detalhes da rota: $e');
+    }
+  }
+
+  /// PUT /coleta/detalhes/&lt;id&gt; — atualiza uma coleta (COLETAS_DETALHE).
+  /// O app envia o status já no vocabulário do ERP (CONFIRMADO/RECUSADO/ADIADO/
+  /// PENDENTE), gravado direto. COALESCE preserva o que não veio no payload.
+  static Future<shelf.Response> _updateDetalhe(
+      shelf.Request request, String id) async {
+    final tokenData = _validateBearerToken(request);
+    if (tokenData == null) {
+      return _errorResponse(401, 'Token inválido ou expirado');
+    }
+    final detId = int.tryParse(id) ?? 0;
+    if (detId == 0) return _errorResponse(400, 'ID inválido');
+    try {
+      final data = jsonDecode(await request.readAsString()) as Map<String, dynamic>;
+      final db = await DbConnection().db;
+      final query = db.query();
+      await query.openCursor(
+        sql: 'UPDATE COLETAS_DETALHE SET '
+            'STATUS = COALESCE(?, STATUS), '
+            'VOLUME_COLETADO_LITROS = COALESCE(?, VOLUME_COLETADO_LITROS), '
+            'TEMPERATURA_LEITE_C = COALESCE(?, TEMPERATURA_LEITE_C), '
+            'MOTIVO_ADIAMENTO = COALESCE(?, MOTIVO_ADIAMENTO), '
+            'FOTO_CAMINHO = COALESCE(?, FOTO_CAMINHO), '
+            'DATA_HORA_REGISTRO = COALESCE(?, DATA_HORA_REGISTRO) '
+            'WHERE ID = ?',
+        parameters: [
+          data['status'],
+          data['volume_coletado_litros'],
+          data['temperatura_leite_c'],
+          data['motivo_adiamento'],
+          data['foto_caminho'],
+          data['data_hora_registro'],
+          detId,
+        ],
+      );
+      await query.close();
+      return shelf.Response.ok(
+        jsonEncode({'success': true}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } catch (e) {
+      return _errorResponse(500, 'Erro ao atualizar detalhe: $e');
+    }
+  }
+
+  /// POST /coleta/sync — envio em lote do app (rotas + detalhes acumulados
+  /// offline). Aplica status da rota e de cada detalhe em COLETAS_*.
+  static Future<shelf.Response> _syncBulk(shelf.Request request) async {
+    final tokenData = _validateBearerToken(request);
+    if (tokenData == null) {
+      return _errorResponse(401, 'Token inválido ou expirado');
+    }
+    try {
+      final body = jsonDecode(await request.readAsString()) as Map<String, dynamic>;
+      final rotas = (body['rotas'] as List?) ?? const [];
+      final db = await DbConnection().db;
+      int aplicados = 0;
+
+      for (final r in rotas) {
+        final rota = r as Map<String, dynamic>;
+        final rotaId = rota['id'];
+        if (rotaId != null) {
+          final q = db.query();
+          await q.openCursor(
+            sql: 'UPDATE COLETAS_ROTA SET STATUS = COALESCE(?, STATUS), '
+                'DATA_HORA_INICIO = COALESCE(?, DATA_HORA_INICIO), '
+                'DATA_HORA_FIM = COALESCE(?, DATA_HORA_FIM) WHERE ID = ?',
+            parameters: [
+              rota['status'],
+              rota['data_hora_inicio'],
+              rota['data_hora_fim'],
+              rotaId,
+            ],
+          );
+          await q.close();
+        }
+
+        final detalhes = (rota['detalhes'] as List?) ?? const [];
+        for (final d in detalhes) {
+          final det = d as Map<String, dynamic>;
+          final detId = det['id'];
+          if (detId == null) continue;
+          final q = db.query();
+          await q.openCursor(
+            sql: 'UPDATE COLETAS_DETALHE SET '
+                'STATUS = COALESCE(?, STATUS), '
+                'VOLUME_COLETADO_LITROS = COALESCE(?, VOLUME_COLETADO_LITROS), '
+                'TEMPERATURA_LEITE_C = COALESCE(?, TEMPERATURA_LEITE_C), '
+                'MOTIVO_ADIAMENTO = COALESCE(?, MOTIVO_ADIAMENTO), '
+                'FOTO_CAMINHO = COALESCE(?, FOTO_CAMINHO), '
+                'DATA_HORA_REGISTRO = COALESCE(?, DATA_HORA_REGISTRO) '
+                'WHERE ID = ?',
+            parameters: [
+              det['status'],
+              det['volume_coletado_litros'],
+              det['temperatura_leite_c'],
+              det['motivo_adiamento'],
+              det['foto_caminho'],
+              det['data_hora_registro'],
+              detId,
+            ],
+          );
+          await q.close();
+          aplicados++;
+        }
+      }
+
+      return shelf.Response.ok(
+        jsonEncode({'success': true, 'aplicados': aplicados}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } catch (e) {
+      return _errorResponse(500, 'Erro no sync em lote: $e');
+    }
+  }
+
+  /// DELETE /auth/logout — JWT é stateless; apenas confirma. O app limpa o
+  /// token localmente.
+  static Future<shelf.Response> _logout(shelf.Request request) async {
+    return shelf.Response.ok(
+      jsonEncode({'success': true}),
+      headers: {'Content-Type': 'application/json'},
+    );
   }
 
   static Future<shelf.Response> _createPessoa(shelf.Request request) async {
@@ -835,31 +1120,26 @@ class ApiServer {
     }
 
     try {
+      // Tabela real do ERP (COLETAS_ROTA); nomes de coluna já batem com o mobile.
       final db = await DbConnection().db;
       final query = db.query();
       await query.openCursor(
-        sql: 'SELECT ROT_ID, ROT_DESCRICAO, ROT_REGIAO, ROT_MOTORISTA_ID, '
-            'ROT_VEICULO_ID, ROT_STATUS, ROT_DATA_PREVISTA, ROT_DATA_INICIO, '
-            'ROT_DATA_FIM, ROT_PARADAS, ROT_KM_ESTIMADO, ROT_KM_REALIZADO '
-            'FROM TB_ROTA WHERE ROT_STATUS IN (\'A\', \'P\') '
-            'ORDER BY ROT_DATA_PREVISTA DESC',
+        sql: 'SELECT ID, NOME, ID_MOTORISTA, ID_VEICULO, DATA_COLETA, '
+            'DATA_HORA_INICIO, DATA_HORA_FIM, STATUS '
+            'FROM COLETAS_ROTA ORDER BY DATA_COLETA DESC',
       );
 
       final items = <Map<String, dynamic>>[];
       await for (var row in query.rows()) {
         items.add({
-          'id': row['ROT_ID'],
-          'descricao': row['ROT_DESCRICAO'],
-          'regiao': row['ROT_REGIAO'],
-          'motorista_id': row['ROT_MOTORISTA_ID'],
-          'veiculo_id': row['ROT_VEICULO_ID'],
-          'status': row['ROT_STATUS'],
-          'data_prevista': row['ROT_DATA_PREVISTA'],
-          'data_inicio': row['ROT_DATA_INICIO'],
-          'data_fim': row['ROT_DATA_FIM'],
-          'paradas': row['ROT_PARADAS'] ?? 0,
-          'km_estimado': row['ROT_KM_ESTIMADO'] ?? 0.0,
-          'km_realizado': row['ROT_KM_REALIZADO'] ?? 0.0,
+          'id': row['ID'],
+          'nome': row['NOME'] ?? '',
+          'id_motorista': row['ID_MOTORISTA'] ?? 0,
+          'id_veiculo': row['ID_VEICULO'] ?? 0,
+          'data_coleta': row['DATA_COLETA'],
+          'data_hora_inicio': row['DATA_HORA_INICIO'],
+          'data_hora_fim': row['DATA_HORA_FIM'],
+          'status': row['STATUS'] ?? 'PENDENTE',
         });
       }
 
@@ -935,23 +1215,19 @@ class ApiServer {
         return _errorResponse(400, 'ID inválido');
       }
 
+      // Tabela real do ERP (COLETAS_ROTA). O app envia status + horários;
+      // COALESCE preserva o que não veio no payload.
       final db = await DbConnection().db;
       final query = db.query();
 
       await query.openCursor(
-        sql: 'UPDATE TB_ROTA SET ROT_DESCRICAO = ?, ROT_REGIAO = ?, '
-            'ROT_MOTORISTA_ID = ?, ROT_VEICULO_ID = ?, ROT_STATUS = ?, '
-            'ROT_DATA_INICIO = ?, ROT_DATA_FIM = ?, '
-            'ROT_KM_REALIZADO = ? WHERE ROT_ID = ?',
+        sql: 'UPDATE COLETAS_ROTA SET STATUS = COALESCE(?, STATUS), '
+            'DATA_HORA_INICIO = COALESCE(?, DATA_HORA_INICIO), '
+            'DATA_HORA_FIM = COALESCE(?, DATA_HORA_FIM) WHERE ID = ?',
         parameters: [
-          data['descricao'] ?? '',
-          data['regiao'],
-          data['motorista_id'],
-          data['veiculo_id'],
-          data['status'] ?? 'A',
-          data['data_inicio'],
-          data['data_fim'],
-          data['km_realizado'] ?? 0.0,
+          data['status'],
+          data['data_hora_inicio'],
+          data['data_hora_fim'],
           rotId,
         ],
       );
@@ -1219,16 +1495,16 @@ class ApiServer {
         return _errorResponse(500, 'Falha ao salvar o arquivo');
       }
 
-      // Persiste o caminho na parada
+      // Persiste o caminho na coleta (tabela real do ERP: COLETAS_DETALHE).
       final db = await DbConnection().db;
       final query = db.query();
       await query.openCursor(
-        sql: 'UPDATE TB_PARADA SET PAR_FOTO_PATH = ? WHERE PAR_ID = ?',
+        sql: 'UPDATE COLETAS_DETALHE SET FOTO_CAMINHO = ? WHERE ID = ?',
         parameters: [fotoPath, parId],
       );
       await query.close();
 
-      _logger.info('ApiServer', 'Foto da parada $parId salva em $fotoPath');
+      _logger.info('ApiServer', 'Foto da coleta $parId salva em $fotoPath');
       return shelf.Response.ok(
           jsonEncode({'success': true, 'foto_path': fotoPath}),
           headers: {'Content-Type': 'application/json'});
