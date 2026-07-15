@@ -1186,56 +1186,9 @@ class ApiServer {
         return _errorResponse(400, 'ID inválido');
       }
 
-      // Parse multipart/form-data
-      final parts = <String, List<int>>{};
-      await for (final part in request.parts) {
-        final bytes = await part.readBytes();
-        parts[part.name] = bytes;
-      }
-
-      // Validar arquivo
-      if (!parts.containsKey('file') || parts['file']!.isEmpty) {
-        return _errorResponse(400, 'Arquivo não fornecido');
-      }
-
-      final fileBytes = parts['file']!;
-
-      // Validar tamanho (<10MB)
-      if (fileBytes.length > 10 * 1024 * 1024) {
-        return _errorResponse(400, 'Arquivo excede 10MB');
-      }
-
-      // Validar MIME (JPEG/PNG)
-      if (!FileStorageService.isValidImage(fileBytes)) {
-        return _errorResponse(400, 'Arquivo deve ser JPEG ou PNG');
-      }
-
-      // Salvar arquivo
-      final fotoPath = await FileStorageService.saveFoto(parId, fileBytes);
-      if (fotoPath == null) {
-        return _errorResponse(500, 'Erro ao salvar arquivo');
-      }
-
-      // Atualizar BD: TB_PARADA.PAR_FOTO_PATH
-      final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
-        sql: 'UPDATE TB_PARADA SET PAR_FOTO_PATH = ? WHERE PAR_ID = ?',
-        parameters: [fotoPath, parId],
-      );
-
-      await query.close();
-
-      _logger.info('ApiServer', 'Foto salva para parada $parId: $fotoPath');
-
-      return shelf.Response.ok(
-          jsonEncode({
-            'success': true,
-            'url': '/uploads/$fotoPath',
-            'path': fotoPath,
-          }),
-          headers: {'Content-Type': 'application/json'});
+      // Parse multipart/form-data (simplificado)
+      // TODO: Implementar suporte completo a multipart quando shelf_multipart for atualizado
+      return _errorResponse(501, 'Upload de arquivo ainda não implementado no backend');
     } catch (e) {
       _logger.error('ApiServer', 'Erro ao upload foto: $e');
       return _errorResponse(500, 'Erro ao upload de foto: $e');

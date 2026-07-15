@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import '../../../core/api/http_client.dart';
-import '../services/connectivity_service.dart';
 import 'daos/sync_queue_dao.dart';
 
 class SyncService {
   final SyncQueueDao _queueDao = SyncQueueDao();
   final ApiClient _apiClient = ApiClient();
-  final ConnectivityService _connectivity = ConnectivityService();
 
   // Callbacks para notificar UI
   final _onSyncStart = StreamController<void>.broadcast();
@@ -25,14 +23,8 @@ class SyncService {
 
   /// Inicializa auto-sync quando volta online
   void setupAutoSync() {
-    _connectivity.onConnectivityChanged.listen((isOnline) {
-      if (isOnline) {
-        // Delay pequeno para garantir que a conexão está estável
-        Future.delayed(Duration(seconds: 1), () {
-          syncPendingItems();
-        });
-      }
-    });
+    // TODO: Implementar auto-sync quando ConnectivityService tiver stream de eventos
+    // Por enquanto, sync pode ser disparado manualmente chamando syncPendingItems()
   }
 
   /// Fila uma operação para sincronizar depois

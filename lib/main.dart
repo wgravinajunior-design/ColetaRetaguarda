@@ -246,9 +246,8 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
       darkTheme: AppTheme.getDarkTheme(),
       themeMode: _appTheme.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       routerConfig: router,
-        builder: (context, child) => ConnectionStatusBanner(
-          child: child ?? const SizedBox.shrink(),
-        ),
+      builder: (context, child) => ConnectionStatusBanner(
+        child: child ?? const SizedBox.shrink(),
       ),
     );
   }

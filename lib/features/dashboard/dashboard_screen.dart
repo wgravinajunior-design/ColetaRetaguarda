@@ -156,7 +156,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Progresso geral', style: TextStyle(color: Colors.grey[700])),
+                    Expanded(
+                      child: Text(
+                        'Progresso geral',
+                        style: TextStyle(color: Colors.grey[700]),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Text(
                       '${(progresso * 100).toStringAsFixed(0)}%',
                       style: const TextStyle(fontWeight: FontWeight.bold),
@@ -177,10 +184,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _StatusMini(emoji: '🔴', label: 'Pendentes', count: pendentes),
-                    _StatusMini(emoji: '🟡', label: 'Andamento', count: andamento),
-                    _StatusMini(emoji: '🟢', label: 'Concluídas', count: concluidas),
-                    _StatusMini(emoji: '⚫', label: 'Recusadas', count: recusadas),
+                    Expanded(child: _StatusMini(emoji: '🔴', label: 'Pendentes', count: pendentes)),
+                    Expanded(child: _StatusMini(emoji: '🟡', label: 'Andamento', count: andamento)),
+                    Expanded(child: _StatusMini(emoji: '🟢', label: 'Concluídas', count: concluidas)),
+                    Expanded(child: _StatusMini(emoji: '⚫', label: 'Recusadas', count: recusadas)),
                   ],
                 ),
               ],
@@ -271,7 +278,12 @@ class _StatusMini extends StatelessWidget {
         Text(emoji, style: const TextStyle(fontSize: 22)),
         const SizedBox(height: 4),
         Text('$count', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(fontSize: 10)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10),
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+        ),
       ],
     );
   }

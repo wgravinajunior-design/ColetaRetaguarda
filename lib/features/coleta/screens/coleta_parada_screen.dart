@@ -764,9 +764,10 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
 
       // Atualizar parada
       final viewModel = context.read<ColetaViewModel>();
-      await viewModel.atualizarStatusParada(
-        paradaId: widget.parada.id!,
-        novoStatus: 'C', // Coleta completa
+      await viewModel.finalizarColetaComSucesso(
+        parada: widget.parada,
+        temperatura: 0, // Valor padrão
+        volume: 0, // Valor padrão
         assinaturaBase64: assinaturaBase64,
       );
 
