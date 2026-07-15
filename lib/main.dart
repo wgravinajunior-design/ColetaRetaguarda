@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'dart:io';
+import 'dart:isolate';
 import 'core/api/http_client.dart';
 import 'features/auth/auth_service.dart';
 import 'features/auth/login_screen.dart';
@@ -49,6 +50,7 @@ import 'core/localization/app_strings.dart';
 import 'core/analytics/analytics_service.dart';
 import 'core/widgets/notification_toast.dart';
 import 'core/widgets/connection_status_banner.dart';
+import 'core/backend/api_server.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,6 +59,9 @@ void main() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
+
+  // Inicia servidor HTTP em isolate separado (para mobile sincronizar)
+  Isolate.spawn(_startApiServer, null);
 
   // Abre a janela no modo login (pequena, centralizada) no desktop
   await WindowService.init();
@@ -241,5 +246,14 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
         ),
       ),
     );
+  }
+}
+
+/// Inicia o servidor HTTP em isolate separado
+void _startApiServer(_) async {
+  try {
+    await ApiServer.start(port: 8080);
+  } catch (e) {
+    debugPrint('Erro ao iniciar API Server: $e');
   }
 }

@@ -57,6 +57,8 @@ dependencies:
   signature: ^5.5.0
   image_picker: ^1.1.2
   window_manager: ^0.4.3
+  shelf: ^1.4.0
+  shelf_router: ^1.1.0
 
 dev_dependencies:
   flutter_test:
