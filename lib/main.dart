@@ -5,7 +5,9 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'dart:io';
 import 'dart:isolate';
 import 'core/api/http_client.dart';
+import 'core/backend/api_server.dart';
 import 'features/auth/auth_service.dart';
+import 'features/core/database/sync_service.dart';
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/main_layout.dart';
 import 'features/produtores/viewmodels/produtor_viewmodel.dart';
@@ -74,6 +76,10 @@ void main() async {
 
   final connectivityService = ConnectivityService();
   await connectivityService.init();
+
+  // Inicializa auto-sync para sincronizar quando volta online
+  final syncService = SyncService();
+  syncService.setupAutoSync();
 
   final apiClient = ApiClient();
   await apiClient.init();
@@ -233,14 +239,13 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
       ],
     );
 
-    return NotificationToast(
-      child: MaterialApp.router(
-        title: 'Coleta ERP',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.getLightTheme(),
-        darkTheme: AppTheme.getDarkTheme(),
-        themeMode: _appTheme.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-        routerConfig: router,
+    return MaterialApp.router(
+      title: 'Coleta ERP',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.getLightTheme(),
+      darkTheme: AppTheme.getDarkTheme(),
+      themeMode: _appTheme.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      routerConfig: router,
         builder: (context, child) => ConnectionStatusBanner(
           child: child ?? const SizedBox.shrink(),
         ),

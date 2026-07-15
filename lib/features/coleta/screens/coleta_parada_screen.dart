@@ -746,6 +746,47 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
       ),
     );
   }
+
+  /// Captura a assinatura e atualiza a parada
+  Future<void> _captureAssinatura() async {
+    try {
+      final signature = await _signatureController.toPngBytes();
+      if (signature == null || signature.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Por favor, assine o documento')),
+        );
+        return;
+      }
+
+      // Converter para base64
+      final assinaturaBase64 = 'data:image/png;base64,${base64Encode(signature)}';
+
+      // Atualizar parada
+      final viewModel = context.read<ColetaViewModel>();
+      await viewModel.atualizarStatusParada(
+        paradaId: widget.parada.id!,
+        novoStatus: 'C', // Coleta completa
+        assinaturaBase64: assinaturaBase64,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Coleta finalizada com assinatura'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Fechar tela
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro: $e')),
+      );
+    }
+  }
 }
 
 class _InfoRow extends StatelessWidget {

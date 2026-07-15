@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -320,5 +321,102 @@ class ApiClient {
       _log('!!! ERROR: $e');
       return ApiResponse.error(e.toString());
     }
+  }
+
+  /// Upload multipart/form-data (para fotos, etc)
+  Future<ApiResponse> postMultipart(
+    String endpoint, {
+    Map<String, File>? files,
+    Map<String, String>? fields,
+    int retries = 0,
+  }) async {
+    try {
+      final url = Uri.parse('$_baseUrl$endpoint');
+      _log('>>> MULTIPART POST $url');
+
+      final request = http.MultipartRequest('POST', url);
+
+      // Add headers (sem Content-Type, deixa o http definir)
+      final headers = _getHeaders();
+      headers.remove('Content-Type'); // Multipart define automaticamente
+      request.headers.addAll(headers);
+
+      // Add files
+      if (files != null) {
+        for (final entry in files.entries) {
+          request.files.add(
+            await http.MultipartFile.fromPath(entry.key, entry.value.path),
+          );
+        }
+      }
+
+      // Add fields
+      if (fields != null) {
+        request.fields.addAll(fields);
+      }
+
+      _log('Sending multipart request with ${files?.length ?? 0} files and ${fields?.length ?? 0} fields');
+
+      final streamedResponse = await request.send().timeout(_timeout);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      _log('<<< ${response.statusCode}');
+      if (response.body.isNotEmpty) {
+        _log('Response: ${response.body.substring(0, 200)}');
+      }
+
+      if (response.statusCode == 200) {
+        return ApiResponse.fromJson(response.body, response.statusCode);
+      } else if (response.statusCode == 401 && retries < _maxRetries) {
+        _log('Retrying after 401... (attempt ${retries + 1}/$_maxRetries)');
+        await Future.delayed(const Duration(seconds: 1));
+        return postMultipart(endpoint, files: files, fields: fields, retries: retries + 1);
+      } else {
+        return ApiResponse.error(
+          'HTTP ${response.statusCode}: ${response.body}',
+          statusCode: response.statusCode,
+        );
+      }
+    } on TimeoutException {
+      _log('!!! TIMEOUT');
+      return ApiResponse.error('Timeout na requisição');
+    } catch (e) {
+      _log('!!! ERROR: $e');
+      return ApiResponse.error(e.toString());
+    }
+  }
+
+  /// Tratamento de erros comuns de resposta
+  /// Útil para notificar o usuário sobre problemas específicos
+  String getErrorMessage(ApiResponse response) {
+    switch (response.statusCode) {
+      case 400:
+        return 'Requisição inválida. Verifique os dados.';
+      case 401:
+        return 'Sessão expirada. Por favor, faça login novamente.';
+      case 403:
+        return 'Você não tem permissão para realizar esta ação.';
+      case 404:
+        return 'Recurso não encontrado.';
+      case 429:
+        return 'Muitas requisições. Aguarde alguns minutos antes de tentar novamente.';
+      case 500:
+        return 'Erro no servidor. Tente novamente mais tarde.';
+      case 503:
+        return 'Servidor indisponível. Tente novamente em alguns minutos.';
+      default:
+        return response.error ?? 'Erro desconhecido ao fazer requisição.';
+    }
+  }
+
+  /// Verifica se o erro é crítico (ex: token expirado)
+  bool isCriticalError(ApiResponse response) {
+    return response.statusCode == 401 || // Token expirado
+        response.statusCode == 403; // Permissão negada
+  }
+
+  /// Verifica se é um erro de rate limit
+  bool isRateLimitError(ApiResponse response) {
+    return response.statusCode == 429;
   }
 }

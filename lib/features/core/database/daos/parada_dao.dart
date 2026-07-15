@@ -128,4 +128,18 @@ class ParadaDao extends BaseDao<ParadaModel> {
       whereArgs: [paradaId],
     );
   }
+
+  /// Atualiza apenas o caminho da foto
+  Future<int> updateFotoPath(int paradaId, String fotoPath) async {
+    final db = await database;
+    return db.update(
+      tableName,
+      {
+        'foto_path': fotoPath,
+        'data_atualizacao': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [paradaId],
+    );
+  }
 }

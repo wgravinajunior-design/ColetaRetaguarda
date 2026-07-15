@@ -59,6 +59,9 @@ dependencies:
   window_manager: ^0.4.3
   shelf: ^1.4.0
   shelf_router: ^1.1.0
+  shelf_multipart: ^2.0.1
+  image: ^4.1.0
+  crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:
