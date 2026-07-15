@@ -123,6 +123,7 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
   }
 
   Future<void> _tirarFoto() async {
+    final viewModel = context.read<ColetaViewModel>();
     try {
       final picker = ImagePicker();
       final XFile? foto = await picker.pickImage(
@@ -131,7 +132,7 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
         imageQuality: 70,
       );
       if (foto != null) {
-        setState(() => _fotoPath = foto.path);
+        await _persistirFotoCapturada(viewModel, foto.path);
       }
     } catch (e) {
       if (mounted) {
@@ -143,6 +144,7 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
   }
 
   Future<void> _escolherFotoGaleria() async {
+    final viewModel = context.read<ColetaViewModel>();
     try {
       final picker = ImagePicker();
       final XFile? foto = await picker.pickImage(
@@ -151,7 +153,7 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
         imageQuality: 70,
       );
       if (foto != null) {
-        setState(() => _fotoPath = foto.path);
+        await _persistirFotoCapturada(viewModel, foto.path);
       }
     } catch (e) {
       if (mounted) {
@@ -159,6 +161,25 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
           SnackBar(content: Text('Não foi possível abrir a galeria: $e')),
         );
       }
+    }
+  }
+
+  /// Move a foto capturada para o armazenamento gerenciado (uploads/paradas/)
+  /// e atualiza _fotoPath com o caminho estável. Se a parada ainda não tem id
+  /// ou a imagem for inválida, mantém o caminho temporário como fallback.
+  Future<void> _persistirFotoCapturada(
+      ColetaViewModel viewModel, String origemPath) async {
+    final id = widget.parada.id;
+    String? gerenciado;
+    if (id != null) {
+      gerenciado = await viewModel.salvarFoto(id, origemPath);
+    }
+    if (!mounted) return;
+    setState(() => _fotoPath = gerenciado ?? origemPath);
+    if (gerenciado == null && id != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto inválida — use JPEG ou PNG.')),
+      );
     }
   }
 

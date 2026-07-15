@@ -85,6 +85,12 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
     notifyListeners();
   }
 
+  /// Persiste a foto capturada no armazenamento gerenciado e devolve o caminho
+  /// relativo estável (uploads/paradas/...). Devolve null se a foto for inválida.
+  Future<String?> salvarFoto(int paradaId, String origemPath) {
+    return _repository.salvarFotoLocal(paradaId, origemPath);
+  }
+
   /// Inicia a coleta de uma parada: captura o GPS do dispositivo, registra o
   /// horário de chegada e muda o status para "Em Andamento" (E).
   /// Retorna true se o GPS foi capturado e gravado com sucesso.

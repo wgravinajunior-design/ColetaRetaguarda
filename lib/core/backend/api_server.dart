@@ -1186,9 +1186,52 @@ class ApiServer {
         return _errorResponse(400, 'ID inválido');
       }
 
-      // Parse multipart/form-data (simplificado)
-      // TODO: Implementar suporte completo a multipart quando shelf_multipart for atualizado
-      return _errorResponse(501, 'Upload de arquivo ainda não implementado no backend');
+      // Exige multipart/form-data (shelf_multipart 2.0.1)
+      final form = request.formData();
+      if (form == null) {
+        return _errorResponse(400, 'Requisição precisa ser multipart/form-data');
+      }
+
+      // Lê o primeiro campo que traz um arquivo (com filename).
+      List<int>? fotoBytes;
+      await for (final field in form.formData) {
+        if (field.filename != null) {
+          fotoBytes = await field.part.readBytes();
+          break;
+        }
+      }
+
+      if (fotoBytes == null || fotoBytes.isEmpty) {
+        return _errorResponse(400, 'Nenhum arquivo de foto enviado');
+      }
+
+      // Valida tamanho e tipo (JPEG/PNG por magic number)
+      if (fotoBytes.length > FileStorageService.maxFileSize) {
+        return _errorResponse(413, 'Arquivo excede o limite de 10MB');
+      }
+      if (!FileStorageService.isValidImage(fotoBytes)) {
+        return _errorResponse(415, 'Formato inválido (apenas JPEG ou PNG)');
+      }
+
+      // Salva o arquivo em disco (uploads/paradas/...)
+      final fotoPath = await FileStorageService.saveFoto(parId, fotoBytes);
+      if (fotoPath == null) {
+        return _errorResponse(500, 'Falha ao salvar o arquivo');
+      }
+
+      // Persiste o caminho na parada
+      final db = await DbConnection().db;
+      final query = db.query();
+      await query.openCursor(
+        sql: 'UPDATE TB_PARADA SET PAR_FOTO_PATH = ? WHERE PAR_ID = ?',
+        parameters: [fotoPath, parId],
+      );
+      await query.close();
+
+      _logger.info('ApiServer', 'Foto da parada $parId salva em $fotoPath');
+      return shelf.Response.ok(
+          jsonEncode({'success': true, 'foto_path': fotoPath}),
+          headers: {'Content-Type': 'application/json'});
     } catch (e) {
       _logger.error('ApiServer', 'Erro ao upload foto: $e');
       return _errorResponse(500, 'Erro ao upload de foto: $e');

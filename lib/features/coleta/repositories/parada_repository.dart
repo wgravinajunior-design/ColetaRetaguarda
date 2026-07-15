@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../../core/database/daos/parada_dao.dart';
 import '../../core/database/sync_service.dart';
 import '../../core/database/firebird_service.dart';
+import '../../../core/backend/file_storage_service.dart';
 import '../models/parada_model.dart';
 
 class ParadaRepository {
@@ -139,6 +141,23 @@ class ParadaRepository {
 
   Future<bool> reordenarParadas(List<int> paradaIdsEmOrdem) async {
     return await _firebird.atualizarOrdemParadas(paradaIdsEmOrdem);
+  }
+
+  /// Move a foto capturada (caminho temporário do image_picker) para o
+  /// armazenamento gerenciado (uploads/paradas/) e retorna o caminho relativo
+  /// estável — o mesmo formato usado pelo endpoint de upload do backend.
+  /// Retorna null se o arquivo não existir ou não for JPEG/PNG válido.
+  Future<String?> salvarFotoLocal(int paradaId, String origemPath) async {
+    try {
+      final arquivo = File(origemPath);
+      if (!arquivo.existsSync()) return null;
+      final bytes = await arquivo.readAsBytes();
+      if (!FileStorageService.isValidImage(bytes)) return null;
+      return await FileStorageService.saveFoto(paradaId, bytes);
+    } catch (e) {
+      debugPrint('Erro ao salvar foto no armazenamento gerenciado: $e');
+      return null;
+    }
   }
 
   Future<ParadaModel?> criarParada(ParadaModel parada) async {
