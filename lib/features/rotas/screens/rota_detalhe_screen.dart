@@ -100,90 +100,7 @@ class RotaDetalheScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             // Seção de Coleta/Paradas
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.blue.shade200, width: 1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    color: Colors.blue.shade50,
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.agriculture, color: Colors.blue, size: 28),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Gerenciar Coleta',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: Colors.blue,
-                                ),
-                              ),
-                              Text(
-                                'Paradas e dados de coleta',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            icon: const Icon(Icons.play_arrow),
-                            label: const Text('Iniciar Coleta'),
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) => ColetaRotasScreen(rota: rota),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                            ),
-                            icon: const Icon(Icons.add),
-                            label: const Text('Adicionar Parada'),
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) => AdicionarParadaScreen(
-                                    rotaId: rota.id ?? 0,
-                                    sequencia: (rota.paradas ?? 0) + 1,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _ColetasSection(rota: rota),
           ],
         ),
       ),
@@ -461,6 +378,220 @@ class _StatusOption extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ColetasSection extends StatefulWidget {
+  final RotaModel rota;
+
+  const _ColetasSection({required this.rota});
+
+  @override
+  State<_ColetasSection> createState() => _ColetasSectionState();
+}
+
+class _ColetasSectionState extends State<_ColetasSection> {
+  final _paradaRepo = ParadaRepository();
+  late Future<List> _paradasFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _reloadParadas();
+  }
+
+  void _reloadParadas() {
+    _paradasFuture = _paradaRepo.getParadasByRota(widget.rota.id ?? 0);
+  }
+
+  String _statusLabel(String status) {
+    return switch (status) {
+      'E' => 'Em Andamento',
+      'C' => 'Concluída',
+      'R' => 'Recusada',
+      _ => 'Pendente',
+    };
+  }
+
+  Color _statusColor(String status) {
+    return switch (status) {
+      'E' => Colors.orange,
+      'C' => Colors.green,
+      'R' => Colors.red,
+      _ => Colors.grey,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.blue.shade200, width: 1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Container(
+            color: Colors.blue.shade50,
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Icon(Icons.agriculture, color: Colors.blue, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Coletas da Rota',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.blue,
+                        ),
+                      ),
+                      Text(
+                        '${widget.rota.paradas ?? 0} parada(s) cadastrada(s)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                FutureBuilder(
+                  future: _paradasFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Erro ao carregar: ${snapshot.error}'));
+                    }
+
+                    final paradas = snapshot.data ?? [];
+                    if (paradas.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Text('Nenhuma coleta cadastrada', style: TextStyle(color: Colors.grey[600])),
+                      );
+                    }
+
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: paradas.length,
+                      itemBuilder: (context, idx) {
+                        final parada = paradas[idx];
+                        final status = parada.status ?? 'P';
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: _statusColor(status),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        parada.pessoaNome ?? 'N/A',
+                                        style: const TextStyle(fontWeight: FontWeight.w600),
+                                      ),
+                                      Text(
+                                        parada.cnpjCpf ?? '',
+                                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                      ),
+                                      if (parada.volume != null)
+                                        Text(
+                                          'Volume: ${parada.volume!.toStringAsFixed(0)} L',
+                                          style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Chip(
+                                      label: Text(_statusLabel(status)),
+                                      backgroundColor: _statusColor(status).withValues(alpha: 0.2),
+                                      labelStyle: TextStyle(color: _statusColor(status)),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: const Icon(Icons.play_arrow),
+                        label: const Text('Iniciar Coleta'),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => ColetaRotasScreen(rota: widget.rota),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                        ),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Adicionar'),
+                        onPressed: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => AdicionarParadaScreen(
+                                rotaId: widget.rota.id ?? 0,
+                                sequencia: (widget.rota.paradas ?? 0) + 1,
+                              ),
+                            ),
+                          );
+                          setState(() => _reloadParadas());
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

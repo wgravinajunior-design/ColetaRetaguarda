@@ -17,18 +17,22 @@ class FinanceiroFormScreen extends StatefulWidget {
 class _FinanceiroFormScreenState extends State<FinanceiroFormScreen> {
   late TextEditingController historicoController;
   late TextEditingController valorController;
+  late TextEditingController contaBuscaController;
   String tipoSelecionado = 'C';
 
   final _firebird = FirebirdService();
   List<ContaRef> _contas = [];
+  List<ContaRef> _contasFiltradas = [];
   int? _contaId;
   bool _carregando = true;
+  bool _mostrarSugestoes = false;
 
   @override
   void initState() {
     super.initState();
     historicoController = TextEditingController(text: widget.movimento?.historico ?? '');
     valorController = TextEditingController(text: widget.movimento?.valor.toString() ?? '');
+    contaBuscaController = TextEditingController();
     _contaId = widget.movimento?.conta;
     tipoSelecionado = widget.movimento?.tipo ?? 'C';
     _carregarContas();
@@ -52,7 +56,35 @@ class _FinanceiroFormScreenState extends State<FinanceiroFormScreen> {
   void dispose() {
     historicoController.dispose();
     valorController.dispose();
+    contaBuscaController.dispose();
     super.dispose();
+  }
+
+  void _filtrarContas(String termo) {
+    if (termo.isEmpty) {
+      setState(() {
+        _contasFiltradas = [];
+        _mostrarSugestoes = false;
+      });
+      return;
+    }
+    final filtradas = _contas
+        .where((c) =>
+            c.descricao.toLowerCase().contains(termo.toLowerCase()) ||
+            c.id.toString().contains(termo))
+        .toList();
+    setState(() {
+      _contasFiltradas = filtradas;
+      _mostrarSugestoes = true;
+    });
+  }
+
+  void _selecionarConta(ContaRef conta) {
+    setState(() {
+      _contaId = conta.id;
+      contaBuscaController.text = conta.descricao;
+      _mostrarSugestoes = false;
+    });
   }
 
   void _save() async {
@@ -120,22 +152,61 @@ class _FinanceiroFormScreenState extends State<FinanceiroFormScreen> {
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<int>(
-                    initialValue: _contaId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Conta *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.account_balance),
-                    ),
-                    items: _contas
-                        .map((c) => DropdownMenuItem(
-                              value: c.id,
-                              child: Text('${c.descricao} (${c.isBanco ? 'Banco' : 'Caixa'})'),
-                            ))
-                        .toList(),
-                    onChanged: (v) => setState(() => _contaId = v),
-                    hint: _contas.isEmpty ? const Text('Nenhuma conta cadastrada') : null,
+                  // Campo de busca de conta (plano de contas)
+                  Stack(
+                    children: [
+                      TextField(
+                        controller: contaBuscaController,
+                        decoration: InputDecoration(
+                          labelText: 'Plano de Contas *',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.account_balance),
+                          hintText: 'Digite para buscar...',
+                          suffixIcon: _contaId != null
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () => setState(() {
+                                    _contaId = null;
+                                    contaBuscaController.clear();
+                                  }),
+                                )
+                              : null,
+                        ),
+                        onChanged: _filtrarContas,
+                        onTap: () {
+                          if (contaBuscaController.text.isEmpty && _contas.isNotEmpty) {
+                            setState(() {
+                              _contasFiltradas = _contas;
+                              _mostrarSugestoes = true;
+                            });
+                          }
+                        },
+                      ),
+                      if (_mostrarSugestoes && _contasFiltradas.isNotEmpty)
+                        Positioned(
+                          top: 60,
+                          left: 0,
+                          right: 0,
+                          child: Material(
+                            elevation: 4,
+                            child: Container(
+                              constraints: const BoxConstraints(maxHeight: 200),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: _contasFiltradas.length,
+                                itemBuilder: (context, idx) {
+                                  final conta = _contasFiltradas[idx];
+                                  return ListTile(
+                                    title: Text(conta.descricao),
+                                    subtitle: Text(conta.isBanco ? 'Banco' : 'Caixa'),
+                                    onTap: () => _selecionarConta(conta),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(

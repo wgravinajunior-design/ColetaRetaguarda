@@ -21,7 +21,12 @@ class ProdutorFormScreen extends StatefulWidget {
 class _ProdutorFormScreenState extends State<ProdutorFormScreen> {
   late TextEditingController nomeController;
   late TextEditingController cnpjCpfController;
-  late TextEditingController enderecoController;
+  late TextEditingController logradouroController;
+  late TextEditingController numeroController;
+  late TextEditingController complementoController;
+  late TextEditingController referenciaController;
+  late TextEditingController bairroController;
+  late TextEditingController cepController;
   late TextEditingController celularController;
   late TextEditingController emailController;
   late TextEditingController kmController;
@@ -46,7 +51,12 @@ class _ProdutorFormScreenState extends State<ProdutorFormScreen> {
     final p = widget.produtor;
     nomeController = TextEditingController(text: p?.rSocialNome ?? '');
     cnpjCpfController = TextEditingController(text: p?.cnpjCpf ?? '');
-    enderecoController = TextEditingController(text: p?.endereco ?? '');
+    logradouroController = TextEditingController(text: p?.endereco ?? '');
+    numeroController = TextEditingController(text: p?.numero ?? '');
+    complementoController = TextEditingController(text: p?.complemento ?? '');
+    referenciaController = TextEditingController(text: p?.referencia ?? '');
+    bairroController = TextEditingController(text: p?.bairro ?? '');
+    cepController = TextEditingController(text: p?.cep ?? '');
     celularController = TextEditingController(text: p?.celular ?? '');
     emailController = TextEditingController(text: p?.email ?? '');
     kmController = TextEditingController(text: p?.km?.toString() ?? '');
@@ -64,7 +74,12 @@ class _ProdutorFormScreenState extends State<ProdutorFormScreen> {
   void dispose() {
     nomeController.dispose();
     cnpjCpfController.dispose();
-    enderecoController.dispose();
+    logradouroController.dispose();
+    numeroController.dispose();
+    complementoController.dispose();
+    referenciaController.dispose();
+    bairroController.dispose();
+    cepController.dispose();
     celularController.dispose();
     emailController.dispose();
     kmController.dispose();
@@ -139,11 +154,12 @@ class _ProdutorFormScreenState extends State<ProdutorFormScreen> {
       fantasiaApelido: base?.fantasiaApelido ?? '',
       cnpjCpf: cnpjCpfController.text,
       ieRg: base?.ieRg ?? '',
-      endereco: enderecoController.text,
-      numero: base?.numero ?? '',
-      complemento: base?.complemento ?? '',
-      bairro: base?.bairro ?? '',
-      cep: base?.cep ?? '',
+      endereco: logradouroController.text,
+      numero: numeroController.text,
+      complemento: complementoController.text,
+      bairro: bairroController.text,
+      cep: cepController.text,
+      referencia: referenciaController.text,
       telefone: base?.telefone ?? '',
       celular: celularController.text,
       email: emailController.text,
@@ -192,7 +208,22 @@ class _ProdutorFormScreenState extends State<ProdutorFormScreen> {
             _secao('Dados', Icons.person),
             _campo(nomeController, 'Razão Social / Nome *'),
             _campo(cnpjCpfController, 'CNPJ / CPF'),
-            _campo(enderecoController, 'Endereço'),
+            const SizedBox(height: 12),
+            _secao('Endereço', Icons.location_on),
+            _campo(logradouroController, 'Logradouro'),
+            Row(children: [
+              Expanded(child: _campo(numeroController, 'Número')),
+              const SizedBox(width: 12),
+              Expanded(child: _campo(cepController, 'CEP')),
+            ]),
+            _campo(complementoController, 'Complemento'),
+            Row(children: [
+              Expanded(child: _campo(bairroController, 'Bairro')),
+              const SizedBox(width: 12),
+              Expanded(child: _campo(referenciaController, 'Referência')),
+            ]),
+            const SizedBox(height: 12),
+            _secao('Contato', Icons.phone),
             Row(children: [
               Expanded(child: _campo(celularController, 'Celular')),
               const SizedBox(width: 12),

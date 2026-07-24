@@ -80,8 +80,11 @@ class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
       final novo = await _repository.createMovimento(mov);
       if (novo != null) {
         items.add(novo);
+        // Recarrega os saldos para refletir a nova transação
+        _saldos = await _repository.getSaldosPorConta();
         setSuccess();
         cacheManager.removePattern('/movimentos');
+        notifyListeners();
         return true;
       }
       return false;
@@ -102,8 +105,11 @@ class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
       if (await _repository.updateMovimento(mov)) {
         final index = items.indexWhere((m) => m.id == mov.id);
         if (index != -1) items[index] = mov;
+        // Recarrega os saldos para refletir a alteração
+        _saldos = await _repository.getSaldosPorConta();
         setSuccess();
         cacheManager.removePattern('/movimentos');
+        notifyListeners();
         return true;
       }
       return false;
@@ -124,8 +130,11 @@ class FinanceiroViewModel extends BaseViewModel<MovimentoModel> {
     try {
       if (await _repository.deleteMovimento(id)) {
         items.removeWhere((m) => m.id == id);
+        // Recarrega os saldos para refletir a exclusão
+        _saldos = await _repository.getSaldosPorConta();
         setSuccess();
         cacheManager.removePattern('/movimentos');
+        notifyListeners();
         return true;
       }
       return false;
