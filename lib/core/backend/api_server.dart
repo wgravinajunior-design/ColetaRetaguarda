@@ -5,22 +5,21 @@ import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_multipart/shelf_multipart.dart';
 import '../logging/app_logger.dart';
+import '../../features/core/config/config_service.dart';
 import '../../features/core/database/db_connection.dart';
 import 'jwt_service.dart';
 import 'file_storage_service.dart';
 
-/// Servidor HTTP integrado para sincronização mobile ↔ desktop
-/// Roda em isolate separado para não bloquear UI
+/// Servidor HTTP integrado para sincronização mobile ↔ desktop.
+///
+/// Roda no isolate principal, junto da UI: o shelf é totalmente assíncrono,
+/// e assim o servidor compartilha `ConfigService`/`DbConnection` com o resto
+/// do app. Em isolate separado ele enxergava uma configuração zerada e só
+/// `/ping` funcionava — todo endpoint que toca o banco respondia 500.
 class ApiServer {
   static const int DEFAULT_PORT = 8080;
   static late AppLogger _logger;
   static HttpServer? _server;
-
-  // Rate limiting: IP → {timestamp, tentativas}
-  static final Map<String, _RateLimit> _rateLimits = {};
-  static const int _maxAttempts = 5;
-  static const Duration _blockDuration = Duration(minutes: 15);
-  static const Duration _resetDuration = Duration(minutes: 1);
 
   // Cache: URL → {body, timestamp}
   static final Map<String, _CacheEntry> _responseCache = {};
@@ -51,10 +50,6 @@ class ApiServer {
         ..post('/coleta/rotas', _createRota)
         ..put('/coleta/rotas/<id>', _updateRota)
         ..delete('/coleta/rotas/<id>', _deleteRota)
-        ..get('/coleta/paradas', _listParadas)
-        ..post('/coleta/paradas', _createParada)
-        ..put('/coleta/paradas/<id>', _updateParada)
-        ..post('/coleta/paradas/<id>/foto', _uploadFotoParada)
         // ── Endpoints do app mobile (contrato: {success, data} + tabelas reais
         //    do ERP COLETAS_ROTA/COLETAS_DETALHE). Ver reconciliação fase 2/3.
         ..get('/coleta/produtores', _listProdutores)
@@ -77,51 +72,27 @@ class ApiServer {
 
       _server = await shelf_io.serve(handler, '0.0.0.0', port);
       _logger.info('ApiServer', 'Servidor iniciado em http://0.0.0.0:$port');
+
+      // Sem isto, um erro de configuração do banco só aparece como 500 mudo no
+      // mobile: /ping responde OK (não usa banco) e todo o resto falha.
+      final config = ConfigService();
+      _logger.info(
+        'ApiServer',
+        'Banco: ${config.host}:${config.porta} ${config.caminhoBase}',
+      );
+      if (!await DbConnection().testarConexao()) {
+        _logger.error(
+          'ApiServer',
+          'Sem conexão com o Firebird em ${config.host}:${config.porta} '
+              '(${config.caminhoBase}). O mobile vai conectar mas não vai '
+              'sincronizar — ajuste os dados em Configurações.',
+        );
+      }
     } catch (e) {
       _logger.error('ApiServer', 'Erro ao iniciar servidor: $e');
       rethrow;
     }
   }
-
-  /// Middleware Rate Limiting por IP
-  static shelf.Middleware _rateLimitMiddleware = (innerHandler) {
-    return (request) async {
-      final ip = request.headers['x-forwarded-for'] ?? 'unknown';
-      final rateLimit = _rateLimits.putIfAbsent(ip, () => _RateLimit());
-
-      // Verifica se IP está bloqueado
-      if (rateLimit.isBlocked()) {
-        return shelf.Response(429,
-            body: jsonEncode({
-              'error': 'Muitas tentativas. Tente novamente em 15 minutos.',
-              'success': false
-            }),
-            headers: {'Content-Type': 'application/json'});
-      }
-
-      // Reset se passou tempo suficiente
-      if (rateLimit.shouldReset()) {
-        rateLimit.attempts = 0;
-        rateLimit.firstAttempt = DateTime.now();
-      }
-
-      rateLimit.attempts++;
-
-      // Bloqueia se ultrapassou limite
-      if (rateLimit.attempts > _maxAttempts) {
-        rateLimit.blockedUntil = DateTime.now().add(_blockDuration);
-        _logger.warning('ApiServer', 'IP bloqueado por rate limit: $ip');
-        return shelf.Response(429,
-            body: jsonEncode({
-              'error': 'Muitas tentativas. Tente novamente mais tarde.',
-              'success': false
-            }),
-            headers: {'Content-Type': 'application/json'});
-      }
-
-      return await innerHandler(request);
-    };
-  };
 
   /// Middleware Cache para GET requests
   static shelf.Middleware _cacheMiddleware = (innerHandler) {
@@ -233,7 +204,7 @@ class ApiServer {
   /// Health check
   static shelf.Response _health(shelf.Request request) {
     return shelf.Response.ok(
-      jsonEncode({'status': 'ok', 'server': 'Coleta Retaguarda'}),
+      _encodeJson({'status': 'ok', 'server': 'Coleta Retaguarda'}),
       headers: {'Content-Type': 'application/json'},
     );
   }
@@ -250,7 +221,7 @@ class ApiServer {
 
       if (login == null || senha == null) {
         return shelf.Response(400,
-            body: jsonEncode({'error': 'Login e senha obrigatórios'}),
+            body: _encodeJson({'error': 'Login e senha obrigatórios'}),
             headers: {'Content-Type': 'application/json'});
       }
 
@@ -276,7 +247,7 @@ class ApiServer {
       if (!found) {
         _logger.warning('ApiServer', 'Falha de login: $login');
         return shelf.Response(401,
-            body: jsonEncode({'error': 'Credenciais inválidas'}),
+            body: _encodeJson({'error': 'Credenciais inválidas'}),
             headers: {'Content-Type': 'application/json'});
       }
 
@@ -284,7 +255,7 @@ class ApiServer {
       _logger.info('ApiServer', 'Login OK: $login ($perfil)');
 
       return shelf.Response.ok(
-        jsonEncode({
+        _encodeJson({
           'success': true,
           'token': token,
           'id': login,
@@ -296,7 +267,7 @@ class ApiServer {
     } catch (e) {
       _logger.error('ApiServer', 'Erro no login: $e');
       return shelf.Response(500,
-          body: jsonEncode({'error': 'Erro interno'}),
+          body: _encodeJson({'error': 'Erro interno'}),
           headers: {'Content-Type': 'application/json'});
     }
   }
@@ -337,7 +308,7 @@ class ApiServer {
       });
 
       return shelf.Response.ok(
-        jsonEncode({'success': true, 'data': items}),
+        _encodeJson({'success': true, 'data': items}),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
@@ -382,7 +353,7 @@ class ApiServer {
       });
 
       return shelf.Response.ok(
-        jsonEncode({'success': true, 'data': items}),
+        _encodeJson({'success': true, 'data': items}),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
@@ -421,7 +392,7 @@ class ApiServer {
         return list;
       });
       return shelf.Response.ok(
-        jsonEncode({'success': true, 'data': items}),
+        _encodeJson({'success': true, 'data': items}),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
@@ -463,7 +434,7 @@ class ApiServer {
         return list;
       });
       return shelf.Response.ok(
-        jsonEncode({'success': true, 'data': items}),
+        _encodeJson({'success': true, 'data': items}),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
@@ -511,7 +482,7 @@ class ApiServer {
         return list;
       });
       return shelf.Response.ok(
-        jsonEncode({'success': true, 'data': items}),
+        _encodeJson({'success': true, 'data': items}),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
@@ -561,7 +532,7 @@ class ApiServer {
         ],
       ));
       return shelf.Response.ok(
-        jsonEncode({'success': true}),
+        _encodeJson({'success': true}),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
@@ -637,7 +608,7 @@ class ApiServer {
       }
 
       return shelf.Response.ok(
-        jsonEncode({'success': true, 'aplicados': aplicados}),
+        _encodeJson({'success': true, 'aplicados': aplicados}),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
@@ -649,7 +620,7 @@ class ApiServer {
   /// token localmente.
   static Future<shelf.Response> _logout(shelf.Request request) async {
     return shelf.Response.ok(
-      jsonEncode({'success': true}),
+      _encodeJson({'success': true}),
       headers: {'Content-Type': 'application/json'},
     );
   }
@@ -696,7 +667,7 @@ class ApiServer {
       });
 
       return shelf.Response(201,
-          body: jsonEncode({'success': true, 'id': id}),
+          body: _encodeJson({'success': true, 'id': id}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
       return _errorResponse(500, 'Erro ao criar pessoa: $e');
@@ -741,7 +712,7 @@ class ApiServer {
       ));
 
       return shelf.Response.ok(
-          jsonEncode({'success': true}),
+          _encodeJson({'success': true}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
       return _errorResponse(500, 'Erro ao atualizar pessoa: $e');
@@ -769,7 +740,7 @@ class ApiServer {
       ));
 
       return shelf.Response.ok(
-          jsonEncode({'success': true}),
+          _encodeJson({'success': true}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
       return _errorResponse(500, 'Erro ao deletar pessoa: $e');
@@ -791,7 +762,7 @@ class ApiServer {
           sql: 'SELECT PES_ID, PES_RSOCIAL_NOME, PES_FANTASIA_APELIDO, '
               'PES_CNPJ_CPF, PES_IE_RG, PES_TELEFONE, PES_CELULAR, '
               'PES_EMAIL, PES_ENDERECO, PES_NUMERO, PES_COMPLEMENTO, '
-              'PES_BAIRRO, PES_CIDADE, PES_CEP, PES_CNH, PES_CNH_VALIDADE, '
+              'PES_BAIRRO, PES_CIDADE, PES_CEP, PES_CNH, PES_VALIDADE_CNH, '
               'PES_STATUS FROM TB_PESSOA WHERE PES_TRANSPORTADOR = \'S\' AND '
               'PES_STATUS = \'A\' ORDER BY PES_RSOCIAL_NOME',
         );
@@ -813,7 +784,7 @@ class ApiServer {
             'cidade': row['PES_CIDADE'],
             'cep': row['PES_CEP'],
             'cnh': row['PES_CNH'],
-            'cnh_validade': row['PES_CNH_VALIDADE'],
+            'cnh_validade': row['PES_VALIDADE_CNH'],
             'status': row['PES_STATUS'] == 'A' ? 'ATIVO' : 'INATIVO',
           });
         }
@@ -821,7 +792,7 @@ class ApiServer {
       });
 
       return shelf.Response.ok(
-        jsonEncode({'success': true, 'data': items}),
+        _encodeJson({'success': true, 'data': items}),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
@@ -847,7 +818,7 @@ class ApiServer {
           sql: 'INSERT INTO TB_PESSOA (PES_RSOCIAL_NOME, PES_FANTASIA_APELIDO, '
               'PES_CNPJ_CPF, PES_IE_RG, PES_TELEFONE, PES_CELULAR, PES_EMAIL, '
               'PES_ENDERECO, PES_NUMERO, PES_COMPLEMENTO, PES_BAIRRO, '
-              'PES_CIDADE, PES_CEP, PES_CNH, PES_CNH_VALIDADE, '
+              'PES_CIDADE, PES_CEP, PES_CNH, PES_VALIDADE_CNH, '
               'PES_STATUS, PES_TRANSPORTADOR) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '
               '?, ?, ?, ?, ?, ?, ?, ?) RETURNING PES_ID',
           parameters: [
@@ -879,7 +850,7 @@ class ApiServer {
       });
 
       return shelf.Response(201,
-          body: jsonEncode({'success': true, 'id': id}),
+          body: _encodeJson({'success': true, 'id': id}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
       return _errorResponse(500, 'Erro ao criar motorista: $e');
@@ -910,7 +881,7 @@ class ApiServer {
             'PES_FANTASIA_APELIDO = ?, PES_TELEFONE = ?, PES_CELULAR = ?, '
             'PES_EMAIL = ?, PES_ENDERECO = ?, PES_NUMERO = ?, '
             'PES_COMPLEMENTO = ?, PES_BAIRRO = ?, PES_CIDADE = ?, '
-            'PES_CEP = ?, PES_CNH = ?, PES_CNH_VALIDADE = ? '
+            'PES_CEP = ?, PES_CNH = ?, PES_VALIDADE_CNH = ? '
             'WHERE PES_ID = ? AND PES_TRANSPORTADOR = \'S\'',
         parameters: [
           data['nome'] ?? '',
@@ -931,7 +902,7 @@ class ApiServer {
       ));
 
       return shelf.Response.ok(
-          jsonEncode({'success': true}),
+          _encodeJson({'success': true}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
       return _errorResponse(500, 'Erro ao atualizar motorista: $e');
@@ -959,7 +930,7 @@ class ApiServer {
       ));
 
       return shelf.Response.ok(
-          jsonEncode({'success': true}),
+          _encodeJson({'success': true}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
       return _errorResponse(500, 'Erro ao deletar motorista: $e');
@@ -979,7 +950,7 @@ class ApiServer {
       final items = await _withCursor(db, (query) async {
         await query.openCursor(
           sql: 'SELECT VEI_ID, VEI_PLACA, VEI_MARCA, VEI_MODELO, VEI_COR, '
-              'VEI_ANO, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, VEI_STATUS '
+              'VEI_ANO_FAB, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, VEI_STATUS '
               'FROM TB_VEICULO WHERE VEI_STATUS = \'A\' '
               'ORDER BY VEI_PLACA',
         );
@@ -996,7 +967,7 @@ class ApiServer {
                 .join(' ')
                 .trim(),
             'cor': row['VEI_COR'] ?? '',
-            'ano': row['VEI_ANO'] ?? '',
+            'ano': row['VEI_ANO_FAB'] ?? '',
             'tipo': row['VEI_TIPO'] ?? 'C',
             'renavam': row['VEI_RENAVAM'] ?? '',
             'chassi': row['VEI_CHASSI'],
@@ -1007,7 +978,7 @@ class ApiServer {
       });
 
       return shelf.Response.ok(
-        jsonEncode({'success': true, 'data': items}),
+        _encodeJson({'success': true, 'data': items}),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
@@ -1031,7 +1002,7 @@ class ApiServer {
       final id = await _withCursor(db, (query) async {
         await query.openCursor(
           sql: 'INSERT INTO TB_VEICULO (VEI_PLACA, VEI_MARCA, VEI_MODELO, '
-              'VEI_COR, VEI_ANO, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, '
+              'VEI_COR, VEI_ANO_FAB, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, '
               'VEI_STATUS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) '
               'RETURNING VEI_ID',
           parameters: [
@@ -1039,7 +1010,7 @@ class ApiServer {
             data['marca'] ?? '',
             data['modelo'] ?? '',
             data['cor'] ?? '',
-            data['ano'] ?? '',
+            int.tryParse('${data['ano'] ?? ''}') ?? 0,
             data['tipo'] ?? 'C',
             data['renavam'] ?? '',
             data['chassi'],
@@ -1055,7 +1026,7 @@ class ApiServer {
       });
 
       return shelf.Response(201,
-          body: jsonEncode({'success': true, 'id': id}),
+          body: _encodeJson({'success': true, 'id': id}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
       return _errorResponse(500, 'Erro ao criar veículo: $e');
@@ -1083,14 +1054,14 @@ class ApiServer {
       final db = await DbConnection().db;
       await _withCursor(db, (query) => query.openCursor(
         sql: 'UPDATE TB_VEICULO SET VEI_PLACA = ?, VEI_MARCA = ?, '
-            'VEI_MODELO = ?, VEI_COR = ?, VEI_ANO = ?, VEI_TIPO = ?, '
+            'VEI_MODELO = ?, VEI_COR = ?, VEI_ANO_FAB = ?, VEI_TIPO = ?, '
             'VEI_RENAVAM = ?, VEI_CHASSI = ? WHERE VEI_ID = ?',
         parameters: [
           data['placa'] ?? '',
           data['marca'] ?? '',
           data['modelo'] ?? '',
           data['cor'] ?? '',
-          data['ano'] ?? '',
+          int.tryParse('${data['ano'] ?? ''}') ?? 0,
           data['tipo'] ?? 'C',
           data['renavam'] ?? '',
           data['chassi'],
@@ -1099,7 +1070,7 @@ class ApiServer {
       ));
 
       return shelf.Response.ok(
-          jsonEncode({'success': true}),
+          _encodeJson({'success': true}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
       return _errorResponse(500, 'Erro ao atualizar veículo: $e');
@@ -1126,7 +1097,7 @@ class ApiServer {
       ));
 
       return shelf.Response.ok(
-          jsonEncode({'success': true}),
+          _encodeJson({'success': true}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
       return _errorResponse(500, 'Erro ao deletar veículo: $e');
@@ -1169,7 +1140,7 @@ class ApiServer {
       });
 
       return shelf.Response.ok(
-        jsonEncode({'success': true, 'data': items}),
+        _encodeJson({'success': true, 'data': items}),
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
@@ -1216,7 +1187,7 @@ class ApiServer {
       });
 
       return shelf.Response(201,
-          body: jsonEncode({'success': true, 'id': id}),
+          body: _encodeJson({'success': true, 'id': id}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
       return _errorResponse(500, 'Erro ao criar rota: $e');
@@ -1257,7 +1228,7 @@ class ApiServer {
       ));
 
       return shelf.Response.ok(
-          jsonEncode({'success': true}),
+          _encodeJson({'success': true}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
       return _errorResponse(500, 'Erro ao atualizar rota: $e');
@@ -1284,186 +1255,14 @@ class ApiServer {
       ));
 
       return shelf.Response.ok(
-          jsonEncode({'success': true}),
+          _encodeJson({'success': true}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
       return _errorResponse(500, 'Erro ao deletar rota: $e');
     }
   }
 
-  // ============ PARADAS/COLETA ============
-
-  static Future<shelf.Response> _listParadas(shelf.Request request) async {
-    final tokenData = _validateBearerToken(request);
-    if (tokenData == null) {
-      return _errorResponse(401, 'Token inválido ou expirado');
-    }
-
-    try {
-      final rotaId = request.url.queryParameters['rota_id'];
-      final status = request.url.queryParameters['status'];
-
-      if (rotaId == null) {
-        return _errorResponse(400, 'Parâmetro rota_id obrigatório');
-      }
-
-      String sql = 'SELECT PAR_ID, PAR_ROTA_ID, PAR_PESSOA_ID, '
-          'PAR_PESSOA_NOME, PAR_CNPJ_CPF, PAR_ENDERECO, '
-          'PAR_LATITUDE, PAR_LONGITUDE, PAR_STATUS, '
-          'PAR_TEMPERATURA, PAR_VOLUME, PAR_JUSTIFICATIVA, '
-          'PAR_GPS_LATITUDE, PAR_GPS_LONGITUDE, '
-          'PAR_HORARIO_CHEGADA, PAR_HORARIO_SAIDA, '
-          'PAR_FOTO_PATH, PAR_ASSINATURA_BASE64 '
-          'FROM TB_PARADA WHERE PAR_ROTA_ID = ?';
-
-      final params = <dynamic>[int.tryParse(rotaId) ?? 0];
-
-      if (status != null && status.isNotEmpty) {
-        sql += ' AND PAR_STATUS = ?';
-        params.add(status);
-      }
-
-      sql += ' ORDER BY PAR_ID';
-
-      final db = await DbConnection().db;
-      final items = await _withCursor(db, (query) async {
-        await query.openCursor(sql: sql, parameters: params);
-        final list = <Map<String, dynamic>>[];
-        await for (var row in query.rows()) {
-          list.add({
-            'id': row['PAR_ID'],
-            'rota_id': row['PAR_ROTA_ID'],
-            'pessoa_id': row['PAR_PESSOA_ID'],
-            'pessoa_nome': row['PAR_PESSOA_NOME'],
-            'cnpj_cpf': row['PAR_CNPJ_CPF'],
-            'endereco': row['PAR_ENDERECO'],
-            'latitude': row['PAR_LATITUDE'] ?? 0.0,
-            'longitude': row['PAR_LONGITUDE'] ?? 0.0,
-            'status': row['PAR_STATUS'] ?? 'P',
-            'temperatura': row['PAR_TEMPERATURA'],
-            'volume': row['PAR_VOLUME'],
-            'justificativa': row['PAR_JUSTIFICATIVA'],
-            'gps_captura_latitude': row['PAR_GPS_LATITUDE'],
-            'gps_captura_longitude': row['PAR_GPS_LONGITUDE'],
-            'horario_chegada': row['PAR_HORARIO_CHEGADA'],
-            'horario_saida': row['PAR_HORARIO_SAIDA'],
-            'foto_path': row['PAR_FOTO_PATH'],
-            'assinatura_base64': row['PAR_ASSINATURA_BASE64'],
-          });
-        }
-        return list;
-      });
-
-      return shelf.Response.ok(
-        jsonEncode({'success': true, 'data': items}),
-        headers: {'Content-Type': 'application/json'},
-      );
-    } catch (e) {
-      return _errorResponse(500, 'Erro ao listar paradas: $e');
-    }
-  }
-
-  static Future<shelf.Response> _createParada(shelf.Request request) async {
-    final tokenData = _validateBearerToken(request);
-    if (tokenData == null) {
-      return _errorResponse(401, 'Token inválido ou expirado');
-    }
-
-    try {
-      final data = await _readJsonBody(request);
-      if (data == null) {
-        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
-      }
-
-      final db = await DbConnection().db;
-      final id = await _withCursor(db, (query) async {
-        await query.openCursor(
-          sql: 'INSERT INTO TB_PARADA (PAR_ROTA_ID, PAR_PESSOA_ID, '
-              'PAR_PESSOA_NOME, PAR_CNPJ_CPF, PAR_ENDERECO, '
-              'PAR_LATITUDE, PAR_LONGITUDE, PAR_STATUS, '
-              'PAR_TEMPERATURA, PAR_VOLUME, PAR_GPS_LATITUDE, '
-              'PAR_GPS_LONGITUDE, PAR_HORARIO_CHEGADA) '
-              'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
-              'RETURNING PAR_ID',
-          parameters: [
-            data['rota_id'],
-            data['pessoa_id'],
-            data['pessoa_nome'],
-            data['cnpj_cpf'],
-            data['endereco'],
-            data['latitude'] ?? 0.0,
-            data['longitude'] ?? 0.0,
-            data['status'] ?? 'P',
-            data['temperatura'],
-            data['volume'],
-            data['gps_captura_latitude'] ?? 0.0,
-            data['gps_captura_longitude'] ?? 0.0,
-            data['horario_chegada'],
-          ],
-        );
-        var v = 0;
-        await for (var row in query.rows()) {
-          v = row['PAR_ID'] ?? 0;
-          break;
-        }
-        return v;
-      });
-
-      return shelf.Response(201,
-          body: jsonEncode({'success': true, 'id': id}),
-          headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return _errorResponse(500, 'Erro ao criar parada: $e');
-    }
-  }
-
-  static Future<shelf.Response> _updateParada(
-      shelf.Request request, String id) async {
-    final tokenData = _validateBearerToken(request);
-    if (tokenData == null) {
-      return _errorResponse(401, 'Token inválido ou expirado');
-    }
-
-    try {
-      final data = await _readJsonBody(request);
-      if (data == null) {
-        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
-      }
-      final parId = int.tryParse(id) ?? 0;
-
-      if (parId == 0) {
-        return _errorResponse(400, 'ID inválido');
-      }
-
-      final db = await DbConnection().db;
-      await _withCursor(db, (query) => query.openCursor(
-        sql: 'UPDATE TB_PARADA SET PAR_STATUS = ?, PAR_TEMPERATURA = ?, '
-            'PAR_VOLUME = ?, PAR_JUSTIFICATIVA = ?, '
-            'PAR_GPS_LATITUDE = ?, PAR_GPS_LONGITUDE = ?, '
-            'PAR_HORARIO_CHEGADA = ?, PAR_HORARIO_SAIDA = ?, '
-            'PAR_ASSINATURA_BASE64 = ? WHERE PAR_ID = ?',
-        parameters: [
-          data['status'] ?? 'P',
-          data['temperatura'],
-          data['volume'],
-          data['justificativa'],
-          data['gps_captura_latitude'],
-          data['gps_captura_longitude'],
-          data['horario_chegada'],
-          data['horario_saida'],
-          data['assinatura_base64'],
-          parId,
-        ],
-      ));
-
-      return shelf.Response.ok(
-          jsonEncode({'success': true}),
-          headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return _errorResponse(500, 'Erro ao atualizar parada: $e');
-    }
-  }
-
+  /// POST `/coleta/detalhes/<id>/foto` — anexa a foto da coleta.
   static Future<shelf.Response> _uploadFotoParada(
       shelf.Request request, String id) async {
     final tokenData = _validateBearerToken(request);
@@ -1519,7 +1318,7 @@ class ApiServer {
 
       _logger.info('ApiServer', 'Foto da coleta $parId salva em $fotoPath');
       return shelf.Response.ok(
-          jsonEncode({'success': true, 'foto_path': fotoPath}),
+          _encodeJson({'success': true, 'foto_path': fotoPath}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
       _logger.error('ApiServer', 'Erro ao upload foto: $e');
@@ -1556,33 +1355,24 @@ class ApiServer {
 
   static shelf.Response _errorResponse(int statusCode, String message) {
     return shelf.Response(statusCode,
-        body: jsonEncode({'error': message, 'success': false}),
+        body: _encodeJson({'error': message, 'success': false}),
         headers: {'Content-Type': 'application/json'});
   }
+
+  /// Serializa a resposta tratando os tipos que o `jsonEncode` não conhece.
+  ///
+  /// Colunas DATE/TIMESTAMP do Firebird chegam como [DateTime]; sem esta
+  /// conversão o handler inteiro morre com 500 na hora de montar o JSON —
+  /// era o que derrubava `/coleta/rotas`, cuja query roda sem erro no banco.
+  static String _encodeJson(Object? data) => jsonEncode(
+        data,
+        toEncodable: (value) =>
+            value is DateTime ? value.toIso8601String() : '$value',
+      );
 
   static Future<void> stop() async {
     await _server?.close();
     _logger.info('ApiServer', 'Servidor parado');
-  }
-}
-
-// ============ RATE LIMITING ============
-
-class _RateLimit {
-  int attempts = 0;
-  DateTime firstAttempt = DateTime.now();
-  DateTime? blockedUntil;
-
-  bool isBlocked() {
-    if (blockedUntil != null && DateTime.now().isBefore(blockedUntil!)) {
-      return true;
-    }
-    blockedUntil = null;
-    return false;
-  }
-
-  bool shouldReset() {
-    return DateTime.now().difference(firstAttempt) > ApiServer._resetDuration;
   }
 }
 

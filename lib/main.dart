@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'dart:io';
-import 'dart:isolate';
 import 'core/api/http_client.dart';
 import 'core/backend/api_server.dart';
 import 'features/auth/auth_service.dart';
@@ -67,14 +66,22 @@ void main() async {
 }
 
 Future<void> _bootstrap() async {
-  // Inicia servidor HTTP em isolate separado (para mobile sincronizar)
-  Isolate.spawn(_startApiServer, null);
-
   // Abre a janela no modo login (pequena, centralizada) no desktop
   await WindowService.init();
 
   final configService = ConfigService();
   await configService.loadConfig();
+
+  // Servidor HTTP para o mobile sincronizar.
+  //
+  // Roda no isolate principal de propósito: isolates não compartilham estado
+  // estático, então um servidor em isolate separado enxergava um ConfigService
+  // recém-criado (host/porta/base nos valores padrão) e todo endpoint que toca
+  // o Firebird respondia 500 — só /ping passava, por não usar banco. Aqui ele
+  // usa a mesma config e a mesma conexão da UI, inclusive após o usuário
+  // alterar os dados na tela de configuração. O shelf é todo assíncrono, então
+  // atender requisições não trava a interface.
+  await _startApiServer();
 
   final authService = AuthService();
   await authService.checkLoginStatus();
@@ -281,8 +288,11 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
   }
 }
 
-/// Inicia o servidor HTTP em isolate separado
-void _startApiServer(_) async {
+/// Sobe o servidor HTTP usado pelo app mobile.
+///
+/// Uma falha aqui não pode impedir o desktop de abrir: o app continua útil
+/// localmente mesmo sem o servidor (por exemplo, se a porta já estiver em uso).
+Future<void> _startApiServer() async {
   try {
     await ApiServer.start(port: 8080);
   } catch (e) {
