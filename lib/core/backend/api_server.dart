@@ -66,9 +66,9 @@ class ApiServer {
         ..post('/coleta/sync', _syncBulk)
         ..delete('/auth/logout', _logout);
 
-      // Middleware (caching, logging, CORS, rate limiting, compression)
+      // Middleware (caching, logging, CORS, compression)
+      // REMOVIDO: rate limiting - desabilitado para dev/testes
       final handler = shelf.Pipeline()
-          .addMiddleware(_rateLimitMiddleware)
           .addMiddleware(shelf.logRequests())
           .addMiddleware(_cacheMiddleware)
           .addMiddleware(_compressionMiddleware)

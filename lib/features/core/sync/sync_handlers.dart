@@ -4,8 +4,6 @@ import '../../produtores/repositories/pessoa_repository.dart';
 import '../../produtores/models/pessoa_model.dart';
 import '../../motoristas/repositories/motorista_repository.dart';
 import '../../motoristas/models/motorista_model.dart';
-import '../../colaboradores/repositories/colaborador_repository.dart';
-import '../../colaboradores/models/colaborador_model.dart';
 import '../../veiculos/repositories/veiculo_repository.dart';
 import '../../veiculos/models/veiculo_model.dart';
 import '../../rotas/repositories/rota_repository.dart';
@@ -22,7 +20,6 @@ import '../../coleta/models/parada_model.dart';
 class SyncEntities {
   static const produtor = 'produtor';
   static const motorista = 'motorista';
-  static const colaborador = 'colaborador';
   static const veiculo = 'veiculo';
   static const rota = 'rota';
   static const resfriador = 'resfriador';
@@ -65,21 +62,6 @@ void registerSyncHandlers() {
         return await repo.updateMotorista(MotoristaModel.fromJson(dados));
       case 'DELETE':
         return await repo.deleteMotorista(_idOf(id, dados)!);
-      default:
-        return false;
-    }
-  });
-
-  sync.registerHandler(SyncEntities.colaborador, (op, id, dados) async {
-    final repo = ColaboradorRepository();
-    switch (op) {
-      case 'CREATE':
-      case 'INSERT':
-        return await repo.createColaborador(ColaboradorModel.fromJson(dados)) != null;
-      case 'UPDATE':
-        return await repo.updateColaborador(ColaboradorModel.fromJson(dados));
-      case 'DELETE':
-        return await repo.deleteColaborador(_idOf(id, dados)!);
       default:
         return false;
     }
