@@ -39,6 +39,7 @@ import 'features/resfriadores/screens/resfriador_list_screen.dart';
 import 'features/resfriadores/screens/resfriador_form_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/core/database/sync_queue_screen.dart';
+import 'features/relatorios/screens/relatorios_screen.dart';
 import 'features/core/config/config_service.dart';
 import 'features/core/services/connectivity_service.dart';
 import 'features/core/window/window_service.dart';
@@ -294,6 +295,10 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
                   ),
                 ),
               ],
+            ),
+            GoRoute(
+              path: '/relatorios',
+              builder: (context, state) => const RelatoriosScreen(),
             ),
             GoRoute(
               path: '/sync',

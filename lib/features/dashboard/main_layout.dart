@@ -31,13 +31,24 @@ class MainLayout extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       if (logoPath.isNotEmpty && File(logoPath).existsSync())
-                        Image.file(File(logoPath), height: 60, fit: BoxFit.contain)
+                        Image.file(
+                          File(logoPath),
+                          height: 60,
+                          fit: BoxFit.contain,
+                        )
                       else
-                        const Icon(Icons.business_center, size: 48, color: Colors.blue),
+                        const Icon(
+                          Icons.business_center,
+                          size: 48,
+                          color: Colors.blue,
+                        ),
                       const SizedBox(height: 8),
                       const Text(
                         'ColetaUp',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -87,6 +98,12 @@ class MainLayout extends StatelessWidget {
                         title: 'Financeiro',
                         color: Colors.red,
                         onTap: () => context.go('/financeiro'),
+                      ),
+                      _MenuTile(
+                        icon: Icons.assessment,
+                        title: 'Relatórios',
+                        color: Colors.teal,
+                        onTap: () => context.go('/relatorios'),
                       ),
                       _MenuTile(
                         icon: Icons.sync,
@@ -155,7 +172,9 @@ class _MenuTileState extends State<_MenuTile> {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: _isHovered ? widget.color.withValues(alpha: 0.1) : Colors.transparent,
+          color: _isHovered
+              ? widget.color.withValues(alpha: 0.1)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: ListTile(
