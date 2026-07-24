@@ -623,8 +623,10 @@ class ApiServer {
       final items = await _withCursor(db, (query) async {
         await query.openCursor(
           sql: 'SELECT ID, ID_COLETA_ROTA, ID_PRODUTOR, ORDEM_VISITA, STATUS, '
-              'VOLUME_COLETADO_LITROS, TEMPERATURA_LEITE_C, MOTIVO_ADIAMENTO, '
-              'FOTO_CAMINHO, DATA_HORA_REGISTRO '
+              'VOLUME_COLETADO_LITROS, TEMPERATURA_LEITE_C, OBSERVACAO, '
+              'MOTIVO_ADIAMENTO, FOTO_CAMINHO, ASSINATURA_BASE64, '
+              'GPS_CAPTURA_LAT, GPS_CAPTURA_LON, HORARIO_CHEGADA, '
+              'DATA_HORA_REGISTRO '
               'FROM COLETAS_DETALHE WHERE ID_COLETA_ROTA = ? ORDER BY ORDEM_VISITA',
           parameters: [rotaId],
         );
@@ -638,10 +640,14 @@ class ApiServer {
             'data_hora_registro': row['DATA_HORA_REGISTRO'],
             'volume_coletado_litros': row['VOLUME_COLETADO_LITROS'] ?? 0.0,
             'temperatura_leite_c': row['TEMPERATURA_LEITE_C'] ?? 0.0,
-            'observacao': '',
+            'observacao': row['OBSERVACAO'] ?? '',
             'motivo_adiamento': row['MOTIVO_ADIAMENTO'] ?? '',
             'status': row['STATUS'] ?? 'PENDENTE',
             'foto_caminho': row['FOTO_CAMINHO'],
+            'assinatura_base64': row['ASSINATURA_BASE64'],
+            'gps_captura_lat': row['GPS_CAPTURA_LAT'],
+            'gps_captura_lon': row['GPS_CAPTURA_LON'],
+            'horario_chegada': row['HORARIO_CHEGADA'],
           });
         }
         return list;
@@ -682,17 +688,27 @@ class ApiServer {
             'STATUS = COALESCE(?, STATUS), '
             'VOLUME_COLETADO_LITROS = COALESCE(?, VOLUME_COLETADO_LITROS), '
             'TEMPERATURA_LEITE_C = COALESCE(?, TEMPERATURA_LEITE_C), '
+            'OBSERVACAO = COALESCE(?, OBSERVACAO), '
             'MOTIVO_ADIAMENTO = COALESCE(?, MOTIVO_ADIAMENTO), '
             'FOTO_CAMINHO = COALESCE(?, FOTO_CAMINHO), '
+            'ASSINATURA_BASE64 = COALESCE(?, ASSINATURA_BASE64), '
+            'GPS_CAPTURA_LAT = COALESCE(?, GPS_CAPTURA_LAT), '
+            'GPS_CAPTURA_LON = COALESCE(?, GPS_CAPTURA_LON), '
+            'HORARIO_CHEGADA = COALESCE(?, HORARIO_CHEGADA), '
             'DATA_HORA_REGISTRO = COALESCE(?, DATA_HORA_REGISTRO) '
             'WHERE ID = ?',
         parameters: [
           data['status'],
           data['volume_coletado_litros'],
           data['temperatura_leite_c'],
+          data['observacao'],
           data['motivo_adiamento'],
           fotoServer,
-          data['data_hora_registro'],
+          data['assinatura_base64'],
+          data['gps_captura_lat'],
+          data['gps_captura_lon'],
+          _paraDataHora(data['horario_chegada']),
+          _paraDataHora(data['data_hora_registro']),
           detId,
         ],
       ));
@@ -731,8 +747,8 @@ class ApiServer {
                 'DATA_HORA_FIM = COALESCE(?, DATA_HORA_FIM) WHERE ID = ?',
             parameters: [
               rota['status'],
-              rota['data_hora_inicio'],
-              rota['data_hora_fim'],
+              _paraDataHora(rota['data_hora_inicio']),
+              _paraDataHora(rota['data_hora_fim']),
               rotaId,
             ],
           ));
@@ -754,17 +770,27 @@ class ApiServer {
                 'STATUS = COALESCE(?, STATUS), '
                 'VOLUME_COLETADO_LITROS = COALESCE(?, VOLUME_COLETADO_LITROS), '
                 'TEMPERATURA_LEITE_C = COALESCE(?, TEMPERATURA_LEITE_C), '
+                'OBSERVACAO = COALESCE(?, OBSERVACAO), '
                 'MOTIVO_ADIAMENTO = COALESCE(?, MOTIVO_ADIAMENTO), '
                 'FOTO_CAMINHO = COALESCE(?, FOTO_CAMINHO), '
+                'ASSINATURA_BASE64 = COALESCE(?, ASSINATURA_BASE64), '
+                'GPS_CAPTURA_LAT = COALESCE(?, GPS_CAPTURA_LAT), '
+                'GPS_CAPTURA_LON = COALESCE(?, GPS_CAPTURA_LON), '
+                'HORARIO_CHEGADA = COALESCE(?, HORARIO_CHEGADA), '
                 'DATA_HORA_REGISTRO = COALESCE(?, DATA_HORA_REGISTRO) '
                 'WHERE ID = ?',
             parameters: [
               det['status'],
               det['volume_coletado_litros'],
               det['temperatura_leite_c'],
+              det['observacao'],
               det['motivo_adiamento'],
               fotoServer,
-              det['data_hora_registro'],
+              det['assinatura_base64'],
+              det['gps_captura_lat'],
+              det['gps_captura_lon'],
+              _paraDataHora(det['horario_chegada']),
+              _paraDataHora(det['data_hora_registro']),
               detId,
             ],
           ));
@@ -1338,7 +1364,7 @@ class ApiServer {
             data['motorista_id'],
             data['veiculo_id'],
             'A',
-            data['data_prevista'],
+            _paraDataHora(data['data_prevista']),
             data['paradas'] ?? 0,
             data['km_estimado'] ?? 0.0,
           ],
@@ -1386,8 +1412,8 @@ class ApiServer {
             'DATA_HORA_FIM = COALESCE(?, DATA_HORA_FIM) WHERE ID = ?',
         parameters: [
           data['status'],
-          data['data_hora_inicio'],
-          data['data_hora_fim'],
+          _paraDataHora(data['data_hora_inicio']),
+          _paraDataHora(data['data_hora_fim']),
           rotId,
         ],
       ));
@@ -1522,6 +1548,23 @@ class ApiServer {
     return shelf.Response(statusCode,
         body: _encodeJson({'error': message, 'success': false}),
         headers: {'Content-Type': 'application/json'});
+  }
+
+  /// Converte para [DateTime] o que vem do JSON como texto ISO-8601.
+  ///
+  /// O `fbdb` recebe o parâmetro pelo tipo da coluna: mandar String numa coluna
+  /// TIMESTAMP estoura `type 'String' is not a subtype of type 'DateTime'` e
+  /// derruba o UPDATE inteiro. Era o que impedia volume, temperatura, status e
+  /// observação de chegarem do mobile: a coleta ia junto com a data e a
+  /// gravação toda falhava com 500, ficando pendente e retentando para sempre.
+  static DateTime? _paraDataHora(dynamic valor) {
+    if (valor == null) return null;
+    if (valor is DateTime) return valor;
+    if (valor is String) {
+      if (valor.trim().isEmpty) return null;
+      return DateTime.tryParse(valor);
+    }
+    return null;
   }
 
   /// Serializa a resposta tratando os tipos que o `jsonEncode` não conhece.
