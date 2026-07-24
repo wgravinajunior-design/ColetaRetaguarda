@@ -1,4 +1,4 @@
-const int dbVersion = 3;
+const int dbVersion = 4;
 
 // Schema SQL para criar tabelas SQLite
 const String createPessoaTable = '''
@@ -167,6 +167,26 @@ const String createSyncQueueTable = '''
   );
 ''';
 
+/// Histórico das requisições que o app mobile faz ao servidor embutido.
+///
+/// A `tb_sync_queue` só registra a fila de escrita do próprio desktop, então
+/// nada do que o celular sincroniza aparecia em lugar nenhum — a tela de
+/// Sincronização ficava zerada mesmo com o mobile baixando dados.
+const String createMobileSyncLogTable = '''
+  CREATE TABLE IF NOT EXISTS tb_mobile_sync_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data_hora TEXT NOT NULL,
+    metodo TEXT NOT NULL,
+    rota TEXT NOT NULL,
+    descricao TEXT,
+    status_http INTEGER NOT NULL,
+    registros INTEGER,
+    duracao_ms INTEGER,
+    cliente_ip TEXT,
+    erro TEXT
+  );
+''';
+
 // Lista de todas as migrações (criação de tabelas)
 List<String> getMigrations() {
   return [
@@ -178,6 +198,7 @@ List<String> getMigrations() {
     createParadaTable,
     createMovimentoTable,
     createSyncQueueTable,
+    createMobileSyncLogTable,
   ];
 }
 

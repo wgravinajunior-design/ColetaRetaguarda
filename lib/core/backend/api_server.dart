@@ -7,6 +7,7 @@ import 'package:shelf_multipart/shelf_multipart.dart';
 import '../logging/app_logger.dart';
 import '../../features/core/config/config_service.dart';
 import '../../features/core/database/db_connection.dart';
+import '../../features/core/database/daos/mobile_sync_log_dao.dart';
 import 'jwt_service.dart';
 import 'file_storage_service.dart';
 
@@ -63,11 +64,15 @@ class ApiServer {
 
       // Middleware (caching, logging, CORS, compression)
       // REMOVIDO: rate limiting - desabilitado para dev/testes
+      //
+      // _mobileLogMiddleware fica por último, ou seja, é o mais interno: assim
+      // ele vê o JSON cru (antes do gzip) e consegue contar os registros.
       final handler = shelf.Pipeline()
           .addMiddleware(shelf.logRequests())
           .addMiddleware(_cacheMiddleware)
           .addMiddleware(_compressionMiddleware)
           .addMiddleware(_corsMiddleware)
+          .addMiddleware(_mobileLogMiddleware)
           .addHandler(router);
 
       _server = await shelf_io.serve(handler, '0.0.0.0', port);
@@ -80,6 +85,13 @@ class ApiServer {
         'ApiServer',
         'Banco: ${config.host}:${config.porta} ${config.caminhoBase}',
       );
+      // Descarta o histórico antigo do log do mobile a cada inicialização.
+      try {
+        await MobileSyncLogDao().aparar();
+      } catch (e) {
+        _logger.warning('ApiServer', 'Falha ao aparar log de sync: $e');
+      }
+
       if (!await DbConnection().testarConexao()) {
         _logger.error(
           'ApiServer',
@@ -99,6 +111,13 @@ class ApiServer {
     return (request) async {
       // Só cacheia GET requests
       if (request.method != 'GET') {
+        return await innerHandler(request);
+      }
+
+      // Dados de sincronização nunca saem do cache: com 5 minutos de TTL o
+      // mobile recebia o que o desktop tinha antes da última alteração, e a
+      // requisição sequer chegava ao handler (não aparecia no log de sync).
+      if (request.url.path.startsWith('coleta/')) {
         return await innerHandler(request);
       }
 
@@ -168,6 +187,152 @@ class ApiServer {
       }
     };
   };
+
+  /// Registra cada requisição do mobile em `tb_mobile_sync_log`, para a tela
+  /// de Sincronização mostrar o que o celular baixou e enviou.
+  ///
+  /// Sem isto não havia rastro nenhum: a fila `tb_sync_queue` só guarda as
+  /// escritas que o próprio desktop enfileira quando o Firebird está fora.
+  static shelf.Middleware _mobileLogMiddleware = (innerHandler) {
+    return (request) async {
+      final inicio = DateTime.now();
+      final rota = '/${request.url.path}';
+
+      shelf.Response resposta;
+      String? erro;
+      int? registros;
+
+      try {
+        resposta = await innerHandler(request);
+      } catch (e) {
+        // Registra a falha e deixa o erro seguir para o shelf responder 500.
+        await _gravarLog(
+          inicio: inicio,
+          request: request,
+          rota: rota,
+          statusHttp: 500,
+          erro: '$e',
+        );
+        rethrow;
+      }
+
+      // Lê o corpo uma vez para contar os registros e devolve uma resposta
+      // equivalente — um Stream de resposta só pode ser consumido uma vez.
+      if (resposta.headers['content-type']?.contains('json') ?? false) {
+        try {
+          final corpo = await resposta.readAsString();
+          registros = _contarRegistros(corpo);
+          if (resposta.statusCode >= 400) {
+            erro = _extrairErro(corpo);
+          }
+          resposta = resposta.change(body: corpo);
+        } catch (_) {
+          // Corpo ilegível não pode impedir a resposta de sair.
+        }
+      }
+
+      await _gravarLog(
+        inicio: inicio,
+        request: request,
+        rota: rota,
+        statusHttp: resposta.statusCode,
+        registros: registros,
+        erro: erro,
+      );
+
+      return resposta;
+    };
+  };
+
+  static Future<void> _gravarLog({
+    required DateTime inicio,
+    required shelf.Request request,
+    required String rota,
+    required int statusHttp,
+    int? registros,
+    String? erro,
+  }) async {
+    try {
+      final conexao =
+          request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
+      await MobileSyncLogDao().insert(
+        MobileSyncLogItem(
+          dataHora: inicio.toIso8601String(),
+          metodo: request.method,
+          rota: rota,
+          descricao: _descreverRota(request.method, rota),
+          statusHttp: statusHttp,
+          registros: registros,
+          duracaoMs: DateTime.now().difference(inicio).inMilliseconds,
+          clienteIp: conexao?.remoteAddress.address,
+          erro: erro,
+        ),
+      );
+    } catch (e) {
+      // Log é acessório: nunca pode derrubar a resposta ao mobile.
+      _logger.warning('ApiServer', 'Falha ao gravar log de sync: $e');
+    }
+  }
+
+  /// Quantos itens vieram em `data`, quando a resposta segue o contrato
+  /// `{success, data: [...]}` das listagens.
+  static int? _contarRegistros(String corpo) {
+    try {
+      final json = jsonDecode(corpo);
+      if (json is Map && json['data'] is List) {
+        return (json['data'] as List).length;
+      }
+      if (json is Map && json['aplicados'] is int) {
+        return json['aplicados'] as int;
+      }
+    } catch (_) {
+      // Resposta que não é JSON de objeto — sem contagem.
+    }
+    return null;
+  }
+
+  static String? _extrairErro(String corpo) {
+    try {
+      final json = jsonDecode(corpo);
+      if (json is Map && json['error'] != null) return '${json['error']}';
+    } catch (_) {
+      // ignora
+    }
+    return null;
+  }
+
+  /// Nome legível da operação, para a tela não exibir só a URL.
+  static String _descreverRota(String metodo, String rota) {
+    if (rota == '/ping' || rota == '/health') return 'Teste de conexão';
+    if (rota == '/auth/login') return 'Login do mobile';
+    if (rota == '/auth/logout') return 'Logout do mobile';
+    if (rota == '/coleta/sync') return 'Envio de coletas pendentes';
+    if (rota.endsWith('/detalhes')) return 'Coletas da rota';
+    if (rota.contains('/foto')) return 'Foto da coleta';
+    if (rota.startsWith('/coleta/detalhes/')) return 'Atualização de coleta';
+
+    const nomes = {
+      'produtores': 'Produtores',
+      'pessoas': 'Produtores',
+      'motoristas': 'Motoristas',
+      'veiculos': 'Veículos',
+      'resfriadores': 'Resfriadores',
+      'colaboradores': 'Colaboradores',
+      'rotas': 'Rotas',
+    };
+    for (final entry in nomes.entries) {
+      if (rota.startsWith('/coleta/${entry.key}')) {
+        final acao = switch (metodo) {
+          'POST' => 'Cadastro de ',
+          'PUT' => 'Alteração de ',
+          'DELETE' => 'Exclusão de ',
+          _ => '',
+        };
+        return '$acao${entry.value}';
+      }
+    }
+    return rota;
+  }
 
   /// Middleware CORS para permitir requisições do mobile
   static shelf.Middleware _corsMiddleware = (innerHandler) {

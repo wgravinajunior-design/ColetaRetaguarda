@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'sync_service.dart';
 import 'daos/sync_queue_dao.dart';
+import 'daos/mobile_sync_log_dao.dart';
 
-/// Tela da fila de sincronização: mostra o que está pendente/erro/enviado
-/// e permite forçar o envio ou reenfileirar itens com falha.
+/// Tela de sincronização, em duas abas:
+///
+/// - **Mobile**: o que o app do celular baixou e enviou (`tb_mobile_sync_log`).
+/// - **Fila do desktop**: escritas que esta máquina enfileirou por estar sem
+///   o Firebird, com a opção de reenviar (`tb_sync_queue`).
+///
+/// As duas eram confundidas: a tela só mostrava a fila do desktop, então
+/// ficava em "Tudo sincronizado" mesmo com o mobile sincronizando.
 class SyncQueueScreen extends StatefulWidget {
   const SyncQueueScreen({super.key});
 
@@ -11,24 +18,39 @@ class SyncQueueScreen extends StatefulWidget {
   State<SyncQueueScreen> createState() => _SyncQueueScreenState();
 }
 
-class _SyncQueueScreenState extends State<SyncQueueScreen> {
+class _SyncQueueScreenState extends State<SyncQueueScreen>
+    with SingleTickerProviderStateMixin {
   final _sync = SyncService();
+  final _logDao = MobileSyncLogDao();
+
+  late final TabController _tabs;
   bool _loading = true;
   bool _sincronizando = false;
   List<SyncQueueItem> _itens = [];
+  List<MobileSyncLogItem> _logMobile = [];
 
   @override
   void initState() {
     super.initState();
+    _tabs = TabController(length: 2, vsync: this);
+    _tabs.addListener(() => setState(() {}));
     _carregar();
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
   }
 
   Future<void> _carregar() async {
     setState(() => _loading = true);
     final itens = await _sync.getAllItems();
+    final log = await _logDao.ultimos();
     if (!mounted) return;
     setState(() {
       _itens = itens;
+      _logMobile = log;
       _loading = false;
     });
   }
@@ -56,90 +78,249 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
     await _carregar();
   }
 
+  Future<void> _limparLogMobile() async {
+    await _logDao.limpar();
+    await _carregar();
+  }
+
   @override
   Widget build(BuildContext context) {
     final pendentes = _itens.where((i) => i.status == 'P').length;
     final erros = _itens.where((i) => i.status == 'E').length;
     final enviados = _itens.where((i) => i.status == 'S').length;
+    final naAbaMobile = _tabs.index == 0;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sincronização'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _carregar),
-          if (enviados > 0)
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Atualizar',
+            onPressed: _carregar,
+          ),
+          if (naAbaMobile && _logMobile.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.cleaning_services),
+              tooltip: 'Limpar histórico do mobile',
+              onPressed: _limparLogMobile,
+            ),
+          if (!naAbaMobile && enviados > 0)
             IconButton(
               icon: const Icon(Icons.cleaning_services),
               tooltip: 'Limpar enviados',
               onPressed: _limparEnviados,
             ),
         ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                _buildResumo(pendentes, erros, enviados),
-                const Divider(height: 1),
-                Expanded(child: _buildLista()),
-              ],
-            ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            if (erros > 0) ...[
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.replay),
-                  label: const Text('Tentar erros'),
-                  onPressed: _sincronizando ? null : _tentarNovamente,
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-            Expanded(
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                icon: _sincronizando
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.sync, color: Colors.white),
-                label: Text(
-                  pendentes > 0 ? 'Sincronizar ($pendentes)' : 'Sincronizar',
-                  style: const TextStyle(color: Colors.white),
-                ),
-                onPressed: (_sincronizando || pendentes == 0) ? null : _sincronizarAgora,
-              ),
-            ),
+        bottom: TabBar(
+          controller: _tabs,
+          tabs: const [
+            Tab(icon: Icon(Icons.smartphone), text: 'Mobile'),
+            Tab(icon: Icon(Icons.desktop_windows), text: 'Fila do desktop'),
           ],
         ),
       ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : TabBarView(
+              controller: _tabs,
+              children: [
+                _buildAbaMobile(),
+                _buildAbaDesktop(pendentes, erros, enviados),
+              ],
+            ),
+      bottomNavigationBar: naAbaMobile
+          ? null
+          : Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  if (erros > 0) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.replay),
+                        label: const Text('Tentar erros'),
+                        onPressed: _sincronizando ? null : _tentarNovamente,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      icon: _sincronizando
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.sync, color: Colors.white),
+                      label: Text(
+                        pendentes > 0
+                            ? 'Sincronizar ($pendentes)'
+                            : 'Sincronizar',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      onPressed: (_sincronizando || pendentes == 0)
+                          ? null
+                          : _sincronizarAgora,
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 
-  Widget _buildResumo(int pendentes, int erros, int enviados) {
-    return Container(
-      color: Colors.grey.shade50,
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _chip('Pendentes', pendentes, Colors.orange),
-          _chip('Erros', erros, Colors.red),
-          _chip('Enviados', enviados, Colors.green),
-        ],
-      ),
+  // ---------------------------------------------------------------- mobile
+
+  Widget _buildAbaMobile() {
+    final comErro = _logMobile.where((l) => !l.sucesso).length;
+    final baixados = _logMobile
+        .where((l) => l.sucesso && l.metodo == 'GET')
+        .fold<int>(0, (soma, l) => soma + (l.registros ?? 0));
+
+    return Column(
+      children: [
+        Container(
+          color: Colors.grey.shade50,
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _chip('Requisições', _logMobile.length, Colors.blue),
+              _chip('Registros enviados', baixados, Colors.green),
+              _chip('Falhas', comErro, comErro > 0 ? Colors.red : Colors.grey),
+            ],
+          ),
+        ),
+        if (_logMobile.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(
+              children: [
+                Icon(Icons.schedule, size: 14, color: Colors.grey[600]),
+                const SizedBox(width: 6),
+                Text(
+                  'Última atividade: ${_formatar(_logMobile.first.dataHora)}'
+                  '${_logMobile.first.clienteIp != null ? ' • ${_logMobile.first.clienteIp}' : ''}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        const Divider(height: 16),
+        Expanded(child: _buildListaMobile()),
+      ],
+    );
+  }
+
+  Widget _buildListaMobile() {
+    if (_logMobile.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.smartphone, size: 64, color: Colors.grey[300]),
+              const SizedBox(height: 12),
+              Text('Nenhuma sincronização do mobile ainda',
+                  style: TextStyle(color: Colors.grey[600])),
+              const SizedBox(height: 6),
+              Text(
+                'Abra o app no celular e toque em Atualizar. '
+                'Cada requisição que chegar aqui aparece nesta lista.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(8),
+      itemCount: _logMobile.length,
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final item = _logMobile[index];
+        final cor = item.sucesso ? Colors.green : Colors.red;
+        return ListTile(
+          leading: Icon(
+            item.sucesso ? Icons.check_circle : Icons.error,
+            color: cor,
+          ),
+          title: Text(
+            item.descricao,
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          ),
+          subtitle: Text(
+            '${_formatar(item.dataHora)} • ${item.metodo} ${item.rota}'
+            '${item.duracaoMs != null ? ' • ${item.duracaoMs} ms' : ''}'
+            '${item.erro != null ? '\n${item.erro}' : ''}',
+            style: const TextStyle(fontSize: 12),
+          ),
+          isThreeLine: item.erro != null,
+          trailing: item.registros != null
+              ? Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('${item.registros}',
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: cor)),
+                    Text('reg.',
+                        style:
+                            TextStyle(fontSize: 10, color: Colors.grey[600])),
+                  ],
+                )
+              : Text('${item.statusHttp}',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: cor,
+                      fontWeight: FontWeight.bold)),
+        );
+      },
+    );
+  }
+
+  // --------------------------------------------------------------- desktop
+
+  Widget _buildAbaDesktop(int pendentes, int erros, int enviados) {
+    return Column(
+      children: [
+        Container(
+          color: Colors.grey.shade50,
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _chip('Pendentes', pendentes, Colors.orange),
+              _chip('Erros', erros, Colors.red),
+              _chip('Enviados', enviados, Colors.green),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(child: _buildLista()),
+      ],
     );
   }
 
   Widget _chip(String label, int count, Color cor) {
     return Column(
       children: [
-        Text('$count', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: cor)),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+        Text('$count',
+            style: TextStyle(
+                fontSize: 20, fontWeight: FontWeight.bold, color: cor)),
+        Text(label,
+            style: TextStyle(fontSize: 12, color: Colors.grey[700])),
       ],
     );
   }
@@ -147,13 +328,24 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
   Widget _buildLista() {
     if (_itens.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.cloud_done, size: 64, color: Colors.green[300]),
-            const SizedBox(height: 12),
-            Text('Tudo sincronizado', style: TextStyle(color: Colors.grey[600])),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.cloud_done, size: 64, color: Colors.green[300]),
+              const SizedBox(height: 12),
+              Text('Tudo sincronizado',
+                  style: TextStyle(color: Colors.grey[600])),
+              const SizedBox(height: 6),
+              Text(
+                'Esta fila guarda o que o desktop gravou sem o Firebird. '
+                'O que o celular sincroniza fica na aba Mobile.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -167,7 +359,8 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
         return ListTile(
           leading: _statusIcon(item.status),
           title: Text('${item.operacao} • ${item.tabela}',
-              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+              style:
+                  const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
           subtitle: Text(
             'ID ${item.registroId ?? '-'} • tentativas: ${item.tentativas}'
             '${item.dataUltimoTentativa != null ? '\nÚltima: ${_formatar(item.dataUltimoTentativa!)}' : ''}',
@@ -176,7 +369,10 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
           isThreeLine: item.dataUltimoTentativa != null,
           trailing: Text(
             _statusLabel(item.status),
-            style: TextStyle(fontSize: 11, color: _statusColor(item.status), fontWeight: FontWeight.bold),
+            style: TextStyle(
+                fontSize: 11,
+                color: _statusColor(item.status),
+                fontWeight: FontWeight.bold),
           ),
         );
       },
