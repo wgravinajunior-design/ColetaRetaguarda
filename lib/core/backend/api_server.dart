@@ -8,6 +8,7 @@ import '../logging/app_logger.dart';
 import '../../features/core/config/config_service.dart';
 import '../../features/core/database/db_connection.dart';
 import '../../features/core/database/daos/mobile_sync_log_dao.dart';
+import '../../features/core/sync/sync_activity_service.dart';
 import 'jwt_service.dart';
 import 'file_storage_service.dart';
 
@@ -238,6 +239,18 @@ class ApiServer {
         statusHttp: resposta.statusCode,
         registros: registros,
         erro: erro,
+      );
+
+      // Avisa a interface ao vivo: alimenta o card de sincronização e faz as
+      // telas se recarregarem quando o celular grava algo.
+      SyncActivityService().registrar(
+        SyncActivity(
+          descricao: _descreverRota(request.method, rota),
+          metodo: request.method,
+          rota: rota,
+          registros: registros,
+          sucesso: resposta.statusCode >= 200 && resposta.statusCode < 300,
+        ),
       );
 
       return resposta;
@@ -699,14 +712,14 @@ class ApiServer {
             'WHERE ID = ?',
         parameters: [
           data['status'],
-          data['volume_coletado_litros'],
-          data['temperatura_leite_c'],
+          _paraDouble(data['volume_coletado_litros']),
+          _paraDouble(data['temperatura_leite_c']),
           data['observacao'],
           data['motivo_adiamento'],
           fotoServer,
           data['assinatura_base64'],
-          data['gps_captura_lat'],
-          data['gps_captura_lon'],
+          _paraDouble(data['gps_captura_lat']),
+          _paraDouble(data['gps_captura_lon']),
           _paraDataHora(data['horario_chegada']),
           _paraDataHora(data['data_hora_registro']),
           detId,
@@ -781,14 +794,14 @@ class ApiServer {
                 'WHERE ID = ?',
             parameters: [
               det['status'],
-              det['volume_coletado_litros'],
-              det['temperatura_leite_c'],
+              _paraDouble(det['volume_coletado_litros']),
+              _paraDouble(det['temperatura_leite_c']),
               det['observacao'],
               det['motivo_adiamento'],
               fotoServer,
               det['assinatura_base64'],
-              det['gps_captura_lat'],
-              det['gps_captura_lon'],
+              _paraDouble(det['gps_captura_lat']),
+              _paraDouble(det['gps_captura_lon']),
               _paraDataHora(det['horario_chegada']),
               _paraDataHora(det['data_hora_registro']),
               detId,
@@ -839,11 +852,11 @@ class ApiServer {
           parameters: [
             data['nome'] ?? '',
             data['endereco'] ?? '',
-            data['latitude'] ?? 0.0,
-            data['longitude'] ?? 0.0,
-            data['volume_medio'] ?? 0.0,
+            _paraDouble(data['latitude']) ?? 0.0,
+            _paraDouble(data['longitude']) ?? 0.0,
+            _paraDouble(data['volume_medio']) ?? 0.0,
             data['hr_coleta'] ?? '',
-            data['km'] ?? 0.0,
+            _paraDouble(data['km']) ?? 0.0,
             'A',
             'S',
             'P',
@@ -893,11 +906,11 @@ class ApiServer {
         parameters: [
           data['nome'] ?? '',
           data['endereco'] ?? '',
-          data['latitude'] ?? 0.0,
-          data['longitude'] ?? 0.0,
-          data['volume_medio'] ?? 0.0,
+          _paraDouble(data['latitude']) ?? 0.0,
+          _paraDouble(data['longitude']) ?? 0.0,
+          _paraDouble(data['volume_medio']) ?? 0.0,
           data['hr_coleta'] ?? '',
-          data['km'] ?? 0.0,
+          _paraDouble(data['km']) ?? 0.0,
           pesId,
         ],
       ));
@@ -1563,6 +1576,23 @@ class ApiServer {
     if (valor is String) {
       if (valor.trim().isEmpty) return null;
       return DateTime.tryParse(valor);
+    }
+    return null;
+  }
+
+  /// Converte para [double] o que o JSON entregou como [int].
+  ///
+  /// Mesmo problema do [_paraDataHora]: o `fbdb` exige o tipo exato da coluna.
+  /// Um volume redondo (`500`) chega do `jsonDecode` como int e a coluna é
+  /// decimal, estourando `type 'int' is not a subtype of type 'double'` — a
+  /// gravação inteira falhava justamente nos valores mais comuns.
+  static double? _paraDouble(dynamic valor) {
+    if (valor == null) return null;
+    if (valor is double) return valor;
+    if (valor is int) return valor.toDouble();
+    if (valor is String) {
+      if (valor.trim().isEmpty) return null;
+      return double.tryParse(valor.replaceAll(',', '.'));
     }
     return null;
   }

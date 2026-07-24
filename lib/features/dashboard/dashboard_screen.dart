@@ -4,6 +4,7 @@ import '../coleta/repositories/parada_repository.dart';
 import '../coleta/models/parada_model.dart';
 import '../rotas/repositories/rota_repository.dart';
 import '../produtores/repositories/pessoa_repository.dart';
+import '../core/sync/recarrega_ao_sincronizar.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -46,24 +47,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Atualizar',
-            onPressed: _carregar,
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _carregar,
-              child: _buildConteudo(),
+    return RecarregaAoSincronizar(
+      // Os números do dashboard mudam a cada coleta que o celular envia.
+      aoAlterar: _carregar,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Dashboard'),
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Atualizar',
+              onPressed: _carregar,
             ),
+          ],
+        ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(onRefresh: _carregar, child: _buildConteudo()),
+      ),
     );
   }
 
@@ -132,7 +134,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _CardMetrica(
               icon: Icons.thermostat,
               cor: Colors.deepOrange,
-              valor: tempMedia == null ? '—' : '${tempMedia.toStringAsFixed(1)}°C',
+              valor: tempMedia == null
+                  ? '—'
+                  : '${tempMedia.toStringAsFixed(1)}°C',
               label: 'Temp. média',
             ),
             _CardMetrica(
@@ -146,7 +150,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(height: 24),
 
         // Progresso das coletas
-        Text('Status das Coletas', style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          'Status das Coletas',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 8),
         Card(
           child: Padding(
@@ -177,17 +184,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     value: progresso,
                     minHeight: 10,
                     backgroundColor: Colors.grey[300],
-                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Colors.green,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    Expanded(child: _StatusMini(emoji: '🔴', label: 'Pendentes', count: pendentes)),
-                    Expanded(child: _StatusMini(emoji: '🟡', label: 'Andamento', count: andamento)),
-                    Expanded(child: _StatusMini(emoji: '🟢', label: 'Concluídas', count: concluidas)),
-                    Expanded(child: _StatusMini(emoji: '⚫', label: 'Recusadas', count: recusadas)),
+                    Expanded(
+                      child: _StatusMini(
+                        emoji: '🔴',
+                        label: 'Pendentes',
+                        count: pendentes,
+                      ),
+                    ),
+                    Expanded(
+                      child: _StatusMini(
+                        emoji: '🟡',
+                        label: 'Andamento',
+                        count: andamento,
+                      ),
+                    ),
+                    Expanded(
+                      child: _StatusMini(
+                        emoji: '🟢',
+                        label: 'Concluídas',
+                        count: concluidas,
+                      ),
+                    ),
+                    Expanded(
+                      child: _StatusMini(
+                        emoji: '⚫',
+                        label: 'Recusadas',
+                        count: recusadas,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -205,7 +238,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
             icon: const Icon(Icons.agriculture, color: Colors.white),
-            label: const Text('Ver todas as coletas', style: TextStyle(color: Colors.white)),
+            label: const Text(
+              'Ver todas as coletas',
+              style: TextStyle(color: Colors.white),
+            ),
             onPressed: () => context.go('/coleta'),
           ),
         ),
@@ -246,7 +282,11 @@ class _CardMetrica extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     valor,
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: cor),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: cor,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -269,7 +309,11 @@ class _StatusMini extends StatelessWidget {
   final String label;
   final int count;
 
-  const _StatusMini({required this.emoji, required this.label, required this.count});
+  const _StatusMini({
+    required this.emoji,
+    required this.label,
+    required this.count,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -277,7 +321,10 @@ class _StatusMini extends StatelessWidget {
       children: [
         Text(emoji, style: const TextStyle(fontSize: 22)),
         const SizedBox(height: 4),
-        Text('$count', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(
+          '$count',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
         Text(
           label,
           style: const TextStyle(fontSize: 10),

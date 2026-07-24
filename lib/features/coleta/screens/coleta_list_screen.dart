@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/parada_model.dart';
 import '../viewmodels/coleta_viewmodel.dart';
+import '../../core/sync/recarrega_ao_sincronizar.dart';
 import 'coleta_parada_screen.dart';
 
 class ColetaListScreen extends StatefulWidget {
@@ -41,43 +42,57 @@ class _ColetaListScreenState extends State<ColetaListScreen> {
     }).toList();
   }
 
+  /// Recarrega quando o celular grava uma coleta, sem o usuário sair da tela.
+  void _recarregar() {
+    final vm = context.read<ColetaViewModel>();
+    vm.loadTodasColetas(status: vm.filtroStatus);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Coletas'),
-        elevation: 0,
-        actions: [
-          Consumer<ColetaViewModel>(
-            builder: (context, vm, _) => IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Recarregar',
-              onPressed: () => vm.loadTodasColetas(status: vm.filtroStatus),
+    return RecarregaAoSincronizar(
+      aoAlterar: _recarregar,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Coletas'),
+          elevation: 0,
+          actions: [
+            Consumer<ColetaViewModel>(
+              builder: (context, vm, _) => IconButton(
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Recarregar',
+                onPressed: () => vm.loadTodasColetas(status: vm.filtroStatus),
+              ),
             ),
-          ),
-        ],
-      ),
-      body: Consumer<ColetaViewModel>(
-        builder: (context, vm, _) {
-          final visiveis = _filtrarBusca(vm.items);
-          return Column(
-            children: [
-              _buildResumo(vm),
-              _buildBusca(),
-              _buildFiltros(vm),
-              const Divider(height: 1),
-              Expanded(child: _buildLista(vm, visiveis)),
-            ],
-          );
-        },
+          ],
+        ),
+        body: Consumer<ColetaViewModel>(
+          builder: (context, vm, _) {
+            final visiveis = _filtrarBusca(vm.items);
+            return Column(
+              children: [
+                _buildResumo(vm),
+                _buildBusca(),
+                _buildFiltros(vm),
+                const Divider(height: 1),
+                Expanded(child: _buildLista(vm, visiveis)),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _buildResumo(ColetaViewModel vm) {
     final concluidas = vm.items.where((p) => p.status == 'C').toList();
-    final totalLitros = concluidas.fold<double>(0, (s, p) => s + (p.volume ?? 0));
-    final pendentes = vm.items.where((p) => p.status == 'P' || p.status == 'E').length;
+    final totalLitros = concluidas.fold<double>(
+      0,
+      (s, p) => s + (p.volume ?? 0),
+    );
+    final pendentes = vm.items
+        .where((p) => p.status == 'P' || p.status == 'E')
+        .length;
 
     return Container(
       color: Colors.blue.shade50,
@@ -134,11 +149,36 @@ class _ColetaListScreenState extends State<ColetaListScreen> {
 
   Widget _buildFiltros(ColetaViewModel vm) {
     const filtros = <_FiltroStatus>[
-      _FiltroStatus(status: null, label: 'Todos', emoji: '📋', cor: Colors.blue),
-      _FiltroStatus(status: 'P', label: 'Pendentes', emoji: '🔴', cor: Colors.red),
-      _FiltroStatus(status: 'E', label: 'Em Andamento', emoji: '🟡', cor: Colors.orange),
-      _FiltroStatus(status: 'C', label: 'Concluídas', emoji: '🟢', cor: Colors.green),
-      _FiltroStatus(status: 'R', label: 'Recusadas', emoji: '⚫', cor: Colors.grey),
+      _FiltroStatus(
+        status: null,
+        label: 'Todos',
+        emoji: '📋',
+        cor: Colors.blue,
+      ),
+      _FiltroStatus(
+        status: 'P',
+        label: 'Pendentes',
+        emoji: '🔴',
+        cor: Colors.red,
+      ),
+      _FiltroStatus(
+        status: 'E',
+        label: 'Em Andamento',
+        emoji: '🟡',
+        cor: Colors.orange,
+      ),
+      _FiltroStatus(
+        status: 'C',
+        label: 'Concluídas',
+        emoji: '🟢',
+        cor: Colors.green,
+      ),
+      _FiltroStatus(
+        status: 'R',
+        label: 'Recusadas',
+        emoji: '⚫',
+        cor: Colors.grey,
+      ),
     ];
 
     return Container(
@@ -191,8 +231,8 @@ class _ColetaListScreenState extends State<ColetaListScreen> {
               _busca.isNotEmpty
                   ? 'Nenhum resultado para "$_busca"'
                   : vm.filtroStatus == null
-                      ? 'Nenhuma coleta encontrada'
-                      : 'Nenhuma coleta com este status',
+                  ? 'Nenhuma coleta encontrada'
+                  : 'Nenhuma coleta com este status',
               style: TextStyle(color: Colors.grey[600]),
             ),
           ],
@@ -209,7 +249,11 @@ class _ColetaListScreenState extends State<ColetaListScreen> {
           color: Colors.grey.shade100,
           child: Text(
             '${visiveis.length} ${visiveis.length == 1 ? 'coleta' : 'coletas'}',
-            style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w500),
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
         Expanded(
@@ -270,7 +314,11 @@ class _ResumoCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               valor,
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: cor),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: cor,
+              ),
             ),
             Text(
               label,
@@ -338,7 +386,10 @@ class _ColetaCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(
-                  child: Text(parada.statusEmoji, style: const TextStyle(fontSize: 20)),
+                  child: Text(
+                    parada.statusEmoji,
+                    style: const TextStyle(fontSize: 20),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -348,7 +399,10 @@ class _ColetaCard extends StatelessWidget {
                   children: [
                     Text(
                       parada.pessoaNome,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                     ),
                     if (parada.cnpjCpf.isNotEmpty)
                       Text(
@@ -366,23 +420,37 @@ class _ColetaCard extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: cor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             parada.statusLabel,
-                            style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: cor,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                         if (parada.status == 'C') ...[
                           const SizedBox(width: 8),
                           if (parada.temperatura != null)
-                            _MiniInfo(icon: Icons.thermostat, text: '${parada.temperatura!.toStringAsFixed(1)}°C'),
+                            _MiniInfo(
+                              icon: Icons.thermostat,
+                              text:
+                                  '${parada.temperatura!.toStringAsFixed(1)}°C',
+                            ),
                           if (parada.volume != null) ...[
                             const SizedBox(width: 6),
-                            _MiniInfo(icon: Icons.water_drop, text: '${parada.volume!.toStringAsFixed(0)}L'),
+                            _MiniInfo(
+                              icon: Icons.water_drop,
+                              text: '${parada.volume!.toStringAsFixed(0)}L',
+                            ),
                           ],
                         ],
                       ],

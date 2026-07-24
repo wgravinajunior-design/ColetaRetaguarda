@@ -57,7 +57,8 @@ void registerSyncHandlers() {
     switch (op) {
       case 'CREATE':
       case 'INSERT':
-        return await repo.createMotorista(MotoristaModel.fromJson(dados)) != null;
+        return await repo.createMotorista(MotoristaModel.fromJson(dados)) !=
+            null;
       case 'UPDATE':
         return await repo.updateMotorista(MotoristaModel.fromJson(dados));
       case 'DELETE':
@@ -117,7 +118,8 @@ void registerSyncHandlers() {
     switch (op) {
       case 'CREATE':
       case 'INSERT':
-        return await repo.createMovimento(MovimentoModel.fromJson(dados)) != null;
+        return await repo.createMovimento(MovimentoModel.fromJson(dados)) !=
+            null;
       case 'UPDATE':
         return await repo.updateMovimento(MovimentoModel.fromJson(dados));
       case 'DELETE':
