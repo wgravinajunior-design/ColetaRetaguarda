@@ -9,6 +9,7 @@ import 'features/auth/auth_service.dart';
 import 'features/core/database/sync_service.dart';
 import 'features/core/sync/sync_handlers.dart';
 import 'features/core/sync/sync_activity_overlay.dart';
+import 'core/update/verificador_atualizacao.dart';
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/main_layout.dart';
 import 'features/produtores/viewmodels/produtor_viewmodel.dart';
@@ -184,7 +185,9 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
   @override
   Widget build(BuildContext context) {
     final router = GoRouter(
-      initialLocation: context.read<AuthService>().isAuthenticated ? '/dashboard' : '/login',
+      initialLocation: context.read<AuthService>().isAuthenticated
+          ? '/dashboard'
+          : '/login',
       redirect: (context, state) {
         final auth = context.read<AuthService>();
         final isAuth = auth.isAuthenticated;
@@ -215,33 +218,62 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
               path: '/produtores',
               builder: (context, state) => const ProdutorListScreen(),
               routes: [
-                GoRoute(path: 'novo', builder: (context, state) => const ProdutorFormScreen()),
-                GoRoute(path: 'editar', builder: (context, state) => ProdutorFormScreen(produtor: state.extra as PessoaModel)),
-              ]
+                GoRoute(
+                  path: 'novo',
+                  builder: (context, state) => const ProdutorFormScreen(),
+                ),
+                GoRoute(
+                  path: 'editar',
+                  builder: (context, state) =>
+                      ProdutorFormScreen(produtor: state.extra as PessoaModel),
+                ),
+              ],
             ),
             GoRoute(
               path: '/motoristas',
               builder: (context, state) => const MotoristaListScreen(),
               routes: [
-                GoRoute(path: 'novo', builder: (context, state) => const MotoristaFormScreen()),
-                GoRoute(path: 'editar', builder: (context, state) => MotoristaFormScreen(motorista: state.extra as MotoristaModel?)),
-              ]
+                GoRoute(
+                  path: 'novo',
+                  builder: (context, state) => const MotoristaFormScreen(),
+                ),
+                GoRoute(
+                  path: 'editar',
+                  builder: (context, state) => MotoristaFormScreen(
+                    motorista: state.extra as MotoristaModel?,
+                  ),
+                ),
+              ],
             ),
             GoRoute(
               path: '/veiculos',
               builder: (context, state) => const VeiculoListScreen(),
               routes: [
-                GoRoute(path: 'novo', builder: (context, state) => const VeiculoFormScreen()),
-                GoRoute(path: 'editar', builder: (context, state) => VeiculoFormScreen(veiculo: state.extra as VeiculoModel)),
-              ]
+                GoRoute(
+                  path: 'novo',
+                  builder: (context, state) => const VeiculoFormScreen(),
+                ),
+                GoRoute(
+                  path: 'editar',
+                  builder: (context, state) =>
+                      VeiculoFormScreen(veiculo: state.extra as VeiculoModel),
+                ),
+              ],
             ),
             GoRoute(
               path: '/rotas',
               builder: (context, state) => const RotaListScreen(),
               routes: [
-                GoRoute(path: 'novo', builder: (context, state) => const RotaFormScreen()),
-                GoRoute(path: 'editar', builder: (context, state) => RotaFormScreen(rota: state.extra as RotaModel)),
-              ]
+                GoRoute(
+                  path: 'novo',
+                  builder: (context, state) => const RotaFormScreen(),
+                ),
+                GoRoute(
+                  path: 'editar',
+                  builder: (context, state) =>
+                      RotaFormScreen(rota: state.extra as RotaModel),
+                ),
+              ],
             ),
             GoRoute(
               path: '/coleta',
@@ -251,8 +283,16 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
               path: '/resfriadores',
               builder: (context, state) => const ResfriadorListScreen(),
               routes: [
-                GoRoute(path: 'novo', builder: (context, state) => const ResfriadorFormScreen()),
-                GoRoute(path: 'editar', builder: (context, state) => ResfriadorFormScreen(resfriador: state.extra as ResfriadorModel)),
+                GoRoute(
+                  path: 'novo',
+                  builder: (context, state) => const ResfriadorFormScreen(),
+                ),
+                GoRoute(
+                  path: 'editar',
+                  builder: (context, state) => ResfriadorFormScreen(
+                    resfriador: state.extra as ResfriadorModel,
+                  ),
+                ),
               ],
             ),
             GoRoute(
@@ -267,8 +307,11 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
               path: '/financeiro',
               builder: (context, state) => const FinanceiroListScreen(),
               routes: [
-                GoRoute(path: 'novo', builder: (context, state) => const FinanceiroFormScreen()),
-              ]
+                GoRoute(
+                  path: 'novo',
+                  builder: (context, state) => const FinanceiroFormScreen(),
+                ),
+              ],
             ),
           ],
         ),
@@ -282,9 +325,11 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
       darkTheme: AppTheme.getDarkTheme(),
       themeMode: _appTheme.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       routerConfig: router,
-      builder: (context, child) => SyncActivityOverlay(
-        child: ConnectionStatusBanner(
-          child: child ?? const SizedBox.shrink(),
+      builder: (context, child) => VerificadorAtualizacao(
+        child: SyncActivityOverlay(
+          child: ConnectionStatusBanner(
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
       ),
     );
