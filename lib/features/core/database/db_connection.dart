@@ -19,8 +19,8 @@ class DbConnection {
       host: config.host.isEmpty ? 'localhost' : config.host,
       port: int.tryParse(config.porta) ?? 3050,
       database: config.caminhoBase,
-      user: 'SYSDBA',
-      password: 'masterkey',
+      user: config.dbUsuario,
+      password: config.dbSenha,
     );
 
     return _db!;

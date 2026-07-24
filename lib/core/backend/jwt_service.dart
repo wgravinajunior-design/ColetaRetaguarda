@@ -1,10 +1,43 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
 import 'package:crypto/crypto.dart';
+import 'package:path/path.dart' as p;
+import '../paths/app_paths.dart';
 
 /// Serviço JWT para autenticação segura
 class JwtService {
-  static const String _secret = 'coleta_erp_secret_2024_prod';
   static const int _expirationHours = 24;
+
+  static String? _secretCache;
+
+  /// Segredo de assinatura, exclusivo desta instalação.
+  ///
+  /// Fica em `jwt.secret` na pasta de dados do usuário, gerado na primeira
+  /// execução. Antes era uma constante no código: com o repositório público,
+  /// qualquer um poderia assinar um token válido e ler ou gravar no ERP de
+  /// qualquer cliente pela API do servidor embutido.
+  static String get _secret {
+    final emCache = _secretCache;
+    if (emCache != null) return emCache;
+
+    final arquivo = File(p.join(AppPaths.dataDir.path, 'jwt.secret'));
+    if (arquivo.existsSync()) {
+      final lido = arquivo.readAsStringSync().trim();
+      if (lido.isNotEmpty) return _secretCache = lido;
+    }
+
+    final aleatorio = Random.secure();
+    final bytes = List<int>.generate(32, (_) => aleatorio.nextInt(256));
+    final novo = base64Url.encode(bytes);
+    try {
+      arquivo.writeAsStringSync(novo);
+    } on FileSystemException {
+      // Sem permissão de escrita o segredo vale só para esta execução: os
+      // tokens expiram ao reiniciar, mas o servidor continua funcionando.
+    }
+    return _secretCache = novo;
+  }
 
   /// Gera um token JWT
   static String generateToken(int userId, String userName, String perfil) {

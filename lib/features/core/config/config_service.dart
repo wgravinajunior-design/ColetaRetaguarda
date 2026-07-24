@@ -9,9 +9,15 @@ class ConfigService extends ChangeNotifier {
   ConfigService._internal();
 
   String host = 'localhost';
-  String porta = '3000';
+  String porta = '3050';
   String caminhoBase = 'C:\\Dados\\COLETA\\DADOS.FDB';
   String logoPath = '';
+
+  /// Credenciais do Firebird. Ficam no conf.ini, e não no código, porque o
+  /// repositório é público — os valores abaixo são só o padrão de instalação
+  /// do Firebird e devem ser trocados em produção.
+  String dbUsuario = 'SYSDBA';
+  String dbSenha = 'masterkey';
 
   bool _initialized = false;
   bool get isInitialized => _initialized;
@@ -23,8 +29,10 @@ class ConfigService extends ChangeNotifier {
       final config = Config.fromStrings(lines);
 
       host = config.get('Database', 'Host') ?? 'localhost';
-      porta = config.get('Database', 'Porta') ?? '3000';
+      porta = config.get('Database', 'Porta') ?? '3050';
       caminhoBase = config.get('Database', 'CaminhoBase') ?? 'C:\\Dados\\COLETA\\DADOS.FDB';
+      dbUsuario = config.get('Database', 'Usuario') ?? 'SYSDBA';
+      dbSenha = config.get('Database', 'Senha') ?? 'masterkey';
       logoPath = config.get('App', 'LogoPath') ?? '';
     } else {
       // Sem config ainda: grava os padrões, mas nunca deixa uma falha de
@@ -45,6 +53,8 @@ class ConfigService extends ChangeNotifier {
     config.set('Database', 'Host', host);
     config.set('Database', 'Porta', porta);
     config.set('Database', 'CaminhoBase', caminhoBase);
+    config.set('Database', 'Usuario', dbUsuario);
+    config.set('Database', 'Senha', dbSenha);
     
     config.addSection('App');
     config.set('App', 'LogoPath', logoPath);

@@ -21,15 +21,8 @@ class SqliteService {
   }
 
   Future<Database> _initDatabase() async {
-    // No desktop o padrão do sqflite_ffi é relativo ao diretório atual, que em
-    // Program Files não é gravável — usa a pasta de dados do usuário.
-    final dbPath = (Platform.isWindows || Platform.isLinux || Platform.isMacOS)
-        ? AppPaths.dataDir.path
-        : await getDatabasesPath();
-    final path = join(dbPath, 'coleta_erp.db');
-
     return openDatabase(
-      path,
+      await getDbPath(),
       version: dbVersion,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -68,10 +61,17 @@ class SqliteService {
     _database = null;
   }
 
-  /// Retorna o caminho do arquivo do banco de dados.
+  /// Caminho real do arquivo do banco local.
+  ///
+  /// Precisa ser a mesma conta que [_initDatabase] faz, senão a tela de
+  /// diagnóstico mostra um caminho onde o arquivo não está: no desktop o padrão
+  /// do sqflite_ffi é relativo ao diretório atual, que em Program Files não é
+  /// gravável — por isso o banco fica na pasta de dados do usuário.
   Future<String> getDbPath() async {
-    final dbPath = await getDatabasesPath();
-    return join(dbPath, 'coleta_erp.db');
+    final dir = (Platform.isWindows || Platform.isLinux || Platform.isMacOS)
+        ? AppPaths.dataDir.path
+        : await getDatabasesPath();
+    return join(dir, 'coleta_erp.db');
   }
 
   /// Lista todas as tabelas do banco (exceto internas do SQLite).
