@@ -241,8 +241,10 @@ class ApiServer {
   /// POST /auth/login
   static Future<shelf.Response> _login(shelf.Request request) async {
     try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = await _readJsonBody(request);
+      if (data == null) {
+        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
+      }
       final login = data['login'] as String?;
       final senha = data['senha'] as String?;
 
@@ -253,25 +255,23 @@ class ApiServer {
       }
 
       final db = await DbConnection().db;
-      final query = db.query();
-      await query.openCursor(
-        sql: 'SELECT USU_ID, USU_NOME, USU_PERFIL FROM TB_USUARIO '
-            'WHERE USU_LOGIN = ? AND USU_SENHA = ? AND USU_STATUS = \'A\'',
-        parameters: [login, senha],
-      );
-
       var found = false;
-      late String nome;
-      late String perfil;
+      String nome = '';
+      String perfil = 'OPERADOR';
 
-      await for (var row in query.rows()) {
-        found = true;
-        nome = row['USU_NOME'];
-        perfil = row['USU_PERFIL'] ?? 'OPERADOR';
-        break;
-      }
-
-      await query.close();
+      await _withCursor(db, (query) async {
+        await query.openCursor(
+          sql: 'SELECT USU_ID, USU_NOME, USU_PERFIL FROM TB_USUARIO '
+              'WHERE USU_LOGIN = ? AND USU_SENHA = ? AND USU_STATUS = \'A\'',
+          parameters: [login, senha],
+        );
+        await for (var row in query.rows()) {
+          found = true;
+          nome = row['USU_NOME'];
+          perfil = row['USU_PERFIL'] ?? 'OPERADOR';
+          break;
+        }
+      });
 
       if (!found) {
         _logger.warning('ApiServer', 'Falha de login: $login');
@@ -312,30 +312,29 @@ class ApiServer {
 
     try {
       final db = await DbConnection().db;
-      final query = db.query();
-      await query.openCursor(
-        sql: 'SELECT PES_ID, PES_RSOCIAL_NOME, PES_ENDERECO, PES_LATITUDE, '
-            'PES_LONGITUDE, PES_VOLUME_MEDIO, PES_HR_COLETA, PES_KM, '
-            'PES_STATUS FROM TB_PESSOA WHERE PES_FORNECEDOR = \'S\' '
-            'ORDER BY PES_RSOCIAL_NOME',
-      );
-
-      final items = <Map<String, dynamic>>[];
-      await for (var row in query.rows()) {
-        items.add({
-          'id': row['PES_ID'],
-          'nome': row['PES_RSOCIAL_NOME'],
-          'endereco': row['PES_ENDERECO'] ?? '',
-          'latitude': row['PES_LATITUDE'] ?? 0.0,
-          'longitude': row['PES_LONGITUDE'] ?? 0.0,
-          'volume_medio': row['PES_VOLUME_MEDIO'] ?? 0.0,
-          'hr_coleta': row['PES_HR_COLETA'] ?? '',
-          'km': row['PES_KM'] ?? 0.0,
-          'status': row['PES_STATUS'] == 'A' ? 'ATIVO' : 'INATIVO',
-        });
-      }
-
-      await query.close();
+      final items = await _withCursor(db, (query) async {
+        await query.openCursor(
+          sql: 'SELECT PES_ID, PES_RSOCIAL_NOME, PES_ENDERECO, PES_LATITUDE, '
+              'PES_LONGITUDE, PES_VOLUME_MEDIO, PES_HR_COLETA, PES_KM, '
+              'PES_STATUS FROM TB_PESSOA WHERE PES_FORNECEDOR = \'S\' '
+              'ORDER BY PES_RSOCIAL_NOME',
+        );
+        final list = <Map<String, dynamic>>[];
+        await for (var row in query.rows()) {
+          list.add({
+            'id': row['PES_ID'],
+            'nome': row['PES_RSOCIAL_NOME'],
+            'endereco': row['PES_ENDERECO'] ?? '',
+            'latitude': row['PES_LATITUDE'] ?? 0.0,
+            'longitude': row['PES_LONGITUDE'] ?? 0.0,
+            'volume_medio': row['PES_VOLUME_MEDIO'] ?? 0.0,
+            'hr_coleta': row['PES_HR_COLETA'] ?? '',
+            'km': row['PES_KM'] ?? 0.0,
+            'status': row['PES_STATUS'] == 'A' ? 'ATIVO' : 'INATIVO',
+          });
+        }
+        return list;
+      });
 
       return shelf.Response.ok(
         jsonEncode({'success': true, 'data': items}),
@@ -357,32 +356,30 @@ class ApiServer {
 
     try {
       final db = await DbConnection().db;
-      final query = db.query();
-      await query.openCursor(
-        sql: 'SELECT PES_ID, PES_RSOCIAL_NOME, PES_ENDERECO, PES_LATITUDE, '
-            'PES_LONGITUDE, PES_VOLUME_MEDIO, PES_HR_COLETA, PES_KM, '
-            'PES_STATUS FROM TB_PESSOA WHERE PES_FORNECEDOR = \'S\' '
-            'ORDER BY PES_RSOCIAL_NOME',
-      );
-
-      final items = <Map<String, dynamic>>[];
-      await for (var row in query.rows()) {
-        items.add({
-          'id': row['PES_ID'],
-          'nome': row['PES_RSOCIAL_NOME'],
-          'endereco': row['PES_ENDERECO'] ?? '',
-          'latitude': row['PES_LATITUDE'] ?? 0.0,
-          'longitude': row['PES_LONGITUDE'] ?? 0.0,
-          'volume_medio_diario': row['PES_VOLUME_MEDIO'] ?? 0.0,
-          'horario_coleta_previsto': row['PES_HR_COLETA'] ?? '',
-          'km_ate_tanque_principal': row['PES_KM'] ?? 0.0,
-          // TB_PESSOA não tem coluna de resfriador vinculado; mobile aceita null.
-          'id_resfriador': null,
-          'status': row['PES_STATUS'] == 'A' ? 'ATIVO' : 'INATIVO',
-        });
-      }
-
-      await query.close();
+      final items = await _withCursor(db, (query) async {
+        await query.openCursor(
+          sql: 'SELECT PES_ID, PES_RSOCIAL_NOME, PES_ENDERECO, PES_LATITUDE, '
+              'PES_LONGITUDE, PES_VOLUME_MEDIO, PES_HR_COLETA, PES_KM, '
+              'PES_ID_RESFRIADOR, PES_STATUS FROM TB_PESSOA '
+              'WHERE PES_FORNECEDOR = \'S\' ORDER BY PES_RSOCIAL_NOME',
+        );
+        final list = <Map<String, dynamic>>[];
+        await for (var row in query.rows()) {
+          list.add({
+            'id': row['PES_ID'],
+            'nome': row['PES_RSOCIAL_NOME'],
+            'endereco': row['PES_ENDERECO'] ?? '',
+            'latitude': row['PES_LATITUDE'] ?? 0.0,
+            'longitude': row['PES_LONGITUDE'] ?? 0.0,
+            'volume_medio_diario': row['PES_VOLUME_MEDIO'] ?? 0.0,
+            'horario_coleta_previsto': row['PES_HR_COLETA'] ?? '',
+            'km_ate_tanque_principal': row['PES_KM'] ?? 0.0,
+            'id_resfriador': row['PES_ID_RESFRIADOR'],
+            'status': row['PES_STATUS'] == 'A' ? 'ATIVO' : 'INATIVO',
+          });
+        }
+        return list;
+      });
 
       return shelf.Response.ok(
         jsonEncode({'success': true, 'data': items}),
@@ -393,19 +390,43 @@ class ApiServer {
     }
   }
 
-  /// GET /coleta/colaboradores — STUB. Não há query de colaboradores no
-  /// firebird_service para espelhar e o mapeamento de colunas (funcao_cargo,
-  /// permissoes) em TB_PESSOA ainda não foi definido. Devolve lista vazia para
-  /// não quebrar o app; implementar quando o schema de colaborador for confirmado.
+  /// GET /coleta/colaboradores — contrato do app mobile.
+  /// Colaboradores do ERP são TB_PESSOA marcadas com PES_COLABORADOR='S'.
+  /// funcao_cargo/permissoes não têm coluna dedicada confirmada em TB_PESSOA —
+  /// vão com default (o app aceita).
   static Future<shelf.Response> _listColaboradores(shelf.Request request) async {
     final tokenData = _validateBearerToken(request);
     if (tokenData == null) {
       return _errorResponse(401, 'Token inválido ou expirado');
     }
-    return shelf.Response.ok(
-      jsonEncode({'success': true, 'data': <Map<String, dynamic>>[]}),
-      headers: {'Content-Type': 'application/json'},
-    );
+    try {
+      final db = await DbConnection().db;
+      final items = await _withCursor(db, (query) async {
+        await query.openCursor(
+          sql: 'SELECT PES_ID, PES_RSOCIAL_NOME, PES_CNPJ_CPF, PES_STATUS '
+              'FROM TB_PESSOA WHERE PES_COLABORADOR = \'S\' '
+              'ORDER BY PES_RSOCIAL_NOME',
+        );
+        final list = <Map<String, dynamic>>[];
+        await for (var row in query.rows()) {
+          list.add({
+            'id': row['PES_ID'],
+            'nome': row['PES_RSOCIAL_NOME'] ?? '',
+            'cpf': row['PES_CNPJ_CPF'] ?? '',
+            'funcao_cargo': '',
+            'permissoes': 'Operador',
+            'status': row['PES_STATUS'] == 'A' ? 'ATIVO' : 'INATIVO',
+          });
+        }
+        return list;
+      });
+      return shelf.Response.ok(
+        jsonEncode({'success': true, 'data': items}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } catch (e) {
+      return _errorResponse(500, 'Erro ao listar colaboradores: $e');
+    }
   }
 
   /// GET /coleta/resfriadores — contrato do app mobile.
@@ -418,28 +439,29 @@ class ApiServer {
     }
     try {
       final db = await DbConnection().db;
-      final query = db.query();
-      await query.openCursor(
-        sql: 'SELECT RES_ID, RES_NUMERO_ID, RES_MARCA_MODELO, RES_STATUS '
-            'FROM TB_RESFRIADOR '
-            "WHERE (RES_STATUS IS NULL OR RES_STATUS <> 'INATIVO') "
-            'ORDER BY RES_NUMERO_ID',
-      );
-      final items = <Map<String, dynamic>>[];
-      await for (var row in query.rows()) {
-        items.add({
-          'id': row['RES_ID'],
-          'numero_identificador': row['RES_NUMERO_ID'] ?? '',
-          'marca_modelo': row['RES_MARCA_MODELO'] ?? '',
-          'ano_fabricacao': 0,
-          'capacidade_litros': 0.0,
-          'ultima_manutencao': null,
-          'status': (row['RES_STATUS'] == null || row['RES_STATUS'] == 'INATIVO')
-              ? 'INATIVO'
-              : 'ATIVO',
-        });
-      }
-      await query.close();
+      final items = await _withCursor(db, (query) async {
+        await query.openCursor(
+          sql: 'SELECT RES_ID, RES_NUMERO_ID, RES_MARCA_MODELO, RES_STATUS '
+              'FROM TB_RESFRIADOR '
+              "WHERE (RES_STATUS IS NULL OR RES_STATUS <> 'INATIVO') "
+              'ORDER BY RES_NUMERO_ID',
+        );
+        final list = <Map<String, dynamic>>[];
+        await for (var row in query.rows()) {
+          list.add({
+            'id': row['RES_ID'],
+            'numero_identificador': row['RES_NUMERO_ID'] ?? '',
+            'marca_modelo': row['RES_MARCA_MODELO'] ?? '',
+            'ano_fabricacao': 0,
+            'capacidade_litros': 0.0,
+            'ultima_manutencao': null,
+            'status': (row['RES_STATUS'] == null || row['RES_STATUS'] == 'INATIVO')
+                ? 'INATIVO'
+                : 'ATIVO',
+          });
+        }
+        return list;
+      });
       return shelf.Response.ok(
         jsonEncode({'success': true, 'data': items}),
         headers: {'Content-Type': 'application/json'},
@@ -462,31 +484,32 @@ class ApiServer {
     if (rotaId == 0) return _errorResponse(400, 'ID inválido');
     try {
       final db = await DbConnection().db;
-      final query = db.query();
-      await query.openCursor(
-        sql: 'SELECT ID, ID_COLETA_ROTA, ID_PRODUTOR, ORDEM_VISITA, STATUS, '
-            'VOLUME_COLETADO_LITROS, TEMPERATURA_LEITE_C, MOTIVO_ADIAMENTO, '
-            'FOTO_CAMINHO, DATA_HORA_REGISTRO '
-            'FROM COLETAS_DETALHE WHERE ID_COLETA_ROTA = ? ORDER BY ORDEM_VISITA',
-        parameters: [rotaId],
-      );
-      final items = <Map<String, dynamic>>[];
-      await for (var row in query.rows()) {
-        items.add({
-          'id': row['ID'],
-          'id_coleta_rota': row['ID_COLETA_ROTA'],
-          'id_produtor': row['ID_PRODUTOR'],
-          'ordem_visita': row['ORDEM_VISITA'] ?? 0,
-          'data_hora_registro': row['DATA_HORA_REGISTRO'],
-          'volume_coletado_litros': row['VOLUME_COLETADO_LITROS'] ?? 0.0,
-          'temperatura_leite_c': row['TEMPERATURA_LEITE_C'] ?? 0.0,
-          'observacao': '',
-          'motivo_adiamento': row['MOTIVO_ADIAMENTO'] ?? '',
-          'status': row['STATUS'] ?? 'PENDENTE',
-          'foto_caminho': row['FOTO_CAMINHO'],
-        });
-      }
-      await query.close();
+      final items = await _withCursor(db, (query) async {
+        await query.openCursor(
+          sql: 'SELECT ID, ID_COLETA_ROTA, ID_PRODUTOR, ORDEM_VISITA, STATUS, '
+              'VOLUME_COLETADO_LITROS, TEMPERATURA_LEITE_C, MOTIVO_ADIAMENTO, '
+              'FOTO_CAMINHO, DATA_HORA_REGISTRO '
+              'FROM COLETAS_DETALHE WHERE ID_COLETA_ROTA = ? ORDER BY ORDEM_VISITA',
+          parameters: [rotaId],
+        );
+        final list = <Map<String, dynamic>>[];
+        await for (var row in query.rows()) {
+          list.add({
+            'id': row['ID'],
+            'id_coleta_rota': row['ID_COLETA_ROTA'],
+            'id_produtor': row['ID_PRODUTOR'],
+            'ordem_visita': row['ORDEM_VISITA'] ?? 0,
+            'data_hora_registro': row['DATA_HORA_REGISTRO'],
+            'volume_coletado_litros': row['VOLUME_COLETADO_LITROS'] ?? 0.0,
+            'temperatura_leite_c': row['TEMPERATURA_LEITE_C'] ?? 0.0,
+            'observacao': '',
+            'motivo_adiamento': row['MOTIVO_ADIAMENTO'] ?? '',
+            'status': row['STATUS'] ?? 'PENDENTE',
+            'foto_caminho': row['FOTO_CAMINHO'],
+          });
+        }
+        return list;
+      });
       return shelf.Response.ok(
         jsonEncode({'success': true, 'data': items}),
         headers: {'Content-Type': 'application/json'},
@@ -508,10 +531,17 @@ class ApiServer {
     final detId = int.tryParse(id) ?? 0;
     if (detId == 0) return _errorResponse(400, 'ID inválido');
     try {
-      final data = jsonDecode(await request.readAsString()) as Map<String, dynamic>;
+      final data = await _readJsonBody(request);
+      if (data == null) {
+        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
+      }
+      // Só grava caminho de foto já gerenciado pelo servidor (uploads/...);
+      // caminho local do device é ignorado — a foto sobe pelo endpoint /foto.
+      final foto = data['foto_caminho'];
+      final fotoServer =
+          (foto is String && foto.startsWith('uploads/')) ? foto : null;
       final db = await DbConnection().db;
-      final query = db.query();
-      await query.openCursor(
+      await _withCursor(db, (query) => query.openCursor(
         sql: 'UPDATE COLETAS_DETALHE SET '
             'STATUS = COALESCE(?, STATUS), '
             'VOLUME_COLETADO_LITROS = COALESCE(?, VOLUME_COLETADO_LITROS), '
@@ -525,12 +555,11 @@ class ApiServer {
           data['volume_coletado_litros'],
           data['temperatura_leite_c'],
           data['motivo_adiamento'],
-          data['foto_caminho'],
+          fotoServer,
           data['data_hora_registro'],
           detId,
         ],
-      );
-      await query.close();
+      ));
       return shelf.Response.ok(
         jsonEncode({'success': true}),
         headers: {'Content-Type': 'application/json'},
@@ -548,7 +577,10 @@ class ApiServer {
       return _errorResponse(401, 'Token inválido ou expirado');
     }
     try {
-      final body = jsonDecode(await request.readAsString()) as Map<String, dynamic>;
+      final body = await _readJsonBody(request);
+      if (body == null) {
+        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
+      }
       final rotas = (body['rotas'] as List?) ?? const [];
       final db = await DbConnection().db;
       int aplicados = 0;
@@ -557,8 +589,7 @@ class ApiServer {
         final rota = r as Map<String, dynamic>;
         final rotaId = rota['id'];
         if (rotaId != null) {
-          final q = db.query();
-          await q.openCursor(
+          await _withCursor(db, (q) => q.openCursor(
             sql: 'UPDATE COLETAS_ROTA SET STATUS = COALESCE(?, STATUS), '
                 'DATA_HORA_INICIO = COALESCE(?, DATA_HORA_INICIO), '
                 'DATA_HORA_FIM = COALESCE(?, DATA_HORA_FIM) WHERE ID = ?',
@@ -568,8 +599,7 @@ class ApiServer {
               rota['data_hora_fim'],
               rotaId,
             ],
-          );
-          await q.close();
+          ));
         }
 
         final detalhes = (rota['detalhes'] as List?) ?? const [];
@@ -577,8 +607,13 @@ class ApiServer {
           final det = d as Map<String, dynamic>;
           final detId = det['id'];
           if (detId == null) continue;
-          final q = db.query();
-          await q.openCursor(
+          // Só aceita caminho de foto já gerenciado pelo servidor; um caminho
+          // local do device (upload ainda não feito) é ignorado para não gravar
+          // referência inválida — a foto sobe pelo endpoint /foto.
+          final foto = det['foto_caminho'];
+          final fotoServer =
+              (foto is String && foto.startsWith('uploads/')) ? foto : null;
+          await _withCursor(db, (q) => q.openCursor(
             sql: 'UPDATE COLETAS_DETALHE SET '
                 'STATUS = COALESCE(?, STATUS), '
                 'VOLUME_COLETADO_LITROS = COALESCE(?, VOLUME_COLETADO_LITROS), '
@@ -592,12 +627,11 @@ class ApiServer {
               det['volume_coletado_litros'],
               det['temperatura_leite_c'],
               det['motivo_adiamento'],
-              det['foto_caminho'],
+              fotoServer,
               det['data_hora_registro'],
               detId,
             ],
-          );
-          await q.close();
+          ));
           aplicados++;
         }
       }
@@ -628,37 +662,38 @@ class ApiServer {
     }
 
     try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = await _readJsonBody(request);
+      if (data == null) {
+        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
+      }
 
       final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
-        sql: 'INSERT INTO TB_PESSOA (PES_RSOCIAL_NOME, PES_ENDERECO, PES_LATITUDE, '
-            'PES_LONGITUDE, PES_VOLUME_MEDIO, PES_HR_COLETA, PES_KM, PES_STATUS, '
-            'PES_FORNECEDOR, PES_TIPO_PESSOA) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
-            'RETURNING PES_ID',
-        parameters: [
-          data['nome'] ?? '',
-          data['endereco'] ?? '',
-          data['latitude'] ?? 0.0,
-          data['longitude'] ?? 0.0,
-          data['volume_medio'] ?? 0.0,
-          data['hr_coleta'] ?? '',
-          data['km'] ?? 0.0,
-          'A',
-          'S',
-          'P',
-        ],
-      );
-
-      var id = 0;
-      await for (var row in query.rows()) {
-        id = row['PES_ID'] ?? 0;
-        break;
-      }
-      await query.close();
+      final id = await _withCursor(db, (query) async {
+        await query.openCursor(
+          sql: 'INSERT INTO TB_PESSOA (PES_RSOCIAL_NOME, PES_ENDERECO, PES_LATITUDE, '
+              'PES_LONGITUDE, PES_VOLUME_MEDIO, PES_HR_COLETA, PES_KM, PES_STATUS, '
+              'PES_FORNECEDOR, PES_TIPO_PESSOA) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
+              'RETURNING PES_ID',
+          parameters: [
+            data['nome'] ?? '',
+            data['endereco'] ?? '',
+            data['latitude'] ?? 0.0,
+            data['longitude'] ?? 0.0,
+            data['volume_medio'] ?? 0.0,
+            data['hr_coleta'] ?? '',
+            data['km'] ?? 0.0,
+            'A',
+            'S',
+            'P',
+          ],
+        );
+        var v = 0;
+        await for (var row in query.rows()) {
+          v = row['PES_ID'] ?? 0;
+          break;
+        }
+        return v;
+      });
 
       return shelf.Response(201,
           body: jsonEncode({'success': true, 'id': id}),
@@ -677,8 +712,10 @@ class ApiServer {
     }
 
     try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = await _readJsonBody(request);
+      if (data == null) {
+        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
+      }
       final pesId = int.tryParse(id) ?? 0;
 
       if (pesId == 0) {
@@ -686,9 +723,7 @@ class ApiServer {
       }
 
       final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
+      await _withCursor(db, (query) => query.openCursor(
         sql: 'UPDATE TB_PESSOA SET PES_RSOCIAL_NOME = ?, '
             'PES_ENDERECO = ?, PES_LATITUDE = ?, PES_LONGITUDE = ?, '
             'PES_VOLUME_MEDIO = ?, PES_HR_COLETA = ?, PES_KM = ? '
@@ -703,9 +738,7 @@ class ApiServer {
           data['km'] ?? 0.0,
           pesId,
         ],
-      );
-
-      await query.close();
+      ));
 
       return shelf.Response.ok(
           jsonEncode({'success': true}),
@@ -730,14 +763,10 @@ class ApiServer {
       }
 
       final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
+      await _withCursor(db, (query) => query.openCursor(
         sql: 'UPDATE TB_PESSOA SET PES_STATUS = \'I\' WHERE PES_ID = ?',
         parameters: [pesId],
-      );
-
-      await query.close();
+      ));
 
       return shelf.Response.ok(
           jsonEncode({'success': true}),
@@ -757,40 +786,39 @@ class ApiServer {
 
     try {
       final db = await DbConnection().db;
-      final query = db.query();
-      await query.openCursor(
-        sql: 'SELECT PES_ID, PES_RSOCIAL_NOME, PES_FANTASIA_APELIDO, '
-            'PES_CNPJ_CPF, PES_IE_RG, PES_TELEFONE, PES_CELULAR, '
-            'PES_EMAIL, PES_ENDERECO, PES_NUMERO, PES_COMPLEMENTO, '
-            'PES_BAIRRO, PES_CIDADE, PES_CEP, PES_CNH, PES_CNH_VALIDADE, '
-            'PES_STATUS FROM TB_PESSOA WHERE PES_TIPO_PESSOA = \'M\' AND '
-            'PES_STATUS = \'A\' ORDER BY PES_RSOCIAL_NOME',
-      );
-
-      final items = <Map<String, dynamic>>[];
-      await for (var row in query.rows()) {
-        items.add({
-          'id': row['PES_ID'],
-          'nome': row['PES_RSOCIAL_NOME'],
-          'apelido': row['PES_FANTASIA_APELIDO'] ?? '',
-          'cpf': row['PES_CNPJ_CPF'] ?? '',
-          'rg': row['PES_IE_RG'] ?? '',
-          'telefone': row['PES_TELEFONE'],
-          'celular': row['PES_CELULAR'],
-          'email': row['PES_EMAIL'],
-          'endereco': row['PES_ENDERECO'],
-          'numero': row['PES_NUMERO'],
-          'complemento': row['PES_COMPLEMENTO'],
-          'bairro': row['PES_BAIRRO'],
-          'cidade': row['PES_CIDADE'],
-          'cep': row['PES_CEP'],
-          'cnh': row['PES_CNH'],
-          'cnh_validade': row['PES_CNH_VALIDADE'],
-          'status': row['PES_STATUS'] == 'A' ? 'ATIVO' : 'INATIVO',
-        });
-      }
-
-      await query.close();
+      final items = await _withCursor(db, (query) async {
+        await query.openCursor(
+          sql: 'SELECT PES_ID, PES_RSOCIAL_NOME, PES_FANTASIA_APELIDO, '
+              'PES_CNPJ_CPF, PES_IE_RG, PES_TELEFONE, PES_CELULAR, '
+              'PES_EMAIL, PES_ENDERECO, PES_NUMERO, PES_COMPLEMENTO, '
+              'PES_BAIRRO, PES_CIDADE, PES_CEP, PES_CNH, PES_CNH_VALIDADE, '
+              'PES_STATUS FROM TB_PESSOA WHERE PES_TRANSPORTADOR = \'S\' AND '
+              'PES_STATUS = \'A\' ORDER BY PES_RSOCIAL_NOME',
+        );
+        final list = <Map<String, dynamic>>[];
+        await for (var row in query.rows()) {
+          list.add({
+            'id': row['PES_ID'],
+            'nome': row['PES_RSOCIAL_NOME'],
+            'apelido': row['PES_FANTASIA_APELIDO'] ?? '',
+            'cpf': row['PES_CNPJ_CPF'] ?? '',
+            'rg': row['PES_IE_RG'] ?? '',
+            'telefone': row['PES_TELEFONE'],
+            'celular': row['PES_CELULAR'],
+            'email': row['PES_EMAIL'],
+            'endereco': row['PES_ENDERECO'],
+            'numero': row['PES_NUMERO'],
+            'complemento': row['PES_COMPLEMENTO'],
+            'bairro': row['PES_BAIRRO'],
+            'cidade': row['PES_CIDADE'],
+            'cep': row['PES_CEP'],
+            'cnh': row['PES_CNH'],
+            'cnh_validade': row['PES_CNH_VALIDADE'],
+            'status': row['PES_STATUS'] == 'A' ? 'ATIVO' : 'INATIVO',
+          });
+        }
+        return list;
+      });
 
       return shelf.Response.ok(
         jsonEncode({'success': true, 'data': items}),
@@ -808,46 +836,47 @@ class ApiServer {
     }
 
     try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = await _readJsonBody(request);
+      if (data == null) {
+        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
+      }
 
       final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
-        sql: 'INSERT INTO TB_PESSOA (PES_RSOCIAL_NOME, PES_FANTASIA_APELIDO, '
-            'PES_CNPJ_CPF, PES_IE_RG, PES_TELEFONE, PES_CELULAR, PES_EMAIL, '
-            'PES_ENDERECO, PES_NUMERO, PES_COMPLEMENTO, PES_BAIRRO, '
-            'PES_CIDADE, PES_CEP, PES_CNH, PES_CNH_VALIDADE, '
-            'PES_STATUS, PES_TIPO_PESSOA) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '
-            '?, ?, ?, ?, ?, ?, ?, ?) RETURNING PES_ID',
-        parameters: [
-          data['nome'] ?? '',
-          data['apelido'],
-          data['cpf'] ?? '',
-          data['rg'] ?? '',
-          data['telefone'],
-          data['celular'],
-          data['email'],
-          data['endereco'],
-          data['numero'],
-          data['complemento'],
-          data['bairro'],
-          data['cidade'],
-          data['cep'],
-          data['cnh'],
-          data['cnh_validade'],
-          'A',
-          'M',
-        ],
-      );
-
-      var id = 0;
-      await for (var row in query.rows()) {
-        id = row['PES_ID'] ?? 0;
-        break;
-      }
-      await query.close();
+      final id = await _withCursor(db, (query) async {
+        await query.openCursor(
+          sql: 'INSERT INTO TB_PESSOA (PES_RSOCIAL_NOME, PES_FANTASIA_APELIDO, '
+              'PES_CNPJ_CPF, PES_IE_RG, PES_TELEFONE, PES_CELULAR, PES_EMAIL, '
+              'PES_ENDERECO, PES_NUMERO, PES_COMPLEMENTO, PES_BAIRRO, '
+              'PES_CIDADE, PES_CEP, PES_CNH, PES_CNH_VALIDADE, '
+              'PES_STATUS, PES_TRANSPORTADOR) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '
+              '?, ?, ?, ?, ?, ?, ?, ?) RETURNING PES_ID',
+          parameters: [
+            data['nome'] ?? '',
+            data['apelido'],
+            data['cpf'] ?? '',
+            data['rg'] ?? '',
+            data['telefone'],
+            data['celular'],
+            data['email'],
+            data['endereco'],
+            data['numero'],
+            data['complemento'],
+            data['bairro'],
+            data['cidade'],
+            data['cep'],
+            data['cnh'],
+            data['cnh_validade'],
+            'A',
+            'S', // PES_TRANSPORTADOR = 'S' (convenção do ERP para motorista)
+          ],
+        );
+        var v = 0;
+        await for (var row in query.rows()) {
+          v = row['PES_ID'] ?? 0;
+          break;
+        }
+        return v;
+      });
 
       return shelf.Response(201,
           body: jsonEncode({'success': true, 'id': id}),
@@ -865,8 +894,10 @@ class ApiServer {
     }
 
     try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = await _readJsonBody(request);
+      if (data == null) {
+        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
+      }
       final pesId = int.tryParse(id) ?? 0;
 
       if (pesId == 0) {
@@ -874,15 +905,13 @@ class ApiServer {
       }
 
       final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
+      await _withCursor(db, (query) => query.openCursor(
         sql: 'UPDATE TB_PESSOA SET PES_RSOCIAL_NOME = ?, '
             'PES_FANTASIA_APELIDO = ?, PES_TELEFONE = ?, PES_CELULAR = ?, '
             'PES_EMAIL = ?, PES_ENDERECO = ?, PES_NUMERO = ?, '
             'PES_COMPLEMENTO = ?, PES_BAIRRO = ?, PES_CIDADE = ?, '
             'PES_CEP = ?, PES_CNH = ?, PES_CNH_VALIDADE = ? '
-            'WHERE PES_ID = ? AND PES_TIPO_PESSOA = \'M\'',
+            'WHERE PES_ID = ? AND PES_TRANSPORTADOR = \'S\'',
         parameters: [
           data['nome'] ?? '',
           data['apelido'],
@@ -899,9 +928,7 @@ class ApiServer {
           data['cnh_validade'],
           pesId,
         ],
-      );
-
-      await query.close();
+      ));
 
       return shelf.Response.ok(
           jsonEncode({'success': true}),
@@ -925,15 +952,11 @@ class ApiServer {
       }
 
       final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
+      await _withCursor(db, (query) => query.openCursor(
         sql: 'UPDATE TB_PESSOA SET PES_STATUS = \'I\' WHERE PES_ID = ? AND '
-            'PES_TIPO_PESSOA = \'M\'',
+            'PES_TRANSPORTADOR = \'S\'',
         parameters: [pesId],
-      );
-
-      await query.close();
+      ));
 
       return shelf.Response.ok(
           jsonEncode({'success': true}),
@@ -953,31 +976,35 @@ class ApiServer {
 
     try {
       final db = await DbConnection().db;
-      final query = db.query();
-      await query.openCursor(
-        sql: 'SELECT VEI_ID, VEI_PLACA, VEI_MARCA, VEI_MODELO, VEI_COR, '
-            'VEI_ANO, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, VEI_STATUS '
-            'FROM TB_VEICULO WHERE VEI_STATUS = \'A\' '
-            'ORDER BY VEI_PLACA',
-      );
-
-      final items = <Map<String, dynamic>>[];
-      await for (var row in query.rows()) {
-        items.add({
-          'id': row['VEI_ID'],
-          'placa': row['VEI_PLACA'],
-          'marca': row['VEI_MARCA'] ?? '',
-          'modelo': row['VEI_MODELO'] ?? '',
-          'cor': row['VEI_COR'] ?? '',
-          'ano': row['VEI_ANO'] ?? '',
-          'tipo': row['VEI_TIPO'] ?? 'C',
-          'renavam': row['VEI_RENAVAM'] ?? '',
-          'chassi': row['VEI_CHASSI'],
-          'status': row['VEI_STATUS'] == 'A' ? 'ATIVO' : 'INATIVO',
-        });
-      }
-
-      await query.close();
+      final items = await _withCursor(db, (query) async {
+        await query.openCursor(
+          sql: 'SELECT VEI_ID, VEI_PLACA, VEI_MARCA, VEI_MODELO, VEI_COR, '
+              'VEI_ANO, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, VEI_STATUS '
+              'FROM TB_VEICULO WHERE VEI_STATUS = \'A\' '
+              'ORDER BY VEI_PLACA',
+        );
+        final list = <Map<String, dynamic>>[];
+        await for (var row in query.rows()) {
+          list.add({
+            'id': row['VEI_ID'],
+            'placa': row['VEI_PLACA'],
+            'marca': row['VEI_MARCA'] ?? '',
+            'modelo': row['VEI_MODELO'] ?? '',
+            // Campo que o app mobile usa como rótulo do veículo (marca + modelo).
+            'descricao': [row['VEI_MARCA'], row['VEI_MODELO']]
+                .where((e) => e != null && '$e'.trim().isNotEmpty)
+                .join(' ')
+                .trim(),
+            'cor': row['VEI_COR'] ?? '',
+            'ano': row['VEI_ANO'] ?? '',
+            'tipo': row['VEI_TIPO'] ?? 'C',
+            'renavam': row['VEI_RENAVAM'] ?? '',
+            'chassi': row['VEI_CHASSI'],
+            'status': row['VEI_STATUS'] == 'A' ? 'ATIVO' : 'INATIVO',
+          });
+        }
+        return list;
+      });
 
       return shelf.Response.ok(
         jsonEncode({'success': true, 'data': items}),
@@ -995,36 +1022,37 @@ class ApiServer {
     }
 
     try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = await _readJsonBody(request);
+      if (data == null) {
+        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
+      }
 
       final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
-        sql: 'INSERT INTO TB_VEICULO (VEI_PLACA, VEI_MARCA, VEI_MODELO, '
-            'VEI_COR, VEI_ANO, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, '
-            'VEI_STATUS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) '
-            'RETURNING VEI_ID',
-        parameters: [
-          data['placa'] ?? '',
-          data['marca'] ?? '',
-          data['modelo'] ?? '',
-          data['cor'] ?? '',
-          data['ano'] ?? '',
-          data['tipo'] ?? 'C',
-          data['renavam'] ?? '',
-          data['chassi'],
-          'A',
-        ],
-      );
-
-      var id = 0;
-      await for (var row in query.rows()) {
-        id = row['VEI_ID'] ?? 0;
-        break;
-      }
-      await query.close();
+      final id = await _withCursor(db, (query) async {
+        await query.openCursor(
+          sql: 'INSERT INTO TB_VEICULO (VEI_PLACA, VEI_MARCA, VEI_MODELO, '
+              'VEI_COR, VEI_ANO, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, '
+              'VEI_STATUS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) '
+              'RETURNING VEI_ID',
+          parameters: [
+            data['placa'] ?? '',
+            data['marca'] ?? '',
+            data['modelo'] ?? '',
+            data['cor'] ?? '',
+            data['ano'] ?? '',
+            data['tipo'] ?? 'C',
+            data['renavam'] ?? '',
+            data['chassi'],
+            'A',
+          ],
+        );
+        var v = 0;
+        await for (var row in query.rows()) {
+          v = row['VEI_ID'] ?? 0;
+          break;
+        }
+        return v;
+      });
 
       return shelf.Response(201,
           body: jsonEncode({'success': true, 'id': id}),
@@ -1042,8 +1070,10 @@ class ApiServer {
     }
 
     try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = await _readJsonBody(request);
+      if (data == null) {
+        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
+      }
       final veiId = int.tryParse(id) ?? 0;
 
       if (veiId == 0) {
@@ -1051,9 +1081,7 @@ class ApiServer {
       }
 
       final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
+      await _withCursor(db, (query) => query.openCursor(
         sql: 'UPDATE TB_VEICULO SET VEI_PLACA = ?, VEI_MARCA = ?, '
             'VEI_MODELO = ?, VEI_COR = ?, VEI_ANO = ?, VEI_TIPO = ?, '
             'VEI_RENAVAM = ?, VEI_CHASSI = ? WHERE VEI_ID = ?',
@@ -1068,9 +1096,7 @@ class ApiServer {
           data['chassi'],
           veiId,
         ],
-      );
-
-      await query.close();
+      ));
 
       return shelf.Response.ok(
           jsonEncode({'success': true}),
@@ -1094,14 +1120,10 @@ class ApiServer {
       }
 
       final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
+      await _withCursor(db, (query) => query.openCursor(
         sql: 'UPDATE TB_VEICULO SET VEI_STATUS = \'I\' WHERE VEI_ID = ?',
         parameters: [veiId],
-      );
-
-      await query.close();
+      ));
 
       return shelf.Response.ok(
           jsonEncode({'success': true}),
@@ -1122,28 +1144,29 @@ class ApiServer {
     try {
       // Tabela real do ERP (COLETAS_ROTA); nomes de coluna já batem com o mobile.
       final db = await DbConnection().db;
-      final query = db.query();
-      await query.openCursor(
-        sql: 'SELECT ID, NOME, ID_MOTORISTA, ID_VEICULO, DATA_COLETA, '
-            'DATA_HORA_INICIO, DATA_HORA_FIM, STATUS '
-            'FROM COLETAS_ROTA ORDER BY DATA_COLETA DESC',
-      );
-
-      final items = <Map<String, dynamic>>[];
-      await for (var row in query.rows()) {
-        items.add({
-          'id': row['ID'],
-          'nome': row['NOME'] ?? '',
-          'id_motorista': row['ID_MOTORISTA'] ?? 0,
-          'id_veiculo': row['ID_VEICULO'] ?? 0,
-          'data_coleta': row['DATA_COLETA'],
-          'data_hora_inicio': row['DATA_HORA_INICIO'],
-          'data_hora_fim': row['DATA_HORA_FIM'],
-          'status': row['STATUS'] ?? 'PENDENTE',
-        });
-      }
-
-      await query.close();
+      final items = await _withCursor(db, (query) async {
+        // FIRST 300: limita ao lote mais recente (evita baixar todo o histórico
+        // a cada sync do app). Ordena por data desc, então as ativas/recentes vêm.
+        await query.openCursor(
+          sql: 'SELECT FIRST 300 ID, NOME, ID_MOTORISTA, ID_VEICULO, DATA_COLETA, '
+              'DATA_HORA_INICIO, DATA_HORA_FIM, STATUS '
+              'FROM COLETAS_ROTA ORDER BY DATA_COLETA DESC',
+        );
+        final list = <Map<String, dynamic>>[];
+        await for (var row in query.rows()) {
+          list.add({
+            'id': row['ID'],
+            'nome': row['NOME'] ?? '',
+            'id_motorista': row['ID_MOTORISTA'] ?? 0,
+            'id_veiculo': row['ID_VEICULO'] ?? 0,
+            'data_coleta': row['DATA_COLETA'],
+            'data_hora_inicio': row['DATA_HORA_INICIO'],
+            'data_hora_fim': row['DATA_HORA_FIM'],
+            'status': row['STATUS'] ?? 'PENDENTE',
+          });
+        }
+        return list;
+      });
 
       return shelf.Response.ok(
         jsonEncode({'success': true, 'data': items}),
@@ -1161,35 +1184,36 @@ class ApiServer {
     }
 
     try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = await _readJsonBody(request);
+      if (data == null) {
+        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
+      }
 
       final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
-        sql: 'INSERT INTO TB_ROTA (ROT_DESCRICAO, ROT_REGIAO, '
-            'ROT_MOTORISTA_ID, ROT_VEICULO_ID, ROT_STATUS, '
-            'ROT_DATA_PREVISTA, ROT_PARADAS, ROT_KM_ESTIMADO) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING ROT_ID',
-        parameters: [
-          data['descricao'] ?? '',
-          data['regiao'],
-          data['motorista_id'],
-          data['veiculo_id'],
-          'A',
-          data['data_prevista'],
-          data['paradas'] ?? 0,
-          data['km_estimado'] ?? 0.0,
-        ],
-      );
-
-      var id = 0;
-      await for (var row in query.rows()) {
-        id = row['ROT_ID'] ?? 0;
-        break;
-      }
-      await query.close();
+      final id = await _withCursor(db, (query) async {
+        await query.openCursor(
+          sql: 'INSERT INTO TB_ROTA (ROT_DESCRICAO, ROT_REGIAO, '
+              'ROT_MOTORISTA_ID, ROT_VEICULO_ID, ROT_STATUS, '
+              'ROT_DATA_PREVISTA, ROT_PARADAS, ROT_KM_ESTIMADO) '
+              'VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING ROT_ID',
+          parameters: [
+            data['descricao'] ?? '',
+            data['regiao'],
+            data['motorista_id'],
+            data['veiculo_id'],
+            'A',
+            data['data_prevista'],
+            data['paradas'] ?? 0,
+            data['km_estimado'] ?? 0.0,
+          ],
+        );
+        var v = 0;
+        await for (var row in query.rows()) {
+          v = row['ROT_ID'] ?? 0;
+          break;
+        }
+        return v;
+      });
 
       return shelf.Response(201,
           body: jsonEncode({'success': true, 'id': id}),
@@ -1207,8 +1231,10 @@ class ApiServer {
     }
 
     try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = await _readJsonBody(request);
+      if (data == null) {
+        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
+      }
       final rotId = int.tryParse(id) ?? 0;
 
       if (rotId == 0) {
@@ -1218,9 +1244,7 @@ class ApiServer {
       // Tabela real do ERP (COLETAS_ROTA). O app envia status + horários;
       // COALESCE preserva o que não veio no payload.
       final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
+      await _withCursor(db, (query) => query.openCursor(
         sql: 'UPDATE COLETAS_ROTA SET STATUS = COALESCE(?, STATUS), '
             'DATA_HORA_INICIO = COALESCE(?, DATA_HORA_INICIO), '
             'DATA_HORA_FIM = COALESCE(?, DATA_HORA_FIM) WHERE ID = ?',
@@ -1230,9 +1254,7 @@ class ApiServer {
           data['data_hora_fim'],
           rotId,
         ],
-      );
-
-      await query.close();
+      ));
 
       return shelf.Response.ok(
           jsonEncode({'success': true}),
@@ -1256,14 +1278,10 @@ class ApiServer {
       }
 
       final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
+      await _withCursor(db, (query) => query.openCursor(
         sql: 'UPDATE TB_ROTA SET ROT_STATUS = \'I\' WHERE ROT_ID = ?',
         parameters: [rotId],
-      );
-
-      await query.close();
+      ));
 
       return shelf.Response.ok(
           jsonEncode({'success': true}),
@@ -1289,9 +1307,6 @@ class ApiServer {
         return _errorResponse(400, 'Parâmetro rota_id obrigatório');
       }
 
-      final db = await DbConnection().db;
-      final query = db.query();
-
       String sql = 'SELECT PAR_ID, PAR_ROTA_ID, PAR_PESSOA_ID, '
           'PAR_PESSOA_NOME, PAR_CNPJ_CPF, PAR_ENDERECO, '
           'PAR_LATITUDE, PAR_LONGITUDE, PAR_STATUS, '
@@ -1310,33 +1325,34 @@ class ApiServer {
 
       sql += ' ORDER BY PAR_ID';
 
-      await query.openCursor(sql: sql, parameters: params);
-
-      final items = <Map<String, dynamic>>[];
-      await for (var row in query.rows()) {
-        items.add({
-          'id': row['PAR_ID'],
-          'rota_id': row['PAR_ROTA_ID'],
-          'pessoa_id': row['PAR_PESSOA_ID'],
-          'pessoa_nome': row['PAR_PESSOA_NOME'],
-          'cnpj_cpf': row['PAR_CNPJ_CPF'],
-          'endereco': row['PAR_ENDERECO'],
-          'latitude': row['PAR_LATITUDE'] ?? 0.0,
-          'longitude': row['PAR_LONGITUDE'] ?? 0.0,
-          'status': row['PAR_STATUS'] ?? 'P',
-          'temperatura': row['PAR_TEMPERATURA'],
-          'volume': row['PAR_VOLUME'],
-          'justificativa': row['PAR_JUSTIFICATIVA'],
-          'gps_captura_latitude': row['PAR_GPS_LATITUDE'],
-          'gps_captura_longitude': row['PAR_GPS_LONGITUDE'],
-          'horario_chegada': row['PAR_HORARIO_CHEGADA'],
-          'horario_saida': row['PAR_HORARIO_SAIDA'],
-          'foto_path': row['PAR_FOTO_PATH'],
-          'assinatura_base64': row['PAR_ASSINATURA_BASE64'],
-        });
-      }
-
-      await query.close();
+      final db = await DbConnection().db;
+      final items = await _withCursor(db, (query) async {
+        await query.openCursor(sql: sql, parameters: params);
+        final list = <Map<String, dynamic>>[];
+        await for (var row in query.rows()) {
+          list.add({
+            'id': row['PAR_ID'],
+            'rota_id': row['PAR_ROTA_ID'],
+            'pessoa_id': row['PAR_PESSOA_ID'],
+            'pessoa_nome': row['PAR_PESSOA_NOME'],
+            'cnpj_cpf': row['PAR_CNPJ_CPF'],
+            'endereco': row['PAR_ENDERECO'],
+            'latitude': row['PAR_LATITUDE'] ?? 0.0,
+            'longitude': row['PAR_LONGITUDE'] ?? 0.0,
+            'status': row['PAR_STATUS'] ?? 'P',
+            'temperatura': row['PAR_TEMPERATURA'],
+            'volume': row['PAR_VOLUME'],
+            'justificativa': row['PAR_JUSTIFICATIVA'],
+            'gps_captura_latitude': row['PAR_GPS_LATITUDE'],
+            'gps_captura_longitude': row['PAR_GPS_LONGITUDE'],
+            'horario_chegada': row['PAR_HORARIO_CHEGADA'],
+            'horario_saida': row['PAR_HORARIO_SAIDA'],
+            'foto_path': row['PAR_FOTO_PATH'],
+            'assinatura_base64': row['PAR_ASSINATURA_BASE64'],
+          });
+        }
+        return list;
+      });
 
       return shelf.Response.ok(
         jsonEncode({'success': true, 'data': items}),
@@ -1354,43 +1370,44 @@ class ApiServer {
     }
 
     try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = await _readJsonBody(request);
+      if (data == null) {
+        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
+      }
 
       final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
-        sql: 'INSERT INTO TB_PARADA (PAR_ROTA_ID, PAR_PESSOA_ID, '
-            'PAR_PESSOA_NOME, PAR_CNPJ_CPF, PAR_ENDERECO, '
-            'PAR_LATITUDE, PAR_LONGITUDE, PAR_STATUS, '
-            'PAR_TEMPERATURA, PAR_VOLUME, PAR_GPS_LATITUDE, '
-            'PAR_GPS_LONGITUDE, PAR_HORARIO_CHEGADA) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
-            'RETURNING PAR_ID',
-        parameters: [
-          data['rota_id'],
-          data['pessoa_id'],
-          data['pessoa_nome'],
-          data['cnpj_cpf'],
-          data['endereco'],
-          data['latitude'] ?? 0.0,
-          data['longitude'] ?? 0.0,
-          data['status'] ?? 'P',
-          data['temperatura'],
-          data['volume'],
-          data['gps_captura_latitude'] ?? 0.0,
-          data['gps_captura_longitude'] ?? 0.0,
-          data['horario_chegada'],
-        ],
-      );
-
-      var id = 0;
-      await for (var row in query.rows()) {
-        id = row['PAR_ID'] ?? 0;
-        break;
-      }
-      await query.close();
+      final id = await _withCursor(db, (query) async {
+        await query.openCursor(
+          sql: 'INSERT INTO TB_PARADA (PAR_ROTA_ID, PAR_PESSOA_ID, '
+              'PAR_PESSOA_NOME, PAR_CNPJ_CPF, PAR_ENDERECO, '
+              'PAR_LATITUDE, PAR_LONGITUDE, PAR_STATUS, '
+              'PAR_TEMPERATURA, PAR_VOLUME, PAR_GPS_LATITUDE, '
+              'PAR_GPS_LONGITUDE, PAR_HORARIO_CHEGADA) '
+              'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '
+              'RETURNING PAR_ID',
+          parameters: [
+            data['rota_id'],
+            data['pessoa_id'],
+            data['pessoa_nome'],
+            data['cnpj_cpf'],
+            data['endereco'],
+            data['latitude'] ?? 0.0,
+            data['longitude'] ?? 0.0,
+            data['status'] ?? 'P',
+            data['temperatura'],
+            data['volume'],
+            data['gps_captura_latitude'] ?? 0.0,
+            data['gps_captura_longitude'] ?? 0.0,
+            data['horario_chegada'],
+          ],
+        );
+        var v = 0;
+        await for (var row in query.rows()) {
+          v = row['PAR_ID'] ?? 0;
+          break;
+        }
+        return v;
+      });
 
       return shelf.Response(201,
           body: jsonEncode({'success': true, 'id': id}),
@@ -1408,8 +1425,10 @@ class ApiServer {
     }
 
     try {
-      final body = await request.readAsString();
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = await _readJsonBody(request);
+      if (data == null) {
+        return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
+      }
       final parId = int.tryParse(id) ?? 0;
 
       if (parId == 0) {
@@ -1417,9 +1436,7 @@ class ApiServer {
       }
 
       final db = await DbConnection().db;
-      final query = db.query();
-
-      await query.openCursor(
+      await _withCursor(db, (query) => query.openCursor(
         sql: 'UPDATE TB_PARADA SET PAR_STATUS = ?, PAR_TEMPERATURA = ?, '
             'PAR_VOLUME = ?, PAR_JUSTIFICATIVA = ?, '
             'PAR_GPS_LATITUDE = ?, PAR_GPS_LONGITUDE = ?, '
@@ -1437,9 +1454,7 @@ class ApiServer {
           data['assinatura_base64'],
           parId,
         ],
-      );
-
-      await query.close();
+      ));
 
       return shelf.Response.ok(
           jsonEncode({'success': true}),
@@ -1497,12 +1512,10 @@ class ApiServer {
 
       // Persiste o caminho na coleta (tabela real do ERP: COLETAS_DETALHE).
       final db = await DbConnection().db;
-      final query = db.query();
-      await query.openCursor(
+      await _withCursor(db, (query) => query.openCursor(
         sql: 'UPDATE COLETAS_DETALHE SET FOTO_CAMINHO = ? WHERE ID = ?',
         parameters: [fotoPath, parId],
-      );
-      await query.close();
+      ));
 
       _logger.info('ApiServer', 'Foto da coleta $parId salva em $fotoPath');
       return shelf.Response.ok(
@@ -1515,6 +1528,31 @@ class ApiServer {
   }
 
   // ============ HELPERS ============
+
+  /// Executa um bloco usando um cursor e garante o `close()` mesmo se a query
+  /// falhar no meio (evita vazar cursores no erro). Retorna o valor do bloco.
+  static Future<T> _withCursor<T>(
+      dynamic db, Future<T> Function(dynamic query) body) async {
+    final query = db.query();
+    try {
+      return await body(query);
+    } finally {
+      await query.close();
+    }
+  }
+
+  /// Lê e valida o corpo JSON da requisição. Retorna o mapa ou null se o corpo
+  /// estiver vazio/malformado/não for um objeto — o handler devolve 400.
+  static Future<Map<String, dynamic>?> _readJsonBody(shelf.Request request) async {
+    try {
+      final body = await request.readAsString();
+      if (body.trim().isEmpty) return null;
+      final decoded = jsonDecode(body);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   static shelf.Response _errorResponse(int statusCode, String message) {
     return shelf.Response(statusCode,

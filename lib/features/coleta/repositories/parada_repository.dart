@@ -213,31 +213,4 @@ class ParadaRepository {
     );
     return true;
   }
-
-  List<ParadaModel> getMockParadas() {
-    return [
-      ParadaModel(
-        id: 1,
-        rotaId: 1,
-        pessoaId: 1,
-        pessoaNome: 'Fazenda dos Santos',
-        cnpjCpf: '12.345.678/0001-90',
-        endereco: 'Estrada Rural km 10',
-        latitude: -19.8157,
-        longitude: -43.9542,
-        status: 'P',
-      ),
-      ParadaModel(
-        id: 2,
-        rotaId: 1,
-        pessoaId: 2,
-        pessoaNome: 'Granja Central',
-        cnpjCpf: '98.765.432/0001-10',
-        endereco: 'Estrada Rural km 25',
-        latitude: -19.8250,
-        longitude: -43.9650,
-        status: 'P',
-      ),
-    ];
-  }
 }

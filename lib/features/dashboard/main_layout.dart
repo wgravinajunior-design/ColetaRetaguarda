@@ -65,12 +65,6 @@ class MainLayout extends StatelessWidget {
                         onTap: () => context.go('/motoristas'),
                       ),
                       _MenuTile(
-                        icon: Icons.badge,
-                        title: 'Colaboradores',
-                        color: Colors.deepPurple,
-                        onTap: () => context.go('/colaboradores'),
-                      ),
-                      _MenuTile(
                         icon: Icons.local_shipping,
                         title: 'Rotas',
                         color: Colors.teal,
@@ -87,12 +81,6 @@ class MainLayout extends StatelessWidget {
                         title: 'Resfriadores',
                         color: Colors.cyan,
                         onTap: () => context.go('/resfriadores'),
-                      ),
-                      _MenuTile(
-                        icon: Icons.payments,
-                        title: 'Pagamentos',
-                        color: Colors.green,
-                        onTap: () => context.go('/pagamentos'),
                       ),
                       _MenuTile(
                         icon: Icons.attach_money,

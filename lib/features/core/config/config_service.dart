@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:ini/ini.dart';
+import '../../../core/paths/app_paths.dart';
 
 class ConfigService extends ChangeNotifier {
   static final ConfigService _instance = ConfigService._internal();
@@ -16,17 +17,23 @@ class ConfigService extends ChangeNotifier {
   bool get isInitialized => _initialized;
 
   Future<void> loadConfig() async {
-    final file = File('conf.ini');
+    final file = AppPaths.configFile;
     if (await file.exists()) {
       final lines = await file.readAsLines();
       final config = Config.fromStrings(lines);
-      
+
       host = config.get('Database', 'Host') ?? 'localhost';
       porta = config.get('Database', 'Porta') ?? '3000';
       caminhoBase = config.get('Database', 'CaminhoBase') ?? 'C:\\Dados\\COLETA\\DADOS.FDB';
       logoPath = config.get('App', 'LogoPath') ?? '';
     } else {
-      await saveConfig();
+      // Sem config ainda: grava os padrões, mas nunca deixa uma falha de
+      // escrita impedir a abertura do app — a tela de config resolve depois.
+      try {
+        await saveConfig();
+      } on FileSystemException catch (e) {
+        debugPrint('Não foi possível gravar ${file.path}: $e');
+      }
     }
     _initialized = true;
     notifyListeners();
@@ -42,7 +49,7 @@ class ConfigService extends ChangeNotifier {
     config.addSection('App');
     config.set('App', 'LogoPath', logoPath);
     
-    final file = File('conf.ini');
+    final file = AppPaths.configFile;
     await file.writeAsString(config.toString());
     notifyListeners();
   }

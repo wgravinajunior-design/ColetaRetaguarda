@@ -28,31 +28,4 @@ class VeiculoRepository {
   Future<bool> deleteVeiculo(int id) async {
     return await _firebird.excluirVeiculo(id);
   }
-
-  List<VeiculoModel> getMockVeiculos() {
-    return [
-      VeiculoModel(
-        id: 1,
-        placa: 'ABC-1234',
-        marca: 'Mercedes',
-        modelo: 'Sprinter',
-        cor: 'Branco',
-        ano: '2022',
-        tipo: 'F',
-        renavam: '12345678901234',
-        status: 'A',
-      ),
-      VeiculoModel(
-        id: 2,
-        placa: 'XYZ-5678',
-        marca: 'Volvo',
-        modelo: 'FH',
-        cor: 'Branco',
-        ano: '2021',
-        tipo: 'C',
-        renavam: '98765432109876',
-        status: 'A',
-      ),
-    ];
-  }
 }

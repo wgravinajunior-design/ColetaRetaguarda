@@ -26,7 +26,7 @@ class RotaRepository {
       debugPrint('Erro ao carregar rotas do SQLite: $e');
     }
 
-    return getMockRotas();
+    return [];
   }
 
   Future<RotaModel?> getRotaById(int id) async {
@@ -67,32 +67,5 @@ class RotaRepository {
 
   Future<bool> mudarStatus(int rotaId, String status) async {
     return await _firebird.atualizarStatusRota(rotaId, status);
-  }
-
-  List<RotaModel> getMockRotas() {
-    return [
-      RotaModel(
-        id: 1,
-        descricao: 'Rota Zona Rural - Produtor A',
-        regiao: 'Zona Rural',
-        motoristaId: 1,
-        veiculoId: 1,
-        status: 'A',
-        dataPrevista: DateTime.now().add(const Duration(days: 1)).toIso8601String(),
-        paradas: 5,
-        kmEstimado: 150.0,
-      ),
-      RotaModel(
-        id: 2,
-        descricao: 'Rota Bairro Centro',
-        regiao: 'Centro',
-        motoristaId: 2,
-        veiculoId: 2,
-        status: 'A',
-        dataPrevista: DateTime.now().add(const Duration(days: 2)).toIso8601String(),
-        paradas: 8,
-        kmEstimado: 80.0,
-      ),
-    ];
   }
 }

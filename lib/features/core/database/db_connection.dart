@@ -1,4 +1,5 @@
 import 'package:fbdb/fbdb.dart';
+import 'package:flutter/foundation.dart';
 import '../config/config_service.dart';
 
 class DbConnection {
@@ -12,9 +13,9 @@ class DbConnection {
     if (_db != null) {
       return _db!;
     }
-    
+
     final config = ConfigService();
-    
+
     _db = await FbDb.attach(
       host: config.host.isEmpty ? 'localhost' : config.host,
       port: int.tryParse(config.porta) ?? 3050,
@@ -22,7 +23,7 @@ class DbConnection {
       user: 'SYSDBA',
       password: 'masterkey',
     );
-    
+
     return _db!;
   }
 

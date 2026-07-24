@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import '../../../core/paths/app_paths.dart';
 import 'db_migration.dart';
 
 class SqliteService {
@@ -19,7 +21,11 @@ class SqliteService {
   }
 
   Future<Database> _initDatabase() async {
-    final dbPath = await getDatabasesPath();
+    // No desktop o padrão do sqflite_ffi é relativo ao diretório atual, que em
+    // Program Files não é gravável — usa a pasta de dados do usuário.
+    final dbPath = (Platform.isWindows || Platform.isLinux || Platform.isMacOS)
+        ? AppPaths.dataDir.path
+        : await getDatabasesPath();
     final path = join(dbPath, 'coleta_erp.db');
 
     return openDatabase(

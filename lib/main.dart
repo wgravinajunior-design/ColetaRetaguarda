@@ -17,9 +17,6 @@ import 'features/produtores/screens/produtor_form_screen.dart';
 import 'features/motoristas/viewmodels/motorista_viewmodel.dart';
 import 'features/motoristas/screens/motorista_list_screen.dart';
 import 'features/motoristas/screens/motorista_form_screen.dart';
-import 'features/colaboradores/viewmodels/colaborador_viewmodel.dart';
-import 'features/colaboradores/screens/colaborador_list_screen.dart';
-import 'features/colaboradores/screens/colaborador_form_screen.dart';
 import 'features/financeiro/viewmodels/financeiro_viewmodel.dart';
 import 'features/financeiro/screens/financeiro_list_screen.dart';
 import 'features/financeiro/screens/financeiro_form_screen.dart';
@@ -29,14 +26,12 @@ import 'features/rotas/screens/rota_list_screen.dart';
 import 'features/rotas/screens/rota_form_screen.dart';
 import 'features/produtores/models/pessoa_model.dart';
 import 'features/motoristas/models/motorista_model.dart';
-import 'features/colaboradores/models/colaborador_model.dart';
 import 'features/veiculos/models/veiculo_model.dart';
 import 'features/rotas/models/rota_model.dart';
 import 'features/veiculos/viewmodels/veiculo_viewmodel.dart';
 import 'features/rotas/viewmodels/rota_viewmodel.dart';
 import 'features/coleta/viewmodels/coleta_viewmodel.dart';
 import 'features/coleta/screens/coleta_list_screen.dart';
-import 'features/coleta/screens/pagamentos_screen.dart';
 import 'features/resfriadores/viewmodels/resfriador_viewmodel.dart';
 import 'features/resfriadores/models/resfriador_model.dart';
 import 'features/resfriadores/screens/resfriador_list_screen.dart';
@@ -61,6 +56,17 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
+  try {
+    await _bootstrap();
+  } catch (e, stack) {
+    // Sem isto, uma falha aqui derruba o processo antes de qualquer janela e o
+    // app simplesmente "não abre" ao clicar no atalho.
+    debugPrint('Falha ao iniciar o aplicativo: $e\n$stack');
+    runApp(_StartupErrorApp(erro: '$e'));
+  }
+}
+
+Future<void> _bootstrap() async {
   // Inicia servidor HTTP em isolate separado (para mobile sincronizar)
   Isolate.spawn(_startApiServer, null);
 
@@ -105,7 +111,6 @@ void main() async {
         ChangeNotifierProvider.value(value: connectivityService),
         ChangeNotifierProvider(create: (_) => ProdutorViewModel()),
         ChangeNotifierProvider(create: (_) => MotoristaViewModel()),
-        ChangeNotifierProvider(create: (_) => ColaboradorViewModel()),
         ChangeNotifierProvider(create: (_) => VeiculoViewModel()),
         ChangeNotifierProvider(create: (_) => RotaViewModel()),
         ChangeNotifierProvider(create: (_) => FinanceiroViewModel()),
@@ -115,6 +120,38 @@ void main() async {
       child: const ColetaRetaguardaApp(),
     ),
   );
+}
+
+/// Tela mínima exibida quando a inicialização falha, para o erro ficar visível
+/// em vez de o executável encerrar em silêncio.
+class _StartupErrorApp extends StatelessWidget {
+  const _StartupErrorApp({required this.erro});
+
+  final String erro;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Não foi possível iniciar o Coleta Retaguarda',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              SelectableText(erro),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class ColetaRetaguardaApp extends StatefulWidget {
@@ -183,14 +220,6 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
               ]
             ),
             GoRoute(
-              path: '/colaboradores',
-              builder: (context, state) => const ColaboradorListScreen(),
-              routes: [
-                GoRoute(path: 'novo', builder: (context, state) => const ColaboradorFormScreen()),
-                GoRoute(path: 'editar', builder: (context, state) => ColaboradorFormScreen(colaborador: state.extra as ColaboradorModel)),
-              ]
-            ),
-            GoRoute(
               path: '/veiculos',
               builder: (context, state) => const VeiculoListScreen(),
               routes: [
@@ -209,10 +238,6 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
             GoRoute(
               path: '/coleta',
               builder: (context, state) => const ColetaListScreen(),
-            ),
-            GoRoute(
-              path: '/pagamentos',
-              builder: (context, state) => const PagamentosScreen(),
             ),
             GoRoute(
               path: '/resfriadores',

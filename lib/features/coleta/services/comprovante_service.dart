@@ -4,7 +4,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../models/parada_model.dart';
-import '../screens/pagamentos_screen.dart' show PagamentoProdutor;
 import '../../rotas/models/rota_model.dart';
 
 /// Gera e imprime/compartilha o comprovante de coleta de uma rota em PDF.
@@ -218,76 +217,6 @@ class ComprovanteService {
     await Printing.layoutPdf(
       onLayout: (format) async => doc.save(),
       name: 'recibo_${parada.pessoaNome}',
-    );
-  }
-
-  /// Relatório de pagamentos por produtor.
-  Future<void> imprimirRelatorioPagamentos({
-    required List<PagamentoProdutor> pagamentos,
-    required double precoLitro,
-  }) async {
-    final doc = pw.Document();
-    final totalLitros = pagamentos.fold<double>(0, (s, p) => s + p.totalLitros);
-    final totalValor = pagamentos.fold<double>(0, (s, p) => s + p.totalLitros * precoLitro);
-
-    doc.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (context) => [
-          pw.Header(
-            level: 0,
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text('Relatorio de Pagamentos',
-                    style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
-                pw.Text('ColetaUp', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 8),
-          _infoLinha('Preco por litro', 'R\$ ${precoLitro.toStringAsFixed(2)}'),
-          _infoLinha('Produtores', '${pagamentos.length}'),
-          _infoLinha('Emitido em', _dataHoje()),
-          pw.SizedBox(height: 16),
-          pw.TableHelper.fromTextArray(
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
-            cellStyle: const pw.TextStyle(fontSize: 9),
-            headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-            cellAlignments: {
-              0: pw.Alignment.centerLeft,
-              1: pw.Alignment.centerLeft,
-              2: pw.Alignment.center,
-              3: pw.Alignment.centerRight,
-              4: pw.Alignment.centerRight,
-            },
-            headers: ['Produtor', 'CNPJ/CPF', 'Coletas', 'Litros', 'Valor (R\$)'],
-            data: pagamentos.map((p) {
-              return [
-                p.nome,
-                p.cnpjCpf,
-                '${p.qtdColetas}',
-                p.totalLitros.toStringAsFixed(0),
-                (p.totalLitros * precoLitro).toStringAsFixed(2),
-              ];
-            }).toList(),
-          ),
-          pw.SizedBox(height: 12),
-          pw.Container(
-            alignment: pw.Alignment.centerRight,
-            child: pw.Text(
-              'Total: ${totalLitros.toStringAsFixed(0)} L  |  R\$ ${totalValor.toStringAsFixed(2)}',
-              style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (format) async => doc.save(),
-      name: 'relatorio_pagamentos',
     );
   }
 

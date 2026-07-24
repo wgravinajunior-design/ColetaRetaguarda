@@ -26,12 +26,11 @@ class ConnectionStatusBanner extends StatefulWidget {
 class _ConnectionStatusBannerState extends State<ConnectionStatusBanner> {
   final AppLogger _logger = AppLogger();
   ConnectionStatus _status = ConnectionStatus.online;
-  late Future<void> _statusCheckFuture;
 
   @override
   void initState() {
     super.initState();
-    _statusCheckFuture = _checkConnectionStatus();
+    _checkConnectionStatus();
   }
 
   Future<void> _checkConnectionStatus() async {

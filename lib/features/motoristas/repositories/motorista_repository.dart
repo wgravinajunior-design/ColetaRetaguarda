@@ -27,44 +27,4 @@ class MotoristaRepository {
   Future<bool> deleteMotorista(int id) async {
     return await _firebird.excluirMotorista(id);
   }
-
-  /// Mock data para testes
-  List<MotoristaModel> getMockMotoristas() {
-    return [
-      MotoristaModel(
-        id: 1,
-        nome: 'João da Silva',
-        apelido: 'João',
-        cpf: '111.222.333-44',
-        rg: 'MG-1234567',
-        telefone: '(31) 3333-4444',
-        celular: '(31) 99999-8888',
-        email: 'joao@example.com',
-        endereco: 'Rua A',
-        numero: '100',
-        bairro: 'Bairro A',
-        cep: '35000-000',
-        cnh: '123456789',
-        cnhValidade: '2030-12-31',
-        status: 'A',
-      ),
-      MotoristaModel(
-        id: 2,
-        nome: 'Maria Santos',
-        apelido: 'Maria',
-        cpf: '222.333.444-55',
-        rg: 'MG-2234567',
-        telefone: '(31) 3333-5555',
-        celular: '(31) 98888-7777',
-        email: 'maria@example.com',
-        endereco: 'Rua B',
-        numero: '200',
-        bairro: 'Bairro B',
-        cep: '35000-000',
-        cnh: '987654321',
-        cnhValidade: '2028-06-30',
-        status: 'A',
-      ),
-    ];
-  }
 }

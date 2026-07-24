@@ -31,7 +31,7 @@ class PessoaRepository {
       debugPrint('Erro ao carregar produtores do SQLite: $e');
     }
 
-    return _getMockProdutores();
+    return [];
   }
 
   Future<List<PessoaModel>> getMotoristas({String? query}) async {
@@ -99,54 +99,4 @@ class PessoaRepository {
     return await _firebird.excluirProdutor(id);
   }
 
-  List<PessoaModel> getMockProdutores() => _getMockProdutores();
-
-  List<PessoaModel> _getMockProdutores() {
-    return [
-      PessoaModel(
-        id: 1,
-        tipoPessoa: 'P',
-        rSocialNome: 'João da Silva',
-        fantasiaApelido: 'Fazenda Boa Vista',
-        cnpjCpf: '123.456.789-00',
-        ieRg: 'MG-123456',
-        endereco: 'Rodovia MG 10, Km 20',
-        numero: 'S/N',
-        complemento: 'Fazenda',
-        bairro: 'Zona Rural',
-        cep: '35000-000',
-        telefone: '(31) 3333-4444',
-        celular: '(31) 99999-8888',
-        email: 'joao@fazenda.com',
-        contato: 'João',
-        referencia: 'Perto da ponte',
-        status: 'A',
-        cliente: 'S',
-        transportador: 'N',
-        contribuinte: 'S',
-      ),
-      PessoaModel(
-        id: 2,
-        tipoPessoa: 'P',
-        rSocialNome: 'Maria Souza',
-        fantasiaApelido: 'Sítio das Flores',
-        cnpjCpf: '987.654.321-00',
-        ieRg: 'MG-654321',
-        endereco: 'Estrada Velha, Km 5',
-        numero: '100',
-        complemento: '',
-        bairro: 'Vila Rural',
-        cep: '35000-000',
-        telefone: '(31) 3333-5555',
-        celular: '(31) 98888-7777',
-        email: 'maria@sitio.com',
-        contato: 'Maria',
-        referencia: '',
-        status: 'A',
-        cliente: 'S',
-        transportador: 'N',
-        contribuinte: 'N',
-      ),
-    ];
-  }
 }
