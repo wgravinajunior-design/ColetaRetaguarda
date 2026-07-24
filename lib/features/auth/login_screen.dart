@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'auth_service.dart';
+import '../../core/app_info.dart';
 import '../core/config/config_service.dart';
-import '../core/database/database_inspector_screen.dart';
 import '../core/database/db_connection.dart';
 import '../core/window/window_service.dart';
 
@@ -118,118 +118,142 @@ class _LoginScreenState extends State<LoginScreen> {
     final logoPath = config.logoPath;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            child: Container(
-              constraints: BoxConstraints(minHeight: MediaQuery.of(context).size.height),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    child: Card(
-                      elevation: 8,
-                      margin: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (logoPath.isNotEmpty && File(logoPath).existsSync())
-                              Image.file(File(logoPath), height: 80, fit: BoxFit.contain)
-                            else
-                              const Icon(Icons.business_center, size: 56, color: Colors.blue),
-                            const SizedBox(height: 12),
-                            Text('ColetaUp', style: Theme.of(context).textTheme.headlineSmall),
-                            const SizedBox(height: 4),
-                            Text('v1.17.0', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                            const SizedBox(height: 20),
-                            if (_errorMessage != null)
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                color: Colors.red.shade100,
-                                child: Text(_errorMessage!, style: TextStyle(color: Colors.red.shade900, fontSize: 12)),
-                              ),
-                            if (_errorMessage != null) const SizedBox(height: 12),
-                            TextField(
-                              controller: _usernameController,
-                              enabled: !_isLoading,
-                              onSubmitted: (_) => !_isLoading ? _handleLogin() : null,
-                              decoration: const InputDecoration(
-                                labelText: 'Usuário',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.person),
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                helperText: 'Digite seu nome de usuário',
-                              ),
-                              textInputAction: TextInputAction.next,
-                              autofocus: true,
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: _passwordController,
-                              enabled: !_isLoading,
-                              obscureText: true,
-                              onSubmitted: (_) => !_isLoading ? _handleLogin() : null,
-                              decoration: const InputDecoration(
-                                labelText: 'Senha',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.lock),
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                helperText: 'Sua senha segura',
-                              ),
-                              textInputAction: TextInputAction.done,
-                            ),
-                            const SizedBox(height: 16),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 44,
-                              child: ElevatedButton(
-                                onPressed: _isLoading ? null : _handleLogin,
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
-                                    : const Text('ENTRAR'),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextButton.icon(
-                              icon: const Icon(Icons.storage, size: 16),
-                              label: const Text('Conferir banco de dados', style: TextStyle(fontSize: 12)),
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (_) => const DatabaseInspectorScreen()),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              '---------- Desenvolvido por Go Up Sistemas ----------',
-                              style: TextStyle(fontSize: 10, color: Colors.grey[500], fontStyle: FontStyle.italic),
-                            ),
-                          ],
+      body: SingleChildScrollView(
+        child: Container(
+          constraints: BoxConstraints(
+            minHeight: MediaQuery.of(context).size.height,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Card(
+                  elevation: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (logoPath.isNotEmpty && File(logoPath).existsSync())
+                          Image.file(
+                            File(logoPath),
+                            height: 80,
+                            fit: BoxFit.contain,
+                          )
+                        else
+                          const Icon(
+                            Icons.business_center,
+                            size: 56,
+                            color: Colors.blue,
+                          ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'ColetaUp',
+                          style: Theme.of(context).textTheme.headlineSmall,
                         ),
-                      ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'v$appVersao',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        if (_errorMessage != null)
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            color: Colors.red.shade100,
+                            child: Text(
+                              _errorMessage!,
+                              style: TextStyle(
+                                color: Colors.red.shade900,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        if (_errorMessage != null) const SizedBox(height: 12),
+                        TextField(
+                          controller: _usernameController,
+                          enabled: !_isLoading,
+                          onSubmitted: (_) =>
+                              !_isLoading ? _handleLogin() : null,
+                          decoration: const InputDecoration(
+                            labelText: 'Usuário',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.person),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            helperText: 'Digite seu nome de usuário',
+                          ),
+                          textInputAction: TextInputAction.next,
+                          autofocus: true,
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _passwordController,
+                          enabled: !_isLoading,
+                          obscureText: true,
+                          onSubmitted: (_) =>
+                              !_isLoading ? _handleLogin() : null,
+                          decoration: const InputDecoration(
+                            labelText: 'Senha',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.lock),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            helperText: 'Sua senha segura',
+                          ),
+                          textInputAction: TextInputAction.done,
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _handleLogin,
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text('ENTRAR'),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+
+              // Configuração fica abaixo do cartão, discreta: o botão no
+              // topo empurrava o conteúdo e deixava uma faixa vazia acima.
+              // Diagnóstico do banco e logo moraram aqui e foram para
+              // dentro de Configurações, junto do resto dos ajustes.
+              const SizedBox(height: 16),
+              TextButton.icon(
+                icon: const Icon(Icons.settings, size: 18),
+                label: const Text('Configurações'),
+                onPressed: () => context.push('/config'),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Go Up Sistemas',
+                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+              ),
+              const SizedBox(height: 16),
+            ],
           ),
-          Positioned(
-            top: 12,
-            right: 12,
-            child: IconButton(
-              icon: const Icon(Icons.settings, size: 24),
-              tooltip: 'Configurações do Sistema',
-              onPressed: () => context.push('/config'),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
