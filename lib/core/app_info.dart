@@ -5,7 +5,7 @@
 /// de atualização compara com a última tag do GitHub.
 library;
 
-const String appVersao = '2.5.0';
+const String appVersao = '2.6.0';
 
 /// Repositório de onde saem as atualizações (releases públicas).
 const String repoAtualizacao = 'wgravinajunior-design/ColetaRetaguarda';

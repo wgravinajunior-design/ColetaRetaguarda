@@ -122,6 +122,60 @@ class _NotasRelease extends StatelessWidget {
   }
 }
 
+/// Verificação pedida pelo usuário, com resposta visível nos dois desfechos.
+///
+/// A checagem da abertura é silenciosa quando não há novidade — o que faz
+/// parecer que nada aconteceu. Aqui sempre há retorno.
+Future<void> verificarAtualizacaoManualmente(BuildContext context) async {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const AlertDialog(
+      content: Row(
+        children: [
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 16),
+          Text('Procurando atualizações...'),
+        ],
+      ),
+    ),
+  );
+
+  final nova = await UpdateService.verificar();
+
+  if (!context.mounted) return;
+  Navigator.of(context).pop(); // fecha o "procurando"
+
+  if (nova == null) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green.shade600),
+            const SizedBox(width: 10),
+            const Text('Tudo em dia'),
+          ],
+        ),
+        content: Text('Você já está na versão mais recente ($appVersao).'),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+    return;
+  }
+
+  await DialogoAtualizacao.mostrar(context, nova);
+}
+
 /// Oferece a atualização encontrada e, se aceita, baixa e aplica.
 class DialogoAtualizacao extends StatefulWidget {
   const DialogoAtualizacao({required this.versao, super.key});

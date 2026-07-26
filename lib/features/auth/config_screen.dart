@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../core/app_info.dart';
+import '../../core/update/update_dialogs.dart';
 import '../core/config/config_service.dart';
 import '../core/database/database_inspector_screen.dart';
 
@@ -317,13 +318,30 @@ class _ConfigScreenState extends State<ConfigScreen> {
                 const SizedBox(height: 20),
                 _secao('Sobre', Icons.info_outline),
                 Card(
-                  child: ListTile(
-                    leading: const Icon(
-                      Icons.business_center,
-                      color: Colors.blue,
-                    ),
-                    title: const Text('ColetaUp'),
-                    subtitle: Text('Versão $appVersao · Go Up Sistemas'),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(
+                          Icons.business_center,
+                          color: Colors.blue,
+                        ),
+                        title: const Text('ColetaUp'),
+                        subtitle: Text('Versão $appVersao · Go Up Sistemas'),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.system_update,
+                          color: Colors.blue,
+                        ),
+                        title: const Text('Verificar atualizações'),
+                        subtitle: const Text(
+                          'Procura uma versão nova publicada',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => verificarAtualizacaoManualmente(context),
+                      ),
+                    ],
                   ),
                 ),
 
