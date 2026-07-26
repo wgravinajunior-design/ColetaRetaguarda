@@ -9,6 +9,9 @@ class RotaModel {
   String? dataInicio;
   String? dataFim;
   int? paradas;
+
+  /// Paradas já confirmadas, para mostrar o andamento da rota na lista.
+  int? paradasFeitas;
   double? kmEstimado;
   double? kmRealizado;
   DateTime? dataCadastro;
@@ -24,6 +27,7 @@ class RotaModel {
     this.dataInicio,
     this.dataFim,
     this.paradas = 0,
+    this.paradasFeitas = 0,
     this.kmEstimado = 0.0,
     this.kmRealizado = 0.0,
     this.dataCadastro,

@@ -42,10 +42,32 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
   String? get filtroStatus => _filtroStatus;
 
   /// Carrega todas as coletas de todas as rotas, aplicando o filtro de status.
-  Future<void> loadTodasColetas({String? status}) async {
-    _filtroStatus = status;
+  /// Período em vigor. Começa no dia de hoje: é a operação corrente.
+  DateTime? _inicio = DateTime.now();
+  DateTime? _fim = DateTime.now();
+  DateTime? get inicio => _inicio;
+  DateTime? get fim => _fim;
 
-    final cacheKey = '/coletas'.cacheKey('status=${status ?? ""}');
+  Future<void> loadTodasColetas({
+    String? status,
+    DateTime? inicio,
+    DateTime? fim,
+    bool limparPeriodo = false,
+  }) async {
+    _filtroStatus = status;
+    if (limparPeriodo) {
+      _inicio = null;
+      _fim = null;
+    } else {
+      _inicio = inicio ?? _inicio;
+      _fim = fim ?? _fim;
+    }
+
+    final chavePeriodo =
+        '${_inicio?.toIso8601String() ?? ""}..${_fim?.toIso8601String() ?? ""}';
+    final cacheKey = '/coletas'.cacheKey(
+      'status=${status ?? ""}&periodo=$chavePeriodo',
+    );
     final cached = cacheManager.get<List<ParadaModel>>(cacheKey);
     if (cached != null) {
       setItems(cached);
@@ -54,7 +76,11 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
 
     setLoading();
     try {
-      final coletas = await _repository.getTodasColetas(status: status);
+      final coletas = await _repository.getTodasColetas(
+        status: status,
+        inicio: _inicio,
+        fim: _fim,
+      );
       cacheManager.put(cacheKey, coletas, ttl: const Duration(minutes: 5));
       setItems(coletas);
     } catch (e) {
@@ -65,6 +91,15 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
   void aplicarFiltroStatus(String? status) {
     loadTodasColetas(status: status);
   }
+
+  void aplicarPeriodo(DateTime? inicio, DateTime? fim) {
+    _inicio = inicio;
+    _fim = fim;
+    loadTodasColetas(status: _filtroStatus);
+  }
+
+  void limparPeriodo() =>
+      loadTodasColetas(status: _filtroStatus, limparPeriodo: true);
 
   /// Reordena as paradas na tela e persiste ORDEM_VISITA no banco.
   Future<bool> reordenarParadas(List<ParadaModel> novaOrdem) async {
@@ -239,7 +274,11 @@ class ColetaViewModel extends BaseViewModel<ParadaModel> {
     }
   }
 
-  Future<bool> registrarGPS(ParadaModel parada, double latitude, double longitude) async {
+  Future<bool> registrarGPS(
+    ParadaModel parada,
+    double latitude,
+    double longitude,
+  ) async {
     try {
       await _repository.registrarGPS(parada.id!, latitude, longitude);
       final updated = parada.copyWith(

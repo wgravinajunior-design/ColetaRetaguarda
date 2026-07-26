@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import '../models/parada_model.dart';
 import '../../rotas/models/rota_model.dart';
 
@@ -29,16 +29,25 @@ class ComprovanteService {
     return '${dois(d.day)}/${dois(d.month)}/${d.year} ${dois(d.hour)}:${dois(d.minute)}';
   }
 
-  Future<void> imprimirComprovanteRota({
+  /// Bytes do comprovante da rota, para exibir na tela antes de imprimir.
+  Future<Uint8List> gerarComprovanteRota({
     required RotaModel rota,
     required List<ParadaModel> paradas,
   }) async {
     final doc = pw.Document();
 
     final concluidas = paradas.where((p) => p.status == 'C').toList();
-    final totalLitros = concluidas.fold<double>(0, (s, p) => s + (p.volume ?? 0));
-    final temps = concluidas.where((p) => p.temperatura != null).map((p) => p.temperatura!).toList();
-    final tempMedia = temps.isEmpty ? null : temps.reduce((a, b) => a + b) / temps.length;
+    final totalLitros = concluidas.fold<double>(
+      0,
+      (s, p) => s + (p.volume ?? 0),
+    );
+    final temps = concluidas
+        .where((p) => p.temperatura != null)
+        .map((p) => p.temperatura!)
+        .toList();
+    final tempMedia = temps.isEmpty
+        ? null
+        : temps.reduce((a, b) => a + b) / temps.length;
 
     doc.addPage(
       pw.MultiPage(
@@ -51,10 +60,21 @@ class ComprovanteService {
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text('Comprovante de Coleta',
-                    style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+                pw.Text(
+                  'Comprovante de Coleta',
+                  style: pw.TextStyle(
+                    fontSize: 22,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
                 pw.SizedBox(height: 4),
-                pw.Text('ColetaUp', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+                pw.Text(
+                  'ColetaUp',
+                  style: const pw.TextStyle(
+                    fontSize: 12,
+                    color: PdfColors.grey700,
+                  ),
+                ),
               ],
             ),
           ),
@@ -79,18 +99,30 @@ class ComprovanteService {
               children: [
                 _resumoItem('Paradas', '${paradas.length}'),
                 _resumoItem('Concluidas', '${concluidas.length}'),
-                _resumoItem('Total coletado', '${totalLitros.toStringAsFixed(0)} L'),
-                _resumoItem('Temp. media', tempMedia == null ? '-' : '${tempMedia.toStringAsFixed(1)} C'),
+                _resumoItem(
+                  'Total coletado',
+                  '${totalLitros.toStringAsFixed(0)} L',
+                ),
+                _resumoItem(
+                  'Temp. media',
+                  tempMedia == null ? '-' : '${tempMedia.toStringAsFixed(1)} C',
+                ),
               ],
             ),
           ),
           pw.SizedBox(height: 16),
 
           // Tabela de paradas
-          pw.Text('Paradas', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+          pw.Text(
+            'Paradas',
+            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+          ),
           pw.SizedBox(height: 8),
           pw.TableHelper.fromTextArray(
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              fontSize: 10,
+            ),
             cellStyle: const pw.TextStyle(fontSize: 9),
             headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
             cellAlignments: {
@@ -106,7 +138,9 @@ class ComprovanteService {
                 p.pessoaNome,
                 p.cnpjCpf,
                 _statusLabel(p.status),
-                p.temperatura != null ? '${p.temperatura!.toStringAsFixed(1)} C' : '-',
+                p.temperatura != null
+                    ? '${p.temperatura!.toStringAsFixed(1)} C'
+                    : '-',
                 p.volume != null ? '${p.volume!.toStringAsFixed(0)} L' : '-',
               ];
             }).toList(),
@@ -132,15 +166,12 @@ class ComprovanteService {
       ),
     );
 
-    // Abre a caixa de dialogo de impressao / compartilhamento
-    await Printing.layoutPdf(
-      onLayout: (format) async => doc.save(),
-      name: 'comprovante_${rota.descricao}',
-    );
+    return doc.save();
   }
 
   /// Recibo individual de uma coleta (parada), com foto e assinatura.
-  Future<void> imprimirReciboParada(ParadaModel parada) async {
+  /// Bytes do recibo da coleta, para exibir na tela antes de imprimir.
+  Future<Uint8List> gerarReciboParada(ParadaModel parada) async {
     final doc = pw.Document();
 
     // Carrega imagens, se existirem
@@ -162,25 +193,49 @@ class ComprovanteService {
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text('Recibo de Coleta',
-                style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
-            pw.Text('ColetaUp', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+            pw.Text(
+              'Recibo de Coleta',
+              style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.Text(
+              'ColetaUp',
+              style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700),
+            ),
             pw.Divider(),
             pw.SizedBox(height: 8),
             _infoLinha('Produtor', parada.pessoaNome),
             _infoLinha('CNPJ/CPF', parada.cnpjCpf),
             _infoLinha('Endereco', parada.endereco),
             _infoLinha('Status', _statusLabel(parada.status)),
-            _infoLinha('Temperatura', parada.temperatura != null ? '${parada.temperatura!.toStringAsFixed(1)} C' : '-'),
-            _infoLinha('Volume', parada.volume != null ? '${parada.volume!.toStringAsFixed(0)} L' : '-'),
+            _infoLinha(
+              'Temperatura',
+              parada.temperatura != null
+                  ? '${parada.temperatura!.toStringAsFixed(1)} C'
+                  : '-',
+            ),
+            _infoLinha(
+              'Volume',
+              parada.volume != null
+                  ? '${parada.volume!.toStringAsFixed(0)} L'
+                  : '-',
+            ),
             if (parada.horarioChegada != null)
               _infoLinha('Chegada', _formatarIso(parada.horarioChegada!)),
             if (parada.gpsCapturaLatitude != null)
-              _infoLinha('GPS', '${parada.gpsCapturaLatitude!.toStringAsFixed(6)}, ${parada.gpsCapturaltitude?.toStringAsFixed(6) ?? '-'}'),
+              _infoLinha(
+                'GPS',
+                '${parada.gpsCapturaLatitude!.toStringAsFixed(6)}, ${parada.gpsCapturaltitude?.toStringAsFixed(6) ?? '-'}',
+              ),
             _infoLinha('Emitido em', _dataHoje()),
             pw.SizedBox(height: 16),
             if (foto != null) ...[
-              pw.Text('Foto da coleta', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+              pw.Text(
+                'Foto da coleta',
+                style: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
               pw.SizedBox(height: 4),
               pw.Container(
                 height: 200,
@@ -198,12 +253,19 @@ class ComprovanteService {
                   crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
                     if (assinatura != null)
-                      pw.Container(width: 180, height: 60, child: pw.Image(assinatura))
+                      pw.Container(
+                        width: 180,
+                        height: 60,
+                        child: pw.Image(assinatura),
+                      )
                     else
                       pw.SizedBox(width: 180, height: 60),
                     pw.Container(width: 180, height: 1, color: PdfColors.black),
                     pw.SizedBox(height: 4),
-                    pw.Text('Assinatura do Produtor', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text(
+                      'Assinatura do Produtor',
+                      style: const pw.TextStyle(fontSize: 10),
+                    ),
                   ],
                 ),
                 _campoAssinatura('Motorista'),
@@ -214,10 +276,7 @@ class ComprovanteService {
       ),
     );
 
-    await Printing.layoutPdf(
-      onLayout: (format) async => doc.save(),
-      name: 'recibo_${parada.pessoaNome}',
-    );
+    return doc.save();
   }
 
   String _formatarIso(String iso) {
@@ -234,7 +293,10 @@ class ComprovanteService {
         children: [
           pw.SizedBox(
             width: 110,
-            child: pw.Text('$label:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+            child: pw.Text(
+              '$label:',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+            ),
           ),
           pw.Text(valor, style: const pw.TextStyle(fontSize: 11)),
         ],
@@ -245,9 +307,15 @@ class ComprovanteService {
   pw.Widget _resumoItem(String label, String valor) {
     return pw.Column(
       children: [
-        pw.Text(valor, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+        pw.Text(
+          valor,
+          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+        ),
         pw.SizedBox(height: 2),
-        pw.Text(label, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+        pw.Text(
+          label,
+          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+        ),
       ],
     );
   }

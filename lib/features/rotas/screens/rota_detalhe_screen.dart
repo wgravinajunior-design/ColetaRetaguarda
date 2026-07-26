@@ -9,6 +9,7 @@ import '../../coleta/screens/mapa_rota_screen.dart';
 import '../../coleta/repositories/parada_repository.dart';
 import '../../coleta/services/comprovante_service.dart';
 import '../../core/sync/recarrega_ao_sincronizar.dart';
+import '../../../core/widgets/pdf_preview_screen.dart';
 
 class RotaDetalheScreen extends StatelessWidget {
   final RotaModel rota;
@@ -125,9 +126,14 @@ class RotaDetalheScreen extends StatelessWidget {
       if (!context.mounted) return;
       Navigator.pop(context); // fecha o loading
 
-      await ComprovanteService().imprimirComprovanteRota(
-        rota: rota,
-        paradas: paradas,
+      await PdfPreviewScreen.abrir(
+        context,
+        titulo: 'Comprovante · ${rota.descricao}',
+        nomeArquivo: 'comprovante_${rota.id ?? ''}',
+        gerar: () => ComprovanteService().gerarComprovanteRota(
+          rota: rota,
+          paradas: paradas,
+        ),
       );
     } catch (e) {
       if (context.mounted) {
@@ -584,14 +590,20 @@ class _ColetasSectionState extends State<_ColetasSection> {
                                             color: Colors.grey[600],
                                           ),
                                         ),
-                                        if (parada.volume != null)
+                                        // Só depois de coletado esses números
+                                        // dizem algo; antes disso vêm zerados.
+                                        if (status == 'C') ...[
+                                          const SizedBox(height: 2),
                                           Text(
-                                            'Volume: ${parada.volume!.toStringAsFixed(0)} L',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.grey[700],
+                                            '${(parada.volume ?? 0).toStringAsFixed(0)} L'
+                                            ' · ${(parada.temperatura ?? 0).toStringAsFixed(1)} °C',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.green,
                                             ),
                                           ),
+                                        ],
                                       ],
                                     ),
                                   ),

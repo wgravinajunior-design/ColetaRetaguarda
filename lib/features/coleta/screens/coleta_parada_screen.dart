@@ -9,6 +9,7 @@ import '../models/parada_model.dart';
 import '../viewmodels/coleta_viewmodel.dart';
 import '../widgets/mini_map.dart';
 import '../services/comprovante_service.dart';
+import '../../../core/widgets/pdf_preview_screen.dart';
 import '../../core/services/location_service.dart';
 
 class ColetaParadaScreen extends StatefulWidget {
@@ -168,7 +169,9 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
   /// e atualiza _fotoPath com o caminho estável. Se a parada ainda não tem id
   /// ou a imagem for inválida, mantém o caminho temporário como fallback.
   Future<void> _persistirFotoCapturada(
-      ColetaViewModel viewModel, String origemPath) async {
+    ColetaViewModel viewModel,
+    String origemPath,
+  ) async {
     final id = widget.parada.id;
     String? gerenciado;
     if (id != null) {
@@ -240,25 +243,38 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
     final pLon = widget.parada.longitude;
     if (pLat != 0 && pLon != 0) {
       final metros = Geolocator.distanceBetween(
-        _currentPosition!.latitude, _currentPosition!.longitude, pLat, pLon,
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        pLat,
+        pLon,
       );
       if (metros > 300) {
-        final dist = metros < 1000 ? '${metros.toStringAsFixed(0)} m' : '${(metros / 1000).toStringAsFixed(2)} km';
+        final dist = metros < 1000
+            ? '${metros.toStringAsFixed(0)} m'
+            : '${(metros / 1000).toStringAsFixed(2)} km';
         final continuar = await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
-            title: Row(children: const [
-              Icon(Icons.warning_amber, color: Colors.orange),
-              SizedBox(width: 8),
-              Text('Longe do produtor'),
-            ]),
+            title: Row(
+              children: const [
+                Icon(Icons.warning_amber, color: Colors.orange),
+                SizedBox(width: 8),
+                Text('Longe do produtor'),
+              ],
+            ),
             content: Text(
               'Você está a $dist da localização cadastrada do produtor.\n\n'
               'Deseja finalizar a coleta mesmo assim?',
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-              ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Finalizar')),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Finalizar'),
+              ),
             ],
           ),
         );
@@ -309,7 +325,10 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
     if (_currentPosition == null || pLat == 0 || pLon == 0) return const [];
 
     final metros = Geolocator.distanceBetween(
-      _currentPosition!.latitude, _currentPosition!.longitude, pLat, pLon,
+      _currentPosition!.latitude,
+      _currentPosition!.longitude,
+      pLat,
+      pLon,
     );
     final perto = metros <= 300; // tolerância de 300 m
     final texto = metros < 1000
@@ -319,8 +338,11 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
       const SizedBox(height: 6),
       Row(
         children: [
-          Icon(perto ? Icons.check_circle : Icons.warning_amber,
-              size: 16, color: perto ? Colors.green : Colors.orange),
+          Icon(
+            perto ? Icons.check_circle : Icons.warning_amber,
+            size: 16,
+            color: perto ? Colors.green : Colors.orange,
+          ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -354,9 +376,9 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
     );
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Coleta recusada')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Coleta recusada')));
       Navigator.pop(context);
     }
   }
@@ -372,7 +394,13 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
             IconButton(
               icon: const Icon(Icons.receipt_long),
               tooltip: 'Recibo',
-              onPressed: () => ComprovanteService().imprimirReciboParada(widget.parada),
+              onPressed: () => PdfPreviewScreen.abrir(
+                context,
+                titulo: 'Recibo · ${widget.parada.pessoaNome}',
+                nomeArquivo: 'recibo_${widget.parada.id ?? ''}',
+                gerar: () =>
+                    ComprovanteService().gerarReciboParada(widget.parada),
+              ),
             ),
         ],
       ),
@@ -393,12 +421,16 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 12),
-                    _InfoRow(label: 'Produtor', value: widget.parada.pessoaNome),
+                    _InfoRow(
+                      label: 'Produtor',
+                      value: widget.parada.pessoaNome,
+                    ),
                     _InfoRow(label: 'CNPJ/CPF', value: widget.parada.cnpjCpf),
                     _InfoRow(label: 'Endereço', value: widget.parada.endereco),
                     _InfoRow(
                       label: 'Localização',
-                      value: '${widget.parada.latitude.toStringAsFixed(4)}, ${widget.parada.longitude.toStringAsFixed(4)}',
+                      value:
+                          '${widget.parada.latitude.toStringAsFixed(4)}, ${widget.parada.longitude.toStringAsFixed(4)}',
                     ),
                   ],
                 ),
@@ -426,9 +458,18 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
                         ),
                         child: Row(
                           children: const [
-                            SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                            SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
                             SizedBox(width: 12),
-                            Expanded(child: Text('Capturando localização...', style: TextStyle(color: Colors.blue))),
+                            Expanded(
+                              child: Text(
+                                'Capturando localização...',
+                                style: TextStyle(color: Colors.blue),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -442,15 +483,28 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('✅ Localização registrada', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                            const Text(
+                              '✅ Localização registrada',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 8),
-                            Text('Lat: ${_currentPosition!.latitude.toStringAsFixed(6)}'),
-                            Text('Long: ${_currentPosition!.longitude.toStringAsFixed(6)}'),
+                            Text(
+                              'Lat: ${_currentPosition!.latitude.toStringAsFixed(6)}',
+                            ),
+                            Text(
+                              'Long: ${_currentPosition!.longitude.toStringAsFixed(6)}',
+                            ),
                             if (widget.parada.horarioChegada != null) ...[
                               const SizedBox(height: 4),
                               Text(
                                 'Chegada: ${_formatarHorario(widget.parada.horarioChegada!)}',
-                                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[700],
+                                ),
                               ),
                             ],
                             ..._buildDistanciaProdutor(),
@@ -497,11 +551,21 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         icon: _loadingGPS
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
                             : const Icon(Icons.location_on),
                         label: _loadingGPS
                             ? const Text('Capturando GPS...')
-                            : Text(_currentPosition != null ? 'Recapturar GPS' : 'Capturar GPS Agora'),
+                            : Text(
+                                _currentPosition != null
+                                    ? 'Recapturar GPS'
+                                    : 'Capturar GPS Agora',
+                              ),
                         onPressed: _loadingGPS ? null : _capturarGPS,
                       ),
                     ),
@@ -531,7 +595,9 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: _temperatureController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Temperatura (°C)',
                         border: OutlineInputBorder(),
@@ -541,7 +607,9 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: _volumeController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Volume (L)',
                         border: OutlineInputBorder(),
@@ -625,7 +693,10 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Foto da Coleta', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Foto da Coleta',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 12),
             if (_fotoPath != null && File(_fotoPath!).existsSync()) ...[
               ClipRRect(
@@ -666,9 +737,16 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.photo_camera_outlined, size: 32, color: Colors.grey[500]),
+                    Icon(
+                      Icons.photo_camera_outlined,
+                      size: 32,
+                      color: Colors.grey[500],
+                    ),
                     const SizedBox(height: 4),
-                    Text('Nenhuma foto', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                    Text(
+                      'Nenhuma foto',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
                   ],
                 ),
               ),
@@ -710,7 +788,10 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Assinatura do Produtor', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Assinatura do Produtor',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 TextButton.icon(
                   icon: const Icon(Icons.clear, size: 16),
                   label: const Text('Limpar'),
@@ -740,7 +821,10 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text('Assine abaixo para atualizar:', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              Text(
+                'Assine abaixo para atualizar:',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
               const SizedBox(height: 4),
             ],
             Container(
@@ -781,7 +865,8 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
       }
 
       // Converter para base64
-      final assinaturaBase64 = 'data:image/png;base64,${base64Encode(signature)}';
+      final assinaturaBase64 =
+          'data:image/png;base64,${base64Encode(signature)}';
 
       // Atualizar parada
       final viewModel = context.read<ColetaViewModel>();
@@ -804,9 +889,9 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }
   }
 }

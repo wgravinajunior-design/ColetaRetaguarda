@@ -30,9 +30,17 @@ class ParadaRepository {
 
   /// Busca todas as coletas (paradas) de todas as rotas.
   /// Opcionalmente filtra por status (P/E/C/R).
-  Future<List<ParadaModel>> getTodasColetas({String? status}) async {
+  Future<List<ParadaModel>> getTodasColetas({
+    String? status,
+    DateTime? inicio,
+    DateTime? fim,
+  }) async {
     try {
-      return await _firebird.getTodasColetas(status: status);
+      return await _firebird.getTodasColetas(
+        status: status,
+        inicio: inicio,
+        fim: fim,
+      );
     } catch (e) {
       debugPrint('Erro ao carregar coletas do Firebird: $e');
     }
@@ -126,7 +134,12 @@ class ParadaRepository {
   }) async {
     // Grava o GPS de captura direto na base Firebird (COLETAS_DETALHE)
     try {
-      await _firebird.registrarGpsColeta(paradaId, latitude, longitude, horarioChegada: horarioChegada);
+      await _firebird.registrarGpsColeta(
+        paradaId,
+        latitude,
+        longitude,
+        horarioChegada: horarioChegada,
+      );
       return true;
     } catch (e) {
       debugPrint('Erro ao registrar GPS no Firebird: $e');
@@ -134,7 +147,12 @@ class ParadaRepository {
 
     // Fallback local best-effort
     try {
-      await _dao.registrarGPS(paradaId, latitude, longitude, horarioChegada: horarioChegada);
+      await _dao.registrarGPS(
+        paradaId,
+        latitude,
+        longitude,
+        horarioChegada: horarioChegada,
+      );
     } catch (_) {}
     return true;
   }
@@ -170,7 +188,9 @@ class ParadaRepository {
     }
 
     // Fallback offline
-    final localParada = parada.copyWith(id: DateTime.now().millisecondsSinceEpoch);
+    final localParada = parada.copyWith(
+      id: DateTime.now().millisecondsSinceEpoch,
+    );
     await _dao.insert(localParada);
 
     await _syncService.queueOperation(

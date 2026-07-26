@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/pdf_preview_screen.dart';
 import '../../core/database/firebird_service.dart';
 import '../models/relatorio.dart';
 import '../services/relatorio_pdf_service.dart';
@@ -85,14 +86,17 @@ class _RelatorioDetalheScreenState extends State<RelatorioDetalheScreen> {
     await _gerar();
   }
 
+  /// Abre o PDF na tela, de onde dá para imprimir, salvar ou compartilhar.
   Future<void> _exportarPdf() async {
     final r = _resultado;
     if (r == null) return;
-    try {
-      await RelatorioPdfService.imprimir(widget.def, r);
-    } catch (e) {
-      _avisar('Não foi possível gerar o PDF: $e', erro: true);
-    }
+    await PdfPreviewScreen.abrir(
+      context,
+      titulo: widget.def.nome,
+      nomeArquivo: widget.def.id,
+      gerar: () => RelatorioPdfService.gerar(widget.def, r),
+      aoEnviarWhatsApp: _enviarWhatsApp,
+    );
   }
 
   Future<void> _enviarWhatsApp() async {
@@ -202,8 +206,8 @@ class _RelatorioDetalheScreenState extends State<RelatorioDetalheScreen> {
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                icon: const Icon(Icons.print),
-                label: const Text('Imprimir / PDF'),
+                icon: const Icon(Icons.picture_as_pdf),
+                label: const Text('Visualizar PDF'),
                 onPressed: temDados ? _exportarPdf : null,
               ),
             ),

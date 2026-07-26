@@ -8,8 +8,20 @@ class RotaViewModel extends BaseViewModel<RotaModel> {
   final RotaRepository _repository = RotaRepository();
   final SyncService _syncService = SyncService();
 
+  String? _filtroStatus;
+  DateTime? _inicio;
+  DateTime? _fim;
+
+  String? get filtroStatus => _filtroStatus;
+  DateTime? get inicio => _inicio;
+  DateTime? get fim => _fim;
+
   Future<void> loadRotas({String? query}) async {
-    final cacheKey = '/rotas'.cacheKey('query=${query ?? ""}');
+    final chave =
+        'query=${query ?? ""}&status=${_filtroStatus ?? ""}'
+        '&de=${_inicio?.toIso8601String() ?? ""}'
+        '&ate=${_fim?.toIso8601String() ?? ""}';
+    final cacheKey = '/rotas'.cacheKey(chave);
     final cached = cacheManager.get<List<RotaModel>>(cacheKey);
     if (cached != null) {
       setItems(cached);
@@ -18,12 +30,28 @@ class RotaViewModel extends BaseViewModel<RotaModel> {
 
     setLoading();
     try {
-      final rotas = await _repository.getRotas(query: query);
+      final rotas = await _repository.getRotas(
+        query: query,
+        status: _filtroStatus,
+        inicio: _inicio,
+        fim: _fim,
+      );
       cacheManager.put(cacheKey, rotas, ttl: const Duration(minutes: 10));
       setItems(rotas);
     } catch (e) {
       setError('Erro ao carregar rotas: $e');
     }
+  }
+
+  void aplicarFiltroStatus(String? status) {
+    _filtroStatus = status;
+    loadRotas();
+  }
+
+  void aplicarPeriodo(DateTime? inicio, DateTime? fim) {
+    _inicio = inicio;
+    _fim = fim;
+    loadRotas();
   }
 
   Future<bool> createRota(RotaModel r) async {
@@ -43,7 +71,9 @@ class RotaViewModel extends BaseViewModel<RotaModel> {
         operacao: 'CREATE',
         dados: r.toJson(),
       );
-      setError('Sem conexão com a base. Cadastro salvo na fila offline e será sincronizado automaticamente.');
+      setError(
+        'Sem conexão com a base. Cadastro salvo na fila offline e será sincronizado automaticamente.',
+      );
       return false;
     }
   }
@@ -66,7 +96,9 @@ class RotaViewModel extends BaseViewModel<RotaModel> {
         registroId: r.id,
         dados: r.toJson(),
       );
-      setError('Sem conexão com a base. Alteração salva na fila offline e será sincronizada automaticamente.');
+      setError(
+        'Sem conexão com a base. Alteração salva na fila offline e será sincronizada automaticamente.',
+      );
       return false;
     }
   }
@@ -88,7 +120,9 @@ class RotaViewModel extends BaseViewModel<RotaModel> {
         registroId: id,
         dados: {'id': id},
       );
-      setError('Sem conexão com a base. Exclusão salva na fila offline e será sincronizada automaticamente.');
+      setError(
+        'Sem conexão com a base. Exclusão salva na fila offline e será sincronizada automaticamente.',
+      );
       return false;
     }
   }

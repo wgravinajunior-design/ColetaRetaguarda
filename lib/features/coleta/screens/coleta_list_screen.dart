@@ -72,6 +72,7 @@ class _ColetaListScreenState extends State<ColetaListScreen> {
             return Column(
               children: [
                 _buildResumo(vm),
+                _buildPeriodo(vm),
                 _buildBusca(),
                 _buildFiltros(vm),
                 const Divider(height: 1),
@@ -116,6 +117,80 @@ class _ColetaListScreenState extends State<ColetaListScreen> {
             cor: Colors.orange,
             valor: '$pendentes',
             label: 'A coletar',
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Recorte por data da rota. Abre no dia de hoje — é a operação corrente;
+  /// sem isso a lista trazia o histórico inteiro logo de cara.
+  Widget _buildPeriodo(ColetaViewModel vm) {
+    String rotulo(DateTime? d) {
+      if (d == null) return '—';
+      final hoje = DateTime.now();
+      if (d.year == hoje.year && d.month == hoje.month && d.day == hoje.day) {
+        return 'Hoje';
+      }
+      String dois(int n) => n.toString().padLeft(2, '0');
+      return '${dois(d.day)}/${dois(d.month)}/${d.year}';
+    }
+
+    Future<void> escolher({required bool ehInicio}) async {
+      final hoje = DateTime.now();
+      final d = await showDatePicker(
+        context: context,
+        initialDate: (ehInicio ? vm.inicio : vm.fim) ?? hoje,
+        firstDate: DateTime(hoje.year - 5),
+        lastDate: DateTime(hoje.year + 1),
+      );
+      if (d == null) return;
+      vm.aplicarPeriodo(ehInicio ? d : vm.inicio, ehInicio ? vm.fim : d);
+    }
+
+    final semPeriodo = vm.inicio == null && vm.fim == null;
+
+    return Container(
+      color: Colors.grey.shade50,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+      child: Row(
+        children: [
+          const Icon(Icons.event, size: 16, color: Colors.grey),
+          const SizedBox(width: 8),
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => escolher(ehInicio: true),
+              child: Text(
+                'De: ${rotulo(vm.inicio)}',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => escolher(ehInicio: false),
+              child: Text(
+                'Até: ${rotulo(vm.fim)}',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton.icon(
+            icon: Icon(
+              semPeriodo ? Icons.today : Icons.filter_alt_off,
+              size: 16,
+            ),
+            label: Text(semPeriodo ? 'Hoje' : 'Todo período'),
+            onPressed: () {
+              if (semPeriodo) {
+                final hoje = DateTime.now();
+                vm.aplicarPeriodo(hoje, hoje);
+              } else {
+                vm.limparPeriodo();
+              }
+            },
           ),
         ],
       ),

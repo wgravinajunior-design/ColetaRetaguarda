@@ -9,10 +9,19 @@ class RotaRepository {
   final RotaDao _dao = RotaDao();
   final FirebirdService _firebird = FirebirdService();
 
-  Future<List<RotaModel>> getRotas({String? query}) async {
+  Future<List<RotaModel>> getRotas({
+    String? query,
+    String? status,
+    DateTime? inicio,
+    DateTime? fim,
+  }) async {
     // Fonte primária: base Firebird configurada (COLETAS_ROTA)
     try {
-      final rotas = await _firebird.getRotas();
+      final rotas = await _firebird.getRotas(
+        status: status,
+        inicio: inicio,
+        fim: fim,
+      );
       if (query == null || query.isEmpty) return rotas;
       final q = query.toLowerCase();
       return rotas.where((r) => r.descricao.toLowerCase().contains(q)).toList();

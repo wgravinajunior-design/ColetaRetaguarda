@@ -20,7 +20,11 @@ class ContaRef {
   final int id;
   final String descricao;
   final String tipo; // 'C' = Caixa, 'B' = Banco
-  const ContaRef({required this.id, required this.descricao, required this.tipo});
+  const ContaRef({
+    required this.id,
+    required this.descricao,
+    required this.tipo,
+  });
   bool get isBanco => tipo.toUpperCase() == 'B';
 }
 
@@ -75,13 +79,14 @@ class FirebirdService {
   // ───────────── Mapeamento de status da coleta ─────────────
   // App: P=Pendente, E=Em Andamento, C=Sucesso, R=Recusado
   static String statusColetaToDb(String s) => switch (s) {
-        'E' => 'EM_ANDAMENTO',
-        'C' => 'CONFIRMADO',
-        'R' => 'RECUSADO',
-        _ => 'PENDENTE',
-      };
+    'E' => 'EM_ANDAMENTO',
+    'C' => 'CONFIRMADO',
+    'R' => 'RECUSADO',
+    _ => 'PENDENTE',
+  };
 
-  static String statusColetaFromDb(String? s) => switch ((s ?? '').toUpperCase()) {
+  static String statusColetaFromDb(String? s) =>
+      switch ((s ?? '').toUpperCase()) {
         'EM_ANDAMENTO' => 'E',
         'CONFIRMADO' => 'C',
         'RECUSADO' => 'R',
@@ -93,8 +98,10 @@ class FirebirdService {
     final partes = <String>[];
     void add(String key, [String? prefixo]) {
       final v = r[key]?.toString().trim();
-      if (v != null && v.isNotEmpty) partes.add(prefixo != null ? '$prefixo $v' : v);
+      if (v != null && v.isNotEmpty)
+        partes.add(prefixo != null ? '$prefixo $v' : v);
     }
+
     add('PES_ENDERECO');
     add('PES_NUMERO', 'nº');
     add('PES_COMPLEMENTO');
@@ -108,9 +115,12 @@ class FirebirdService {
   /// [status]: 'A' = ativos (padrão), 'I' = inativos, null = todos.
   Future<List<PessoaModel>> getProdutores({String? status = 'A'}) async {
     final db = await _db;
-    final filtroStatus = (status != null && status.isNotEmpty) ? 'AND P.PES_STATUS = ?' : '';
+    final filtroStatus = (status != null && status.isNotEmpty)
+        ? 'AND P.PES_STATUS = ?'
+        : '';
     final rows = await db.selectAll(
-      sql: '''
+      sql:
+          '''
         SELECT P.PES_ID, P.PES_RSOCIAL_NOME, P.PES_CNPJ_CPF, P.PES_ENDERECO, P.PES_NUMERO,
                P.PES_COMPLEMENTO, P.PES_BAIRRO, P.PES_CEP, P.PES_STATUS,
                P.PES_TELEFONE, P.PES_CELULAR, P.PES_EMAIL,
@@ -141,7 +151,10 @@ class FirebirdService {
       final num = _toStr(r['RES_NUMERO_ID']) ?? '';
       final mod = _toStr(r['RES_MARCA_MODELO']) ?? '';
       final label = [num, mod].where((e) => e.isNotEmpty).join(' - ');
-      return OpcaoRef(id: _toInt(r['RES_ID']) ?? 0, label: label.isEmpty ? 'Resfriador ${r['RES_ID']}' : label);
+      return OpcaoRef(
+        id: _toInt(r['RES_ID']) ?? 0,
+        label: label.isEmpty ? 'Resfriador ${r['RES_ID']}' : label,
+      );
     }).toList();
   }
 
@@ -157,7 +170,12 @@ class FirebirdService {
       ''',
     );
     return rows
-        .map((r) => OpcaoRef(id: _toInt(r['PES_ID']) ?? 0, label: _toStr(r['PES_RSOCIAL_NOME']) ?? ''))
+        .map(
+          (r) => OpcaoRef(
+            id: _toInt(r['PES_ID']) ?? 0,
+            label: _toStr(r['PES_RSOCIAL_NOME']) ?? '',
+          ),
+        )
         .toList();
   }
 
@@ -176,7 +194,10 @@ class FirebirdService {
       final placa = _toStr(r['VEI_PLACA']) ?? '';
       final modelo = _toStr(r['VEI_MODELO']) ?? '';
       final label = [placa, modelo].where((e) => e.isNotEmpty).join(' - ');
-      return OpcaoRef(id: _toInt(r['VEI_ID']) ?? 0, label: label.isEmpty ? 'Veículo ${r['VEI_ID']}' : label);
+      return OpcaoRef(
+        id: _toInt(r['VEI_ID']) ?? 0,
+        label: label.isEmpty ? 'Veículo ${r['VEI_ID']}' : label,
+      );
     }).toList();
   }
 
@@ -185,7 +206,10 @@ class FirebirdService {
     final resModelo = _toStr(r['RES_MARCA_MODELO']);
     final resNome = resNumero == null
         ? null
-        : [resNumero, if (resModelo != null && resModelo.isNotEmpty) resModelo].join(' - ');
+        : [
+            resNumero,
+            if (resModelo != null && resModelo.isNotEmpty) resModelo,
+          ].join(' - ');
     return PessoaModel(
       id: _toInt(r['PES_ID']),
       tipoPessoa: 'P',
@@ -212,28 +236,58 @@ class FirebirdService {
   }
 
   // ═════════════ ROTAS ═════════════
-  Future<List<RotaModel>> getRotas() async {
+  Future<List<RotaModel>> getRotas({
+    String? status,
+    DateTime? inicio,
+    DateTime? fim,
+  }) async {
     final db = await _db;
+    final where = <String>[];
+    final params = <dynamic>[];
+    if (status != null && status.isNotEmpty) {
+      where.add('R.STATUS = ?');
+      params.add(status);
+    }
+    if (inicio != null) {
+      where.add('R.DATA_COLETA >= ?');
+      params.add(DateTime(inicio.year, inicio.month, inicio.day));
+    }
+    if (fim != null) {
+      where.add('R.DATA_COLETA <= ?');
+      params.add(DateTime(fim.year, fim.month, fim.day, 23, 59, 59));
+    }
+    final filtro = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
+
     final rows = await db.selectAll(
-      sql: '''
+      sql:
+          '''
         SELECT R.ID, R.NOME, R.ID_MOTORISTA, R.ID_VEICULO, R.DATA_COLETA,
                R.DATA_HORA_INICIO, R.DATA_HORA_FIM, R.STATUS,
-               (SELECT COUNT(*) FROM COLETAS_DETALHE D WHERE D.ID_COLETA_ROTA = R.ID) AS QTD_PARADAS
+               (SELECT COUNT(*) FROM COLETAS_DETALHE D WHERE D.ID_COLETA_ROTA = R.ID) AS QTD_PARADAS,
+               (SELECT COUNT(*) FROM COLETAS_DETALHE D WHERE D.ID_COLETA_ROTA = R.ID
+                  AND D.STATUS = 'CONFIRMADO') AS QTD_FEITAS
         FROM COLETAS_ROTA R
+        $filtro
         ORDER BY R.DATA_COLETA DESC
       ''',
+      parameters: params,
     );
-    return rows.map((r) => RotaModel(
-          id: _toInt(r['ID']),
-          descricao: _toStr(r['NOME']) ?? '',
-          motoristaId: _toInt(r['ID_MOTORISTA']),
-          veiculoId: _toInt(r['ID_VEICULO']),
-          status: _toStr(r['STATUS']) ?? 'PENDENTE',
-          dataPrevista: _toStr(r['DATA_COLETA']),
-          dataInicio: _toStr(r['DATA_HORA_INICIO']),
-          dataFim: _toStr(r['DATA_HORA_FIM']),
-          paradas: _toInt(r['QTD_PARADAS']) ?? 0,
-        )).toList();
+    return rows
+        .map(
+          (r) => RotaModel(
+            id: _toInt(r['ID']),
+            descricao: _toStr(r['NOME']) ?? '',
+            motoristaId: _toInt(r['ID_MOTORISTA']),
+            veiculoId: _toInt(r['ID_VEICULO']),
+            status: _toStr(r['STATUS']) ?? 'PENDENTE',
+            dataPrevista: _toStr(r['DATA_COLETA']),
+            dataInicio: _toStr(r['DATA_HORA_INICIO']),
+            dataFim: _toStr(r['DATA_HORA_FIM']),
+            paradas: _toInt(r['QTD_PARADAS']) ?? 0,
+            paradasFeitas: _toInt(r['QTD_FEITAS']) ?? 0,
+          ),
+        )
+        .toList();
   }
 
   // ═════════════ COLETAS (paradas) ═════════════
@@ -246,6 +300,7 @@ class FirebirdService {
            P.PES_COMPLEMENTO, P.PES_BAIRRO, P.PES_CEP, P.PES_LATITUDE, P.PES_LONGITUDE
     FROM COLETAS_DETALHE D
     JOIN TB_PESSOA P ON P.PES_ID = D.ID_PRODUTOR
+    LEFT JOIN COLETAS_ROTA R ON R.ID = D.ID_COLETA_ROTA
   ''';
 
   ParadaModel _paradaFromRow(Map<String, dynamic> r) {
@@ -266,7 +321,8 @@ class FirebirdService {
       assinaturaBase64: _toStr(r['ASSINATURA_BASE64']),
       gpsCapturaLatitude: _toDouble(r['GPS_CAPTURA_LAT']),
       gpsCapturaltitude: _toDouble(r['GPS_CAPTURA_LON']),
-      horarioChegada: _toStr(r['HORARIO_CHEGADA']) ?? _toStr(r['DATA_HORA_REGISTRO']),
+      horarioChegada:
+          _toStr(r['HORARIO_CHEGADA']) ?? _toStr(r['DATA_HORA_REGISTRO']),
     );
   }
 
@@ -278,7 +334,9 @@ class FirebirdService {
     String? horarioChegada,
   }) async {
     final db = await _db;
-    final chegada = horarioChegada != null ? DateTime.tryParse(horarioChegada) : null;
+    final chegada = horarioChegada != null
+        ? DateTime.tryParse(horarioChegada)
+        : null;
     await db.execute(
       sql: '''
         UPDATE COLETAS_DETALHE SET
@@ -301,14 +359,36 @@ class FirebirdService {
     return rows.map(_paradaFromRow).toList();
   }
 
-  Future<List<ParadaModel>> getTodasColetas({String? status}) async {
+  /// Coletas, opcionalmente recortadas por situação e pela data da rota.
+  Future<List<ParadaModel>> getTodasColetas({
+    String? status,
+    DateTime? inicio,
+    DateTime? fim,
+  }) async {
     final db = await _db;
-    final rows = status != null
-        ? await db.selectAll(
-            sql: '$_selectColeta WHERE D.STATUS = ? ORDER BY D.ID DESC',
-            parameters: [statusColetaToDb(status)],
-          )
-        : await db.selectAll(sql: '$_selectColeta ORDER BY D.ID DESC');
+    final where = <String>[];
+    final params = <dynamic>[];
+
+    if (status != null) {
+      where.add('D.STATUS = ?');
+      params.add(statusColetaToDb(status));
+    }
+    // A data que interessa é a do dia da rota, não a de registro: uma coleta
+    // ainda pendente não tem registro, e mesmo assim pertence ao dia.
+    if (inicio != null) {
+      where.add('R.DATA_COLETA >= ?');
+      params.add(DateTime(inicio.year, inicio.month, inicio.day));
+    }
+    if (fim != null) {
+      where.add('R.DATA_COLETA <= ?');
+      params.add(DateTime(fim.year, fim.month, fim.day, 23, 59, 59));
+    }
+
+    final filtro = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
+    final rows = await db.selectAll(
+      sql: '$_selectColeta $filtro ORDER BY D.ID DESC',
+      parameters: params,
+    );
     return rows.map(_paradaFromRow).toList();
   }
 
@@ -323,7 +403,9 @@ class FirebirdService {
 
   Future<int> _proximoId(String tabela) async {
     final db = await _db;
-    final row = await db.selectOne(sql: 'SELECT COALESCE(MAX(ID),0)+1 AS NID FROM $tabela');
+    final row = await db.selectOne(
+      sql: 'SELECT COALESCE(MAX(ID),0)+1 AS NID FROM $tabela',
+    );
     return _toInt(row?['NID']) ?? 1;
   }
 
@@ -334,7 +416,8 @@ class FirebirdService {
 
     // Próxima ordem de visita dentro da rota
     final ordemRow = await db.selectOne(
-      sql: 'SELECT COALESCE(MAX(ORDEM_VISITA),0)+1 AS NORD FROM COLETAS_DETALHE WHERE ID_COLETA_ROTA = ?',
+      sql:
+          'SELECT COALESCE(MAX(ORDEM_VISITA),0)+1 AS NORD FROM COLETAS_DETALHE WHERE ID_COLETA_ROTA = ?',
       parameters: [parada.rotaId],
     );
     final ordem = _toInt(ordemRow?['NORD']) ?? 1;
@@ -396,7 +479,9 @@ class FirebirdService {
   // ═════════════ CRUD ROTAS (COLETAS_ROTA) ═════════════
   Future<RotaModel?> criarRota(RotaModel r) async {
     if (r.motoristaId == null || r.veiculoId == null) {
-      throw Exception('Motorista e veículo são obrigatórios para criar a rota.');
+      throw Exception(
+        'Motorista e veículo são obrigatórios para criar a rota.',
+      );
     }
     final db = await _db;
     final novoId = await _proximoId('COLETAS_ROTA');
@@ -425,7 +510,9 @@ class FirebirdService {
   Future<bool> atualizarRota(RotaModel r) async {
     if (r.id == null) return false;
     final db = await _db;
-    final dataColeta = r.dataPrevista != null ? DateTime.tryParse(r.dataPrevista!) : null;
+    final dataColeta = r.dataPrevista != null
+        ? DateTime.tryParse(r.dataPrevista!)
+        : null;
     await db.execute(
       sql: '''
         UPDATE COLETAS_ROTA SET
@@ -436,7 +523,14 @@ class FirebirdService {
           STATUS = ?
         WHERE ID = ?
       ''',
-      parameters: [r.descricao, r.motoristaId, r.veiculoId, dataColeta, r.status, r.id],
+      parameters: [
+        r.descricao,
+        r.motoristaId,
+        r.veiculoId,
+        dataColeta,
+        r.status,
+        r.id,
+      ],
     );
     return true;
   }
@@ -445,7 +539,8 @@ class FirebirdService {
   Future<bool> rotaTemMovimentacao(int id) async {
     final db = await _db;
     final row = await db.selectOne(
-      sql: 'SELECT COUNT(*) AS QTD FROM COLETAS_DETALHE WHERE ID_COLETA_ROTA = ?',
+      sql:
+          'SELECT COUNT(*) AS QTD FROM COLETAS_DETALHE WHERE ID_COLETA_ROTA = ?',
       parameters: [id],
     );
     return (_toInt(row?['QTD']) ?? 0) > 0;
@@ -453,10 +548,15 @@ class FirebirdService {
 
   Future<bool> excluirRota(int id) async {
     if (await rotaTemMovimentacao(id)) {
-      throw Exception('A rota possui coletas registradas e não pode ser excluída.');
+      throw Exception(
+        'A rota possui coletas registradas e não pode ser excluída.',
+      );
     }
     final db = await _db;
-    await db.execute(sql: 'DELETE FROM COLETAS_ROTA WHERE ID = ?', parameters: [id]);
+    await db.execute(
+      sql: 'DELETE FROM COLETAS_ROTA WHERE ID = ?',
+      parameters: [id],
+    );
     return true;
   }
 
@@ -598,7 +698,9 @@ class FirebirdService {
   /// Bloqueada se o produtor já tiver movimentação.
   Future<bool> excluirProdutor(int id) async {
     if (await produtorTemMovimentacao(id)) {
-      throw Exception('O produtor possui movimentação (coletas/rotas) e não pode ser excluído.');
+      throw Exception(
+        'O produtor possui movimentação (coletas/rotas) e não pode ser excluído.',
+      );
     }
     final db = await _db;
     await db.execute(
@@ -611,7 +713,9 @@ class FirebirdService {
   /// Próximo ID para tabelas cuja PK não é "ID" (ex.: PES_ID).
   Future<int> _proximoId2(String tabela, String coluna) async {
     final db = await _db;
-    final row = await db.selectOne(sql: 'SELECT COALESCE(MAX($coluna),0)+1 AS NID FROM $tabela');
+    final row = await db.selectOne(
+      sql: 'SELECT COALESCE(MAX($coluna),0)+1 AS NID FROM $tabela',
+    );
     return _toInt(row?['NID']) ?? 1;
   }
 
@@ -622,7 +726,8 @@ class FirebirdService {
     final t = termo.trim().toUpperCase();
     if (t.isEmpty) return [];
     final rows = await db.selectAll(
-      sql: '''
+      sql:
+          '''
         SELECT FIRST $limite C.CID_ID, C.CID_NOME, E.EST_SIGLA
         FROM TB_CIDADE C
         LEFT JOIN TB_ESTADO E ON E.EST_ID = C.CID_ESTADO
@@ -651,15 +756,21 @@ class FirebirdService {
   OpcaoRef _cidadeRef(Map<String, dynamic> r) {
     final nome = _toStr(r['CID_NOME']) ?? '';
     final uf = _toStr(r['EST_SIGLA']) ?? '';
-    return OpcaoRef(id: _toInt(r['CID_ID']) ?? 0, label: uf.isEmpty ? nome : '$nome - $uf');
+    return OpcaoRef(
+      id: _toInt(r['CID_ID']) ?? 0,
+      label: uf.isEmpty ? nome : '$nome - $uf',
+    );
   }
 
   // ═════════════ MOTORISTAS (TB_PESSOA, PES_TRANSPORTADOR='S') ═════════════
   Future<List<MotoristaModel>> getMotoristas({String? status = 'A'}) async {
     final db = await _db;
-    final filtro = (status != null && status.isNotEmpty) ? 'AND P.PES_STATUS = ?' : '';
+    final filtro = (status != null && status.isNotEmpty)
+        ? 'AND P.PES_STATUS = ?'
+        : '';
     final rows = await db.selectAll(
-      sql: '''
+      sql:
+          '''
         SELECT P.PES_ID, P.PES_RSOCIAL_NOME, P.PES_FANTASIA_APELIDO, P.PES_CNPJ_CPF, P.PES_IE_RG,
                P.PES_TELEFONE, P.PES_CELULAR, P.PES_EMAIL, P.PES_ENDERECO, P.PES_NUMERO,
                P.PES_COMPLEMENTO, P.PES_BAIRRO, P.PES_CEP, P.PES_CNH, P.PES_STATUS,
@@ -671,31 +782,37 @@ class FirebirdService {
       ''',
       parameters: (status != null && status.isNotEmpty) ? [status] : const [],
     );
-    return rows.map((r) => MotoristaModel(
-          id: _toInt(r['PES_ID']),
-          nome: _toStr(r['PES_RSOCIAL_NOME']),
-          apelido: _toStr(r['PES_FANTASIA_APELIDO']),
-          cpf: _toStr(r['PES_CNPJ_CPF']) ?? '',
-          rg: _toStr(r['PES_IE_RG']) ?? '',
-          telefone: _toStr(r['PES_TELEFONE']),
-          celular: _toStr(r['PES_CELULAR']),
-          email: _toStr(r['PES_EMAIL']),
-          endereco: _toStr(r['PES_ENDERECO']),
-          numero: _toStr(r['PES_NUMERO']),
-          complemento: _toStr(r['PES_COMPLEMENTO']),
-          bairro: _toStr(r['PES_BAIRRO']),
-          cidadeId: _toInt(r['PES_CIDADE']),
-          cidadeNome: _toStr(r['CID_NOME']),
-          cep: _toStr(r['PES_CEP']),
-          cnh: _toStr(r['PES_CNH']),
-          status: _toStr(r['PES_STATUS']) ?? 'A',
-        )).toList();
+    return rows
+        .map(
+          (r) => MotoristaModel(
+            id: _toInt(r['PES_ID']),
+            nome: _toStr(r['PES_RSOCIAL_NOME']),
+            apelido: _toStr(r['PES_FANTASIA_APELIDO']),
+            cpf: _toStr(r['PES_CNPJ_CPF']) ?? '',
+            rg: _toStr(r['PES_IE_RG']) ?? '',
+            telefone: _toStr(r['PES_TELEFONE']),
+            celular: _toStr(r['PES_CELULAR']),
+            email: _toStr(r['PES_EMAIL']),
+            endereco: _toStr(r['PES_ENDERECO']),
+            numero: _toStr(r['PES_NUMERO']),
+            complemento: _toStr(r['PES_COMPLEMENTO']),
+            bairro: _toStr(r['PES_BAIRRO']),
+            cidadeId: _toInt(r['PES_CIDADE']),
+            cidadeNome: _toStr(r['CID_NOME']),
+            cep: _toStr(r['PES_CEP']),
+            cnh: _toStr(r['PES_CNH']),
+            status: _toStr(r['PES_STATUS']) ?? 'A',
+          ),
+        )
+        .toList();
   }
 
   Future<MotoristaModel?> criarMotorista(MotoristaModel m) async {
     final db = await _db;
     final novoId = await _proximoId2('TB_PESSOA', 'PES_ID');
-    final tipo = (m.cpf.replaceAll(RegExp(r'[^0-9]'), '').length == 14) ? 'J' : 'F';
+    final tipo = (m.cpf.replaceAll(RegExp(r'[^0-9]'), '').length == 14)
+        ? 'J'
+        : 'F';
     await db.execute(
       sql: '''
         INSERT INTO TB_PESSOA
@@ -705,8 +822,22 @@ class FirebirdService {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'A', 'S', CURRENT_TIMESTAMP)
       ''',
       parameters: [
-        novoId, tipo, m.nome, m.apelido, m.cpf, m.rg, m.telefone, m.celular, m.email,
-        m.endereco, m.numero, m.complemento, m.bairro, m.cidadeId, m.cep, m.cnh,
+        novoId,
+        tipo,
+        m.nome,
+        m.apelido,
+        m.cpf,
+        m.rg,
+        m.telefone,
+        m.celular,
+        m.email,
+        m.endereco,
+        m.numero,
+        m.complemento,
+        m.bairro,
+        m.cidadeId,
+        m.cep,
+        m.cnh,
       ],
     );
     m.id = novoId;
@@ -726,8 +857,22 @@ class FirebirdService {
         WHERE PES_ID = ?
       ''',
       parameters: [
-        m.nome, m.apelido, m.cpf, m.rg, m.telefone, m.celular, m.email, m.endereco, m.numero,
-        m.complemento, m.bairro, m.cidadeId, m.cep, m.cnh, m.status.isEmpty ? 'A' : m.status, m.id,
+        m.nome,
+        m.apelido,
+        m.cpf,
+        m.rg,
+        m.telefone,
+        m.celular,
+        m.email,
+        m.endereco,
+        m.numero,
+        m.complemento,
+        m.bairro,
+        m.cidadeId,
+        m.cep,
+        m.cnh,
+        m.status.isEmpty ? 'A' : m.status,
+        m.id,
       ],
     );
     return true;
@@ -744,19 +889,27 @@ class FirebirdService {
 
   Future<bool> excluirMotorista(int id) async {
     if (await motoristaTemMovimentacao(id)) {
-      throw Exception('O motorista possui rotas registradas e não pode ser excluído.');
+      throw Exception(
+        'O motorista possui rotas registradas e não pode ser excluído.',
+      );
     }
     final db = await _db;
-    await db.execute(sql: "UPDATE TB_PESSOA SET PES_STATUS = 'I' WHERE PES_ID = ?", parameters: [id]);
+    await db.execute(
+      sql: "UPDATE TB_PESSOA SET PES_STATUS = 'I' WHERE PES_ID = ?",
+      parameters: [id],
+    );
     return true;
   }
 
   // ═════════════ VEÍCULOS (TB_VEICULO) ═════════════
   Future<List<VeiculoModel>> getVeiculos({String? status}) async {
     final db = await _db;
-    final filtro = (status != null && status.isNotEmpty) ? 'WHERE VEI_STATUS = ?' : '';
+    final filtro = (status != null && status.isNotEmpty)
+        ? 'WHERE VEI_STATUS = ?'
+        : '';
     final rows = await db.selectAll(
-      sql: '''
+      sql:
+          '''
         SELECT VEI_ID, VEI_PLACA, VEI_MARCA, VEI_MODELO, VEI_COR, VEI_TIPO,
                VEI_RENAVAM, VEI_CHASSI, VEI_STATUS
         FROM TB_VEICULO $filtro
@@ -764,17 +917,21 @@ class FirebirdService {
       ''',
       parameters: (status != null && status.isNotEmpty) ? [status] : const [],
     );
-    return rows.map((r) => VeiculoModel(
-          id: _toInt(r['VEI_ID']),
-          placa: _toStr(r['VEI_PLACA']) ?? '',
-          marca: _toStr(r['VEI_MARCA']) ?? '',
-          modelo: _toStr(r['VEI_MODELO']) ?? '',
-          cor: _toStr(r['VEI_COR']) ?? '',
-          tipo: _toStr(r['VEI_TIPO']) ?? 'C',
-          renavam: _toStr(r['VEI_RENAVAM']) ?? '',
-          chassi: _toStr(r['VEI_CHASSI']),
-          status: _toStr(r['VEI_STATUS']) ?? 'A',
-        )).toList();
+    return rows
+        .map(
+          (r) => VeiculoModel(
+            id: _toInt(r['VEI_ID']),
+            placa: _toStr(r['VEI_PLACA']) ?? '',
+            marca: _toStr(r['VEI_MARCA']) ?? '',
+            modelo: _toStr(r['VEI_MODELO']) ?? '',
+            cor: _toStr(r['VEI_COR']) ?? '',
+            tipo: _toStr(r['VEI_TIPO']) ?? 'C',
+            renavam: _toStr(r['VEI_RENAVAM']) ?? '',
+            chassi: _toStr(r['VEI_CHASSI']),
+            status: _toStr(r['VEI_STATUS']) ?? 'A',
+          ),
+        )
+        .toList();
   }
 
   Future<VeiculoModel?> criarVeiculo(VeiculoModel v) async {
@@ -786,7 +943,16 @@ class FirebirdService {
           (VEI_ID, VEI_EMPRESA, VEI_PLACA, VEI_MARCA, VEI_MODELO, VEI_COR, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, VEI_STATUS)
         VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, 'A')
       ''',
-      parameters: [novoId, v.placa, v.marca, v.modelo, v.cor, v.tipo, v.renavam, v.chassi],
+      parameters: [
+        novoId,
+        v.placa,
+        v.marca,
+        v.modelo,
+        v.cor,
+        v.tipo,
+        v.renavam,
+        v.chassi,
+      ],
     );
     v.id = novoId;
     return v;
@@ -803,8 +969,15 @@ class FirebirdService {
         WHERE VEI_ID = ?
       ''',
       parameters: [
-        v.placa, v.marca, v.modelo, v.cor, v.tipo, v.renavam, v.chassi,
-        v.status.isEmpty ? 'A' : v.status, v.id,
+        v.placa,
+        v.marca,
+        v.modelo,
+        v.cor,
+        v.tipo,
+        v.renavam,
+        v.chassi,
+        v.status.isEmpty ? 'A' : v.status,
+        v.id,
       ],
     );
     return true;
@@ -821,10 +994,15 @@ class FirebirdService {
 
   Future<bool> excluirVeiculo(int id) async {
     if (await veiculoTemMovimentacao(id)) {
-      throw Exception('O veículo possui rotas registradas e não pode ser excluído.');
+      throw Exception(
+        'O veículo possui rotas registradas e não pode ser excluído.',
+      );
     }
     final db = await _db;
-    await db.execute(sql: "UPDATE TB_VEICULO SET VEI_STATUS = 'I' WHERE VEI_ID = ?", parameters: [id]);
+    await db.execute(
+      sql: "UPDATE TB_VEICULO SET VEI_STATUS = 'I' WHERE VEI_ID = ?",
+      parameters: [id],
+    );
     return true;
   }
 
@@ -841,11 +1019,13 @@ class FirebirdService {
       ''',
     );
     return rows
-        .map((r) => ContaRef(
-              id: _toInt(r['CNT_ID']) ?? 0,
-              descricao: _toStr(r['CNT_DESCRICAO']) ?? '',
-              tipo: _toStr(r['CNT_TIPO']) ?? 'C',
-            ))
+        .map(
+          (r) => ContaRef(
+            id: _toInt(r['CNT_ID']) ?? 0,
+            descricao: _toStr(r['CNT_DESCRICAO']) ?? '',
+            tipo: _toStr(r['CNT_TIPO']) ?? 'C',
+          ),
+        )
         .toList();
   }
 
@@ -866,17 +1046,22 @@ class FirebirdService {
       ''',
     );
     return rows
-        .map((r) => SaldoConta(
-              id: _toInt(r['CNT_ID']) ?? 0,
-              descricao: _toStr(r['CNT_DESCRICAO']) ?? '',
-              tipo: _toStr(r['CNT_TIPO']) ?? 'C',
-              saldo: _toDouble(r['SALDO']) ?? 0,
-            ))
+        .map(
+          (r) => SaldoConta(
+            id: _toInt(r['CNT_ID']) ?? 0,
+            descricao: _toStr(r['CNT_DESCRICAO']) ?? '',
+            tipo: _toStr(r['CNT_TIPO']) ?? 'C',
+            saldo: _toDouble(r['SALDO']) ?? 0,
+          ),
+        )
         .toList();
   }
 
   // ═════════════ MOVIMENTO DE CONTA (TB_MOVIMENTO_CONTA) ═════════════
-  Future<List<MovimentoModel>> getMovimentos({int? contaId, String? tipo}) async {
+  Future<List<MovimentoModel>> getMovimentos({
+    int? contaId,
+    String? tipo,
+  }) async {
     final db = await _db;
     final where = <String>[];
     final params = <dynamic>[];
@@ -891,7 +1076,8 @@ class FirebirdService {
     final whereSql = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
 
     final rows = await db.selectAll(
-      sql: '''
+      sql:
+          '''
         SELECT M.MOV_ID, M.MOV_TIPO, M.MOV_STATUS, M.MOV_COMPENSADO, M.MOV_ORIGEM,
                M.MOV_ID_ORIGEM, M.MOV_CONTA, M.MOV_VALOR, M.MOV_DT_EMISSAO,
                M.MOV_DT_AGENDADO, M.MOV_DT_COMPENSADO, M.MOV_HISTORICO, M.MOV_DT_LANCAMENTO,
@@ -906,22 +1092,26 @@ class FirebirdService {
 
     String soData(String? iso) => (iso ?? '').split('T').first;
 
-    return rows.map((r) => MovimentoModel(
-          id: _toInt(r['MOV_ID']),
-          tipo: _toStr(r['MOV_TIPO']) ?? 'C',
-          status: _toStr(r['MOV_STATUS']) ?? 'P',
-          compensado: _toStr(r['MOV_COMPENSADO']) ?? 'S',
-          origem: _toStr(r['MOV_ORIGEM']) ?? '',
-          idOrigem: _toInt(r['MOV_ID_ORIGEM']),
-          conta: _toInt(r['MOV_CONTA']) ?? 0,
-          contaNome: _toStr(r['CNT_DESCRICAO']),
-          valor: _toDouble(r['MOV_VALOR']) ?? 0,
-          dtEmissao: soData(_toStr(r['MOV_DT_EMISSAO'])),
-          dtAgendado: _toStr(r['MOV_DT_AGENDADO']),
-          dtCompensado: _toStr(r['MOV_DT_COMPENSADO']),
-          historico: _toStr(r['MOV_HISTORICO']) ?? '',
-          dtLancamento: _toStr(r['MOV_DT_LANCAMENTO']),
-        )).toList();
+    return rows
+        .map(
+          (r) => MovimentoModel(
+            id: _toInt(r['MOV_ID']),
+            tipo: _toStr(r['MOV_TIPO']) ?? 'C',
+            status: _toStr(r['MOV_STATUS']) ?? 'P',
+            compensado: _toStr(r['MOV_COMPENSADO']) ?? 'S',
+            origem: _toStr(r['MOV_ORIGEM']) ?? '',
+            idOrigem: _toInt(r['MOV_ID_ORIGEM']),
+            conta: _toInt(r['MOV_CONTA']) ?? 0,
+            contaNome: _toStr(r['CNT_DESCRICAO']),
+            valor: _toDouble(r['MOV_VALOR']) ?? 0,
+            dtEmissao: soData(_toStr(r['MOV_DT_EMISSAO'])),
+            dtAgendado: _toStr(r['MOV_DT_AGENDADO']),
+            dtCompensado: _toStr(r['MOV_DT_COMPENSADO']),
+            historico: _toStr(r['MOV_HISTORICO']) ?? '',
+            dtLancamento: _toStr(r['MOV_DT_LANCAMENTO']),
+          ),
+        )
+        .toList();
   }
 
   Future<MovimentoModel?> criarMovimento(MovimentoModel mov) async {
@@ -936,24 +1126,44 @@ class FirebirdService {
         VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ''',
       parameters: [
-        novoId, mov.tipo, mov.status, mov.compensado, mov.origem,
-        mov.idOrigem, mov.conta, mov.valor, dtEmissao, mov.historico,
+        novoId,
+        mov.tipo,
+        mov.status,
+        mov.compensado,
+        mov.origem,
+        mov.idOrigem,
+        mov.conta,
+        mov.valor,
+        dtEmissao,
+        mov.historico,
       ],
     );
     return mov.id == null
         ? MovimentoModel(
-            id: novoId, tipo: mov.tipo, status: mov.status, compensado: mov.compensado,
-            origem: mov.origem, idOrigem: mov.idOrigem, conta: mov.conta, contaNome: mov.contaNome,
-            valor: mov.valor, dtEmissao: mov.dtEmissao, historico: mov.historico)
+            id: novoId,
+            tipo: mov.tipo,
+            status: mov.status,
+            compensado: mov.compensado,
+            origem: mov.origem,
+            idOrigem: mov.idOrigem,
+            conta: mov.conta,
+            contaNome: mov.contaNome,
+            valor: mov.valor,
+            dtEmissao: mov.dtEmissao,
+            historico: mov.historico,
+          )
         : mov;
   }
 
   // ═════════════ RESFRIADORES (TB_RESFRIADOR) ═════════════
   Future<List<ResfriadorModel>> getResfriadores({String? status}) async {
     final db = await _db;
-    final filtro = (status != null && status.isNotEmpty) ? 'WHERE RES_STATUS = ?' : '';
+    final filtro = (status != null && status.isNotEmpty)
+        ? 'WHERE RES_STATUS = ?'
+        : '';
     final rows = await db.selectAll(
-      sql: '''
+      sql:
+          '''
         SELECT RES_ID, RES_NUMERO_ID, RES_MARCA_MODELO, RES_CAPACIDADE_LITROS,
                RES_ANO_FABRICACAO, RES_ULTIMA_MANUTENCAO, RES_STATUS
         FROM TB_RESFRIADOR $filtro
@@ -961,15 +1171,21 @@ class FirebirdService {
       ''',
       parameters: (status != null && status.isNotEmpty) ? [status] : const [],
     );
-    return rows.map((r) => ResfriadorModel(
-          id: _toInt(r['RES_ID']),
-          numeroId: _toStr(r['RES_NUMERO_ID']) ?? '',
-          marcaModelo: _toStr(r['RES_MARCA_MODELO']) ?? '',
-          capacidadeLitros: _toDouble(r['RES_CAPACIDADE_LITROS']) ?? 0,
-          anoFabricacao: _toInt(r['RES_ANO_FABRICACAO']),
-          ultimaManutencao: (_toStr(r['RES_ULTIMA_MANUTENCAO']) ?? '').split('T').first,
-          status: _toStr(r['RES_STATUS']) ?? 'ATIVO',
-        )).toList();
+    return rows
+        .map(
+          (r) => ResfriadorModel(
+            id: _toInt(r['RES_ID']),
+            numeroId: _toStr(r['RES_NUMERO_ID']) ?? '',
+            marcaModelo: _toStr(r['RES_MARCA_MODELO']) ?? '',
+            capacidadeLitros: _toDouble(r['RES_CAPACIDADE_LITROS']) ?? 0,
+            anoFabricacao: _toInt(r['RES_ANO_FABRICACAO']),
+            ultimaManutencao: (_toStr(r['RES_ULTIMA_MANUTENCAO']) ?? '')
+                .split('T')
+                .first,
+            status: _toStr(r['RES_STATUS']) ?? 'ATIVO',
+          ),
+        )
+        .toList();
   }
 
   Future<ResfriadorModel?> criarResfriador(ResfriadorModel r) async {
@@ -986,8 +1202,13 @@ class FirebirdService {
         VALUES (?, ?, ?, ?, ?, ?, ?)
       ''',
       parameters: [
-        novoId, r.numeroId, r.marcaModelo, r.capacidadeLitros,
-        r.anoFabricacao, manut, r.status.isEmpty ? 'ATIVO' : r.status,
+        novoId,
+        r.numeroId,
+        r.marcaModelo,
+        r.capacidadeLitros,
+        r.anoFabricacao,
+        manut,
+        r.status.isEmpty ? 'ATIVO' : r.status,
       ],
     );
     r.id = novoId;
@@ -1008,8 +1229,13 @@ class FirebirdService {
         WHERE RES_ID = ?
       ''',
       parameters: [
-        r.numeroId, r.marcaModelo, r.capacidadeLitros,
-        r.anoFabricacao, manut, r.status.isEmpty ? 'ATIVO' : r.status, r.id,
+        r.numeroId,
+        r.marcaModelo,
+        r.capacidadeLitros,
+        r.anoFabricacao,
+        manut,
+        r.status.isEmpty ? 'ATIVO' : r.status,
+        r.id,
       ],
     );
     return true;
@@ -1026,10 +1252,15 @@ class FirebirdService {
 
   Future<bool> excluirResfriador(int id) async {
     if (await resfriadorTemVinculo(id)) {
-      throw Exception('O resfriador está vinculado a um produtor e não pode ser excluído.');
+      throw Exception(
+        'O resfriador está vinculado a um produtor e não pode ser excluído.',
+      );
     }
     final db = await _db;
-    await db.execute(sql: 'DELETE FROM TB_RESFRIADOR WHERE RES_ID = ?', parameters: [id]);
+    await db.execute(
+      sql: 'DELETE FROM TB_RESFRIADOR WHERE RES_ID = ?',
+      parameters: [id],
+    );
     return true;
   }
 
@@ -1044,14 +1275,25 @@ class FirebirdService {
           MOV_DT_EMISSAO = COALESCE(?, MOV_DT_EMISSAO), MOV_HISTORICO = ?
         WHERE MOV_ID = ?
       ''',
-      parameters: [mov.tipo, mov.status, mov.conta, mov.valor, dtEmissao, mov.historico, mov.id],
+      parameters: [
+        mov.tipo,
+        mov.status,
+        mov.conta,
+        mov.valor,
+        dtEmissao,
+        mov.historico,
+        mov.id,
+      ],
     );
     return true;
   }
 
   Future<bool> excluirMovimento(int id) async {
     final db = await _db;
-    await db.execute(sql: 'DELETE FROM TB_MOVIMENTO_CONTA WHERE MOV_ID = ?', parameters: [id]);
+    await db.execute(
+      sql: 'DELETE FROM TB_MOVIMENTO_CONTA WHERE MOV_ID = ?',
+      parameters: [id],
+    );
     return true;
   }
 }
