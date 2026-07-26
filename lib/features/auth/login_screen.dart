@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'auth_service.dart';
 import '../../core/app_info.dart';
+import '../../core/update/verificador_atualizacao.dart';
 import '../core/config/config_service.dart';
 import '../core/database/db_connection.dart';
 import '../core/window/window_service.dart';
@@ -26,6 +27,13 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     _usernameController = TextEditingController();
     _passwordController = TextEditingController();
+
+    // Checagem de versão na abertura. Precisa sair daqui, e não do builder do
+    // MaterialApp: lá o contexto fica acima do Navigator e o showDialog falha
+    // sem avisar — o aviso de atualização simplesmente nunca aparecia.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      verificarAtualizacaoAoAbrir(context);
+    });
   }
 
   @override

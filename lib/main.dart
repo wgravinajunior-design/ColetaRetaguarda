@@ -9,7 +9,6 @@ import 'features/auth/auth_service.dart';
 import 'features/core/database/sync_service.dart';
 import 'features/core/sync/sync_handlers.dart';
 import 'features/core/sync/sync_activity_overlay.dart';
-import 'core/update/verificador_atualizacao.dart';
 import 'core/app_info.dart';
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/main_layout.dart';
@@ -335,12 +334,11 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
       darkTheme: AppTheme.getDarkTheme(),
       themeMode: _appTheme.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       routerConfig: router,
-      builder: (context, child) => VerificadorAtualizacao(
-        child: SyncActivityOverlay(
-          child: ConnectionStatusBanner(
-            child: child ?? const SizedBox.shrink(),
-          ),
-        ),
+      // A checagem de versão NÃO entra aqui: o contexto do builder fica acima
+      // do Navigator, e showDialog a partir dele falha em silêncio. Quem chama
+      // é a tela de login.
+      builder: (context, child) => SyncActivityOverlay(
+        child: ConnectionStatusBanner(child: child ?? const SizedBox.shrink()),
       ),
     );
   }

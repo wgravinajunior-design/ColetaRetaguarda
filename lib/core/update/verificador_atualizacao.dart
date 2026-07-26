@@ -1,63 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../app_info.dart';
 import 'update_dialogs.dart';
 import 'update_service.dart';
 
-/// Roda uma vez na abertura do sistema: mostra as novidades da versão recém
-/// instalada e, em seguida, avisa se há uma versão mais nova.
+/// Uma vez por execução do sistema.
+bool _jaRodou = false;
+
+/// Na abertura: mostra as novidades da versão recém instalada e, em seguida,
+/// avisa se há uma versão mais nova.
 ///
-/// Envolve a árvore de telas para ter um `BuildContext` sob o `MaterialApp`,
-/// já que ambos abrem diálogos.
-class VerificadorAtualizacao extends StatefulWidget {
-  const VerificadorAtualizacao({required this.child, super.key});
+/// Chame de uma tela — a de login — e não do `builder` do `MaterialApp`.
+/// Ali o contexto fica **acima** do Navigator (o `child` do builder é o próprio
+/// Navigator), então `showDialog` não encontra a quem se pendurar e falha em
+/// silêncio: era por isso que o aviso de atualização nunca aparecia.
+Future<void> verificarAtualizacaoAoAbrir(BuildContext context) async {
+  if (_jaRodou) return;
+  _jaRodou = true;
 
-  final Widget child;
-
-  @override
-  State<VerificadorAtualizacao> createState() => _VerificadorAtualizacaoState();
-}
-
-class _VerificadorAtualizacaoState extends State<VerificadorAtualizacao> {
-  /// Sem isto, cada reconstrução do `builder` do MaterialApp dispararia a
-  /// checagem de novo.
-  static bool _jaRodou = false;
-
-  @override
-  void initState() {
-    super.initState();
-    if (_jaRodou) return;
-    _jaRodou = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _rodar());
-  }
-
-  Future<void> _rodar() async {
-    await _mostrarNovidadesSeAtualizou();
-    if (mounted) await _verificarNovaVersao();
-  }
-
-  /// O arquivo guarda a versão anterior. Se ela existe e é diferente da atual,
-  /// acabamos de atualizar — é a deixa para exibir as melhorias.
-  Future<void> _mostrarNovidadesSeAtualizou() async {
+  try {
+    // Acabou de atualizar? O arquivo guarda a versão anterior; se ela existe
+    // e difere da atual, é a deixa para exibir as melhorias.
     final anterior = await UpdateService.versaoVista();
     if (anterior == null) {
       // Primeira execução: só registra, sem popup de novidades.
       await UpdateService.marcarVersaoVista(appVersao);
-      return;
+    } else if (anterior != appVersao) {
+      final notas = await UpdateService.notasDaVersaoAtual();
+      await UpdateService.marcarVersaoVista(appVersao);
+      if (context.mounted && notas != null && notas.trim().isNotEmpty) {
+        await DialogoNovidades.mostrar(context, notas);
+      }
     }
-    if (anterior == appVersao) return;
 
-    final notas = await UpdateService.notasDaVersaoAtual();
-    await UpdateService.marcarVersaoVista(appVersao);
-    if (!mounted || notas == null || notas.trim().isEmpty) return;
-    await DialogoNovidades.mostrar(context, notas);
-  }
-
-  Future<void> _verificarNovaVersao() async {
+    if (!context.mounted) return;
     final nova = await UpdateService.verificar();
-    if (!mounted || nova == null) return;
+    if (!context.mounted || nova == null) return;
     await DialogoAtualizacao.mostrar(context, nova);
+  } catch (e, s) {
+    // Uma falha aqui não pode impedir o uso do sistema — mas precisa aparecer
+    // no log, senão some sem deixar rastro, como aconteceu antes.
+    debugPrint('Falha ao verificar atualização: $e\n$s');
   }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
 }
