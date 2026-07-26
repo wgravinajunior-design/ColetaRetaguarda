@@ -5,6 +5,7 @@ import '../../core/database/sync_service.dart';
 import '../../core/database/firebird_service.dart';
 import '../../../core/backend/file_storage_service.dart';
 import '../models/parada_model.dart';
+import '../../rotas/models/rota_model.dart';
 
 class ParadaRepository {
   final ParadaDao _dao = ParadaDao();
@@ -156,6 +157,27 @@ class ParadaRepository {
     } catch (_) {}
     return true;
   }
+
+  /// Rotas que ainda aceitam coletas (pendentes ou em andamento).
+  Future<List<RotaModel>> getRotasEmAberto() => _firebird.getRotasEmAberto();
+
+  /// Move a coleta para outra rota, no fim da ordem de visita.
+  Future<bool> moverParaRota({
+    required int paradaId,
+    required int novaRotaId,
+  }) =>
+      _firebird.moverColetaParaRota(paradaId: paradaId, novaRotaId: novaRotaId);
+
+  /// Troca só a situação, preservando medições e o horário do registro.
+  Future<bool> alterarSituacao({
+    required int paradaId,
+    required String novoStatus,
+    String? justificativa,
+  }) => _firebird.alterarSituacaoColeta(
+    paradaId: paradaId,
+    novoStatus: novoStatus,
+    justificativa: justificativa,
+  );
 
   Future<bool> reordenarParadas(List<int> paradaIdsEmOrdem) async {
     return await _firebird.atualizarOrdemParadas(paradaIdsEmOrdem);

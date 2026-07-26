@@ -77,4 +77,14 @@ class RotaRepository {
   Future<bool> mudarStatus(int rotaId, String status) async {
     return await _firebird.atualizarStatusRota(rotaId, status);
   }
+
+  /// Coletas da rota ainda em aberto (pendentes ou em andamento).
+  Future<int> coletasEmAberto(int rotaId) =>
+      _firebird.coletasEmAbertoNaRota(rotaId);
+
+  /// Encerra a rota e marca o horário de término.
+  Future<bool> finalizar(int rotaId) => _firebird.finalizarRota(rotaId);
+
+  /// Reabre uma rota concluída.
+  Future<bool> reabrir(int rotaId) => _firebird.reabrirRota(rotaId);
 }

@@ -34,6 +34,7 @@ class RelatorioService {
     'CONFIRMADO' || 'C' => 'Confirmada',
     'RECUSADO' || 'R' => 'Recusada',
     'ADIADO' || 'A' => 'Adiada',
+    'CANCELADO' || 'X' => 'Cancelada',
     'EM_ANDAMENTO' || 'E' => 'Em andamento',
     _ => 'Pendente',
   };

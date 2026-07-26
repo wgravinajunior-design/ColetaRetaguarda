@@ -91,9 +91,7 @@ class _MapaRotaScreenState extends State<MapaRotaScreen> {
                   ],
                 ),
               // Marcadores das paradas
-              MarkerLayer(
-                markers: _buildMarkers(),
-              ),
+              MarkerLayer(markers: _buildMarkers()),
             ],
           ),
           // Legenda
@@ -177,44 +175,38 @@ class _MapaRotaScreenState extends State<MapaRotaScreen> {
   }
 
   List<Marker> _buildMarkers() {
-    return List.generate(
-      widget.paradas.length,
-      (index) {
-        final parada = widget.paradas[index];
-        final color = MapService.getStatusColor(parada.status);
+    return List.generate(widget.paradas.length, (index) {
+      final parada = widget.paradas[index];
+      final color = MapService.getStatusColor(parada.status);
 
-        return Marker(
-          point: LatLng(parada.latitude, parada.longitude),
-          width: 40,
-          height: 40,
-          child: GestureDetector(
-            onTap: () => _mostrarDetalhes(parada, index + 1),
-            child: Container(
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withValues(alpha: 0.5),
-                    blurRadius: 8,
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Text(
-                  '${index + 1}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+      return Marker(
+        point: LatLng(parada.latitude, parada.longitude),
+        width: 40,
+        height: 40,
+        child: GestureDetector(
+          onTap: () => _mostrarDetalhes(parada, index + 1),
+          child: Container(
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [
+                BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                '${index + 1}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
           ),
-        );
-      },
-    );
+        ),
+      );
+    });
   }
 
   void _mostrarDetalhes(ParadaModel parada, int numero) {
@@ -314,10 +306,7 @@ class _LegendaItem extends StatelessWidget {
   final String emoji;
   final String label;
 
-  const _LegendaItem({
-    required this.emoji,
-    required this.label,
-  });
+  const _LegendaItem({required this.emoji, required this.label});
 
   @override
   Widget build(BuildContext context) {

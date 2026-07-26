@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../models/parada_model.dart';
 import '../viewmodels/coleta_viewmodel.dart';
 import '../widgets/mini_map.dart';
+import '../widgets/acoes_coleta_adiada.dart';
 import '../services/comprovante_service.dart';
 import '../../../core/widgets/pdf_preview_screen.dart';
 import '../../core/services/location_service.dart';
@@ -30,6 +31,9 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
   bool _loadingGPS = false;
   String? _gpsError;
 
+  /// Concluída, recusada ou cancelada: a tela vira consulta do que foi medido.
+  bool get _encerrada => widget.parada.encerrada;
+
   final SignatureController _signatureController = SignatureController(
     penStrokeWidth: 2,
     penColor: Colors.black,
@@ -40,9 +44,19 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
   @override
   void initState() {
     super.initState();
-    _temperatureController = TextEditingController();
-    _volumeController = TextEditingController();
-    _justificativaController = TextEditingController();
+    // Coleta já registrada abre com o que foi medido: antes os campos vinham
+    // vazios, então a lista mostrava "18,0 °C · 1000 L" e o detalhe, nada.
+    final t = widget.parada.temperatura;
+    final v = widget.parada.volume;
+    _temperatureController = TextEditingController(
+      text: (t != null && t > 0) ? t.toStringAsFixed(1) : '',
+    );
+    _volumeController = TextEditingController(
+      text: (v != null && v > 0) ? v.toStringAsFixed(0) : '',
+    );
+    _justificativaController = TextEditingController(
+      text: widget.parada.justificativa ?? '',
+    );
 
     // Recupera assinatura/foto já salvas, se houver
     _fotoPath = widget.parada.fotoPath;
@@ -581,6 +595,14 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
               title: 'Localização da Parada',
             ),
             const SizedBox(height: 16),
+            // Adiada continua em aberto: dá para remarcar ou passar de rota.
+            if (widget.parada.podeSerRetomada) ...[
+              AcoesColetaAdiada(
+                parada: widget.parada,
+                aoConcluir: () => Navigator.of(context).pop(true),
+              ),
+              const SizedBox(height: 16),
+            ],
             // Dados de coleta
             Card(
               child: Padding(
@@ -595,25 +617,32 @@ class _ColetaParadaScreenState extends State<ColetaParadaScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: _temperatureController,
+                      // Coleta encerrada é consulta, não edição.
+                      readOnly: _encerrada,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Temperatura (°C)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.thermostat),
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.thermostat),
+                        filled: _encerrada,
+                        fillColor: Colors.grey.shade100,
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _volumeController,
+                      readOnly: _encerrada,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Volume (L)',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.water_drop),
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.water_drop),
+                        filled: _encerrada,
+                        fillColor: Colors.grey.shade100,
                       ),
                     ),
                   ],

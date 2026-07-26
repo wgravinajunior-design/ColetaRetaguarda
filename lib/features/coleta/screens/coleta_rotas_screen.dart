@@ -124,9 +124,14 @@ class _ColetaRotasScreenState extends State<ColetaRotasScreen> {
                 Container(
                   width: double.infinity,
                   color: Colors.amber.shade100,
-                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                  child: const Text('Arraste as paradas para reordenar a sequência de visita',
-                      style: TextStyle(fontSize: 12)),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 6,
+                    horizontal: 12,
+                  ),
+                  child: const Text(
+                    'Arraste as paradas para reordenar a sequência de visita',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
               // Lista de paradas
               Expanded(
@@ -185,7 +190,10 @@ class _StatCard extends StatelessWidget {
       children: [
         Text(emoji, style: const TextStyle(fontSize: 24)),
         const SizedBox(height: 4),
-        Text(count.toString(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(
+          count.toString(),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
         Text(label, style: const TextStyle(fontSize: 11)),
       ],
     );
@@ -214,6 +222,10 @@ class _ParadaCard extends StatelessWidget {
         return Colors.green;
       case 'R':
         return Colors.grey;
+      case 'A':
+        return Colors.blue;
+      case 'X':
+        return Colors.black54;
       default:
         return Colors.blue;
     }
@@ -263,10 +275,7 @@ class _ParadaCard extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                Text(
-                  parada.statusEmoji,
-                  style: const TextStyle(fontSize: 14),
-                ),
+                Text(parada.statusEmoji, style: const TextStyle(fontSize: 14)),
                 const SizedBox(width: 8),
                 Text(
                   parada.statusLabel,
@@ -291,7 +300,9 @@ class _ParadaCard extends StatelessWidget {
                     ),
                   );
                   if (context.mounted) {
-                    context.read<ColetaViewModel>().loadParadasFromRota(parada.rotaId ?? 0);
+                    context.read<ColetaViewModel>().loadParadasFromRota(
+                      parada.rotaId ?? 0,
+                    );
                   }
                 },
               ),

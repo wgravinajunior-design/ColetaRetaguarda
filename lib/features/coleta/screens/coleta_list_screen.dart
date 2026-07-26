@@ -249,10 +249,22 @@ class _ColetaListScreenState extends State<ColetaListScreen> {
         cor: Colors.green,
       ),
       _FiltroStatus(
+        status: 'A',
+        label: 'Adiadas',
+        emoji: '🔵',
+        cor: Colors.blue,
+      ),
+      _FiltroStatus(
         status: 'R',
         label: 'Recusadas',
         emoji: '⚫',
         cor: Colors.grey,
+      ),
+      _FiltroStatus(
+        status: 'X',
+        label: 'Canceladas',
+        emoji: '⛔',
+        cor: Colors.black54,
       ),
     ];
 
@@ -436,6 +448,10 @@ class _ColetaCard extends StatelessWidget {
         return Colors.green;
       case 'R':
         return Colors.grey;
+      case 'A':
+        return Colors.blue;
+      case 'X':
+        return Colors.black54;
       default:
         return Colors.blue;
     }

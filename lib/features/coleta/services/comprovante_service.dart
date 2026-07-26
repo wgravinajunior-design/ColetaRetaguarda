@@ -18,6 +18,10 @@ class ComprovanteService {
         return 'Concluida';
       case 'R':
         return 'Recusada';
+      case 'A':
+        return 'Adiada';
+      case 'X':
+        return 'Cancelada';
       default:
         return status;
     }

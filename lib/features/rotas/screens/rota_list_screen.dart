@@ -239,12 +239,15 @@ class _RotaListScreenState extends State<RotaListScreen> {
                   ),
                 ],
               ),
-              onTap: () {
-                Navigator.of(context).push(
+              onTap: () async {
+                await Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => RotaDetalheScreen(rota: r),
                   ),
                 );
+                // A rota pode ter sido finalizada ou reaberta lá dentro; sem
+                // recarregar, a lista mostraria a situação anterior.
+                if (context.mounted) viewModel.loadRotas();
               },
             ),
           ),

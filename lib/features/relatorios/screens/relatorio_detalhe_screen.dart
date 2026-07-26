@@ -256,6 +256,7 @@ class _RelatorioDetalheScreenState extends State<RelatorioDetalheScreen> {
           'CONFIRMADO': 'Confirmadas',
           'RECUSADO': 'Recusadas',
           'ADIADO': 'Adiadas',
+          'CANCELADO': 'Canceladas',
           'PENDENTE': 'Pendentes',
         }, (v) => setState(() => _filtros.status = v)),
       );

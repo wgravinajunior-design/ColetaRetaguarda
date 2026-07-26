@@ -29,11 +29,14 @@ class _RotaFormScreenState extends State<RotaFormScreen> {
   @override
   void initState() {
     super.initState();
-    descricaoController = TextEditingController(text: widget.rota?.descricao ?? '');
+    descricaoController = TextEditingController(
+      text: widget.rota?.descricao ?? '',
+    );
     _motoristaId = widget.rota?.motoristaId;
     _veiculoId = widget.rota?.veiculoId;
     if (widget.rota?.dataPrevista != null) {
-      _dataColeta = DateTime.tryParse(widget.rota!.dataPrevista!) ?? DateTime.now();
+      _dataColeta =
+          DateTime.tryParse(widget.rota!.dataPrevista!) ?? DateTime.now();
     }
     _carregarOpcoes();
   }
@@ -54,7 +57,8 @@ class _RotaFormScreenState extends State<RotaFormScreen> {
         _motoristas = motoristas;
         _veiculos = veiculos;
         // Mantém seleção válida
-        if (_motoristaId != null && !_motoristas.any((m) => m.id == _motoristaId)) {
+        if (_motoristaId != null &&
+            !_motoristas.any((m) => m.id == _motoristaId)) {
           _motoristaId = null;
         }
         if (_veiculoId != null && !_veiculos.any((v) => v.id == _veiculoId)) {
@@ -118,7 +122,10 @@ class _RotaFormScreenState extends State<RotaFormScreen> {
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Rota salva com sucesso!'), backgroundColor: Colors.green),
+        const SnackBar(
+          content: Text('Rota salva com sucesso!'),
+          backgroundColor: Colors.green,
+        ),
       );
       context.go('/rotas');
     } else {
@@ -127,9 +134,9 @@ class _RotaFormScreenState extends State<RotaFormScreen> {
   }
 
   void _erro(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
   }
 
   String _dataFmt(DateTime d) {
@@ -181,7 +188,12 @@ class _RotaFormScreenState extends State<RotaFormScreen> {
                       prefixIcon: Icon(Icons.person),
                     ),
                     items: _motoristas
-                        .map((m) => DropdownMenuItem(value: m.id, child: Text(m.label)))
+                        .map(
+                          (m) => DropdownMenuItem(
+                            value: m.id,
+                            child: Text(m.label),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) => setState(() => _motoristaId = v),
                     hint: _motoristas.isEmpty
@@ -199,7 +211,12 @@ class _RotaFormScreenState extends State<RotaFormScreen> {
                       prefixIcon: Icon(Icons.local_shipping),
                     ),
                     items: _veiculos
-                        .map((v) => DropdownMenuItem(value: v.id, child: Text(v.label)))
+                        .map(
+                          (v) => DropdownMenuItem(
+                            value: v.id,
+                            child: Text(v.label),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) => setState(() => _veiculoId = v),
                     hint: _veiculos.isEmpty
@@ -213,7 +230,8 @@ class _RotaFormScreenState extends State<RotaFormScreen> {
                       onPressed: _salvando ? null : _save,
                       child: _salvando
                           ? const SizedBox(
-                              height: 20, width: 20,
+                              height: 20,
+                              width: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Text('Salvar'),

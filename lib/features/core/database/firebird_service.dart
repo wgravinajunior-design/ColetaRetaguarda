@@ -78,10 +78,15 @@ class FirebirdService {
 
   // ───────────── Mapeamento de status da coleta ─────────────
   // App: P=Pendente, E=Em Andamento, C=Sucesso, R=Recusado
+  // Adiada e recusada eram o mesmo código 'R', então uma coleta apenas adiada
+  // aparecia como recusada — situações diferentes na operação: adiada volta a
+  // ser tentada, recusada não.
   static String statusColetaToDb(String s) => switch (s) {
     'E' => 'EM_ANDAMENTO',
     'C' => 'CONFIRMADO',
     'R' => 'RECUSADO',
+    'A' => 'ADIADO',
+    'X' => 'CANCELADO',
     _ => 'PENDENTE',
   };
 
@@ -90,7 +95,8 @@ class FirebirdService {
         'EM_ANDAMENTO' => 'E',
         'CONFIRMADO' => 'C',
         'RECUSADO' => 'R',
-        'ADIADO' => 'R',
+        'ADIADO' => 'A',
+        'CANCELADO' => 'X',
         _ => 'P',
       };
 
@@ -441,6 +447,61 @@ class FirebirdService {
   }
 
   /// Atualiza o status/dados de uma coleta (confirmar, recusar, etc.).
+  /// Rotas que ainda aceitam coletas: pendentes ou em andamento.
+  ///
+  /// É o destino possível ao mover uma coleta adiada — rota concluída não
+  /// recebe parada nova.
+  Future<List<RotaModel>> getRotasEmAberto() => getRotas().then(
+    (rotas) => rotas
+        .where((r) => r.status == 'PENDENTE' || r.status == 'EM_ANDAMENTO')
+        .toList(),
+  );
+
+  /// Move uma coleta para outra rota, no fim da ordem de visita.
+  ///
+  /// Usado quando o produtor foi adiado e a coleta passa para outro dia ou
+  /// outro motorista, em vez de virar um registro perdido.
+  Future<bool> moverColetaParaRota({
+    required int paradaId,
+    required int novaRotaId,
+  }) async {
+    final db = await _db;
+    final row = await db.selectOne(
+      sql:
+          'SELECT COALESCE(MAX(ORDEM_VISITA), 0) + 1 AS PROX '
+          'FROM COLETAS_DETALHE WHERE ID_COLETA_ROTA = ?',
+      parameters: [novaRotaId],
+    );
+    final ordem = _toInt(row?['PROX']) ?? 1;
+
+    await db.execute(
+      sql:
+          'UPDATE COLETAS_DETALHE SET ID_COLETA_ROTA = ?, ORDEM_VISITA = ? '
+          'WHERE ID = ?',
+      parameters: [novaRotaId, ordem, paradaId],
+    );
+    return true;
+  }
+
+  /// Troca só a situação, sem tocar nas medições.
+  ///
+  /// [atualizarStatusColeta] grava DATA_HORA_REGISTRO como agora, o que
+  /// reescreveria o momento em que a coleta foi de fato registrada.
+  Future<bool> alterarSituacaoColeta({
+    required int paradaId,
+    required String novoStatus,
+    String? justificativa,
+  }) async {
+    final db = await _db;
+    await db.execute(
+      sql:
+          'UPDATE COLETAS_DETALHE SET STATUS = ?, '
+          'MOTIVO_ADIAMENTO = COALESCE(?, MOTIVO_ADIAMENTO) WHERE ID = ?',
+      parameters: [statusColetaToDb(novoStatus), justificativa, paradaId],
+    );
+    return true;
+  }
+
   Future<bool> atualizarStatusColeta({
     required int paradaId,
     required String novoStatus,
@@ -566,6 +627,50 @@ class FirebirdService {
     await db.execute(
       sql: 'UPDATE COLETAS_ROTA SET STATUS = ? WHERE ID = ?',
       parameters: [status, rotaId],
+    );
+    return true;
+  }
+
+  /// Quantas coletas da rota ainda estão em aberto (pendente ou em andamento).
+  ///
+  /// Serve para avisar antes de encerrar: fechar com coleta pendente deixa o
+  /// produtor sem registro de atendimento naquele dia.
+  Future<int> coletasEmAbertoNaRota(int rotaId) async {
+    final db = await _db;
+    final row = await db.selectOne(
+      sql:
+          "SELECT COUNT(*) AS QTD FROM COLETAS_DETALHE "
+          "WHERE ID_COLETA_ROTA = ? AND STATUS IN ('PENDENTE', 'EM_ANDAMENTO')",
+      parameters: [rotaId],
+    );
+    return _toInt(row?['QTD']) ?? 0;
+  }
+
+  /// Encerra a rota, marcando o horário de término.
+  ///
+  /// O DATA_HORA_FIM só é gravado se ainda estiver vazio: reencerrar uma rota
+  /// não deve reescrever quando ela terminou de fato.
+  Future<bool> finalizarRota(int rotaId) async {
+    final db = await _db;
+    await db.execute(
+      sql:
+          "UPDATE COLETAS_ROTA SET STATUS = 'CONCLUIDA', "
+          'DATA_HORA_FIM = COALESCE(DATA_HORA_FIM, CURRENT_TIMESTAMP) '
+          'WHERE ID = ?',
+      parameters: [rotaId],
+    );
+    return true;
+  }
+
+  /// Reabre uma rota concluída, para receber coleta remanejada ou corrigir um
+  /// encerramento indevido. Limpa o término, já que ela voltou a correr.
+  Future<bool> reabrirRota(int rotaId) async {
+    final db = await _db;
+    await db.execute(
+      sql:
+          "UPDATE COLETAS_ROTA SET STATUS = 'EM_ANDAMENTO', "
+          'DATA_HORA_FIM = NULL WHERE ID = ?',
+      parameters: [rotaId],
     );
     return true;
   }

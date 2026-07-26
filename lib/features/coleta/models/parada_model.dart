@@ -135,33 +135,30 @@ class ParadaModel {
     );
   }
 
-  String get statusLabel {
-    switch (status) {
-      case 'P':
-        return 'Pendente';
-      case 'E':
-        return 'Em Andamento';
-      case 'C':
-        return 'Sucesso';
-      case 'R':
-        return 'Recusado';
-      default:
-        return 'Desconhecido';
-    }
-  }
+  String get statusLabel => switch (status) {
+    'P' => 'Pendente',
+    'E' => 'Em Andamento',
+    'C' => 'Sucesso',
+    'R' => 'Recusado',
+    'A' => 'Adiado',
+    'X' => 'Cancelado',
+    _ => 'Desconhecido',
+  };
 
-  String get statusEmoji {
-    switch (status) {
-      case 'P':
-        return '🔴';
-      case 'E':
-        return '🟡';
-      case 'C':
-        return '🟢';
-      case 'R':
-        return '⚫';
-      default:
-        return '⚪';
-    }
-  }
+  String get statusEmoji => switch (status) {
+    'P' => '🔴',
+    'E' => '🟡',
+    'C' => '🟢',
+    'R' => '⚫',
+    'A' => '🔵',
+    'X' => '⛔',
+    _ => '⚪',
+  };
+
+  /// Adiada continua na fila: pode ser remarcada, trocada de rota ou resolvida.
+  /// Recusada e cancelada encerram o assunto.
+  bool get podeSerRetomada => status == 'A';
+
+  /// Encerrada de qualquer forma — a tela vira consulta.
+  bool get encerrada => status == 'C' || status == 'R' || status == 'X';
 }

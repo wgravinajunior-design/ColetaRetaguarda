@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../models/rota_model.dart';
+import '../repositories/rota_repository.dart';
 import '../viewmodels/rota_viewmodel.dart';
 import '../../coleta/screens/coleta_rotas_screen.dart';
 import '../../coleta/screens/adicionar_parada_screen.dart';
@@ -19,7 +20,31 @@ class RotaDetalheScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(rota.descricao), elevation: 0),
+      appBar: AppBar(
+        title: Text(rota.descricao),
+        elevation: 0,
+        actions: [
+          if (rota.status == 'CONCLUIDA')
+            TextButton.icon(
+              icon: const Icon(Icons.lock_open, color: Colors.white, size: 18),
+              label: const Text(
+                'Reabrir rota',
+                style: TextStyle(color: Colors.white),
+              ),
+              onPressed: () => _reabrirRota(context),
+            )
+          else
+            TextButton.icon(
+              icon: const Icon(Icons.flag, color: Colors.white, size: 18),
+              label: const Text(
+                'Finalizar rota',
+                style: TextStyle(color: Colors.white),
+              ),
+              onPressed: () => _finalizarRota(context),
+            ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -111,6 +136,131 @@ class RotaDetalheScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Encerra a rota, avisando antes se ficaram coletas em aberto.
+  ///
+  /// Fechar com coleta pendente deixa o produtor sem registro de atendimento
+  /// naquele dia — vale confirmar, mas não impedir: às vezes a rota acaba
+  /// mesmo com produtor não atendido.
+  Future<void> _finalizarRota(BuildContext context) async {
+    final repo = RotaRepository();
+    final id = rota.id;
+    if (id == null) return;
+
+    int emAberto;
+    try {
+      emAberto = await repo.coletasEmAberto(id);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Não foi possível verificar: $e')));
+      return;
+    }
+
+    if (!context.mounted) return;
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Finalizar rota'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Encerrar a rota "${rota.descricao}"?'),
+            if (emAberto > 0) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.orange.shade800,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '$emAberto coleta(s) ainda em aberto. Elas ficarão '
+                        'sem registro de atendimento neste dia.',
+                        style: const TextStyle(fontSize: 12.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.flag, size: 18),
+            label: const Text('Finalizar'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmou != true || !context.mounted) return;
+
+    await repo.finalizar(id);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Rota finalizada.'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    Navigator.of(context).pop(true);
+  }
+
+  /// Reabre uma rota concluída — para receber coleta remanejada ou desfazer um
+  /// encerramento indevido.
+  Future<void> _reabrirRota(BuildContext context) async {
+    final id = rota.id;
+    if (id == null) return;
+
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reabrir rota'),
+        content: Text(
+          'A rota "${rota.descricao}" volta para "em andamento" e poderá '
+          'receber coletas de novo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Reabrir'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmou != true || !context.mounted) return;
+
+    await RotaRepository().reabrir(id);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Rota reaberta.')));
+    Navigator.of(context).pop(true);
   }
 
   Future<void> _imprimirComprovante(BuildContext context) async {
@@ -468,6 +618,8 @@ class _ColetasSectionState extends State<_ColetasSection> {
       'E' => 'Em Andamento',
       'C' => 'Concluída',
       'R' => 'Recusada',
+      'A' => 'Adiada',
+      'X' => 'Cancelada',
       _ => 'Pendente',
     };
   }
@@ -477,6 +629,8 @@ class _ColetasSectionState extends State<_ColetasSection> {
       'E' => Colors.orange,
       'C' => Colors.green,
       'R' => Colors.red,
+      'A' => Colors.blue,
+      'X' => Colors.black54,
       _ => Colors.grey,
     };
   }

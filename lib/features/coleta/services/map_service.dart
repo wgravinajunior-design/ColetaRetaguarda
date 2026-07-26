@@ -3,7 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 class MapService {
-  static const String openStreetMapUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  static const String openStreetMapUrl =
+      'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   static const String openStreetMapAttr = '© OpenStreetMap contributors';
 
   static TileLayer getTileLayer({bool useOnline = true}) {
@@ -46,6 +47,10 @@ class MapService {
         return Colors.green;
       case 'R':
         return Colors.grey;
+      case 'A':
+        return Colors.blue;
+      case 'X':
+        return Colors.black54;
       default:
         return Colors.blue;
     }
@@ -61,6 +66,10 @@ class MapService {
         return '🟢';
       case 'R':
         return '⚫';
+      case 'A':
+        return '🔵';
+      case 'X':
+        return '⛔';
       default:
         return '⚪';
     }

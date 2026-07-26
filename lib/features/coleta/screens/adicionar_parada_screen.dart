@@ -121,18 +121,24 @@ class _AdicionarParadaScreenState extends State<AdicionarParadaScreen> {
 
   String _montarEnderecoCompleto() {
     final partes = <String>[];
-    if (_enderecoController.text.isNotEmpty) partes.add(_enderecoController.text);
-    if (_numeroController.text.isNotEmpty) partes.add('nº ${_numeroController.text}');
-    if (_complementoController.text.isNotEmpty) partes.add(_complementoController.text);
+    if (_enderecoController.text.isNotEmpty)
+      partes.add(_enderecoController.text);
+    if (_numeroController.text.isNotEmpty)
+      partes.add('nº ${_numeroController.text}');
+    if (_complementoController.text.isNotEmpty)
+      partes.add(_complementoController.text);
     if (_bairroController.text.isNotEmpty) partes.add(_bairroController.text);
-    if (_cepController.text.isNotEmpty) partes.add('CEP ${_cepController.text}');
+    if (_cepController.text.isNotEmpty)
+      partes.add('CEP ${_cepController.text}');
     return partes.join(', ');
   }
 
   Future<void> _salvarParada() async {
     if (_nomeController.text.isEmpty || _enderecoController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione um produtor ou preencha nome e endereço')),
+        const SnackBar(
+          content: Text('Selecione um produtor ou preencha nome e endereço'),
+        ),
       );
       return;
     }
@@ -149,8 +155,12 @@ class _AdicionarParadaScreenState extends State<AdicionarParadaScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final latitude = double.tryParse(_latitudeController.text.replaceAll(',', '.')) ?? -19.8157;
-      final longitude = double.tryParse(_longitudeController.text.replaceAll(',', '.')) ?? -43.9542;
+      final latitude =
+          double.tryParse(_latitudeController.text.replaceAll(',', '.')) ??
+          -19.8157;
+      final longitude =
+          double.tryParse(_longitudeController.text.replaceAll(',', '.')) ??
+          -43.9542;
 
       final novaParada = ParadaModel(
         rotaId: widget.rotaId,
@@ -173,9 +183,9 @@ class _AdicionarParadaScreenState extends State<AdicionarParadaScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -185,10 +195,7 @@ class _AdicionarParadaScreenState extends State<AdicionarParadaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Adicionar Parada'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Adicionar Parada'), elevation: 0),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -331,10 +338,15 @@ class _AdicionarParadaScreenState extends State<AdicionarParadaScreen> {
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       )
-                    : const Text('Salvar Parada', style: TextStyle(color: Colors.white)),
+                    : const Text(
+                        'Salvar Parada',
+                        style: TextStyle(color: Colors.white),
+                      ),
                 onPressed: _isLoading ? null : _salvarParada,
               ),
             ),
@@ -385,10 +397,7 @@ class _AdicionarParadaScreenState extends State<AdicionarParadaScreen> {
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: child,
-          ),
+          Padding(padding: const EdgeInsets.all(12), child: child),
         ],
       ),
     );
@@ -439,10 +448,16 @@ class _AdicionarParadaScreenState extends State<AdicionarParadaScreen> {
                   dense: true,
                   leading: CircleAvatar(
                     backgroundColor: Colors.blue.shade100,
-                    child: Icon(Icons.agriculture, color: Colors.blue.shade700, size: 20),
+                    child: Icon(
+                      Icons.agriculture,
+                      color: Colors.blue.shade700,
+                      size: 20,
+                    ),
                   ),
                   title: Text(
-                    p.rSocialNome.isNotEmpty ? p.rSocialNome : p.fantasiaApelido,
+                    p.rSocialNome.isNotEmpty
+                        ? p.rSocialNome
+                        : p.fantasiaApelido,
                     style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
                   subtitle: Text(

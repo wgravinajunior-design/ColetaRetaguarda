@@ -6,6 +6,7 @@ import '../auth/auth_service.dart';
 import '../core/config/config_service.dart';
 import '../core/widgets/sync_status_widget.dart';
 import '../core/window/window_service.dart';
+import '../../core/app_info.dart';
 
 class MainLayout extends StatelessWidget {
   final Widget child;
@@ -115,6 +116,19 @@ class MainLayout extends StatelessWidget {
                   ),
                 ),
                 const Divider(),
+                // Versão à vista no menu: é o que se confere primeiro quando
+                // se desconfia de que a atualização não chegou.
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    'Versão $appVersao',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
                 _MenuTile(
                   icon: Icons.logout,
                   title: 'Sair',
