@@ -134,7 +134,30 @@ class MainLayout extends StatelessWidget {
             child: Column(
               children: [
                 const SyncStatusWidget(),
-                Expanded(child: child),
+                Expanded(
+                  // A logo da empresa fica no canto inferior direito de toda
+                  // tela, apagada o bastante para não competir com o conteúdo.
+                  child: Stack(
+                    children: [
+                      Positioned.fill(child: child),
+                      if (logoPath.isNotEmpty && File(logoPath).existsSync())
+                        Positioned(
+                          right: 14,
+                          bottom: 10,
+                          child: IgnorePointer(
+                            child: Opacity(
+                              opacity: 0.13,
+                              child: Image.file(
+                                File(logoPath),
+                                height: 46,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

@@ -4,6 +4,7 @@ import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_multipart/shelf_multipart.dart';
+import '../app_info.dart';
 import '../logging/app_logger.dart';
 import '../../features/core/config/config_service.dart';
 import '../../features/core/database/db_connection.dart';
@@ -379,10 +380,15 @@ class ApiServer {
     return JwtService.validateToken(token);
   }
 
-  /// Health check
+  /// Health check. Devolve a versão em execução — assim dá para saber qual
+  /// retaguarda está atendendo sem abrir a interface da máquina.
   static shelf.Response _health(shelf.Request request) {
     return shelf.Response.ok(
-      _encodeJson({'status': 'ok', 'server': 'Coleta Retaguarda'}),
+      _encodeJson({
+        'status': 'ok',
+        'server': 'Coleta Retaguarda',
+        'versao': appVersao,
+      }),
       headers: {'Content-Type': 'application/json'},
     );
   }

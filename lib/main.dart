@@ -10,6 +10,7 @@ import 'features/core/database/sync_service.dart';
 import 'features/core/sync/sync_handlers.dart';
 import 'features/core/sync/sync_activity_overlay.dart';
 import 'core/update/verificador_atualizacao.dart';
+import 'core/app_info.dart';
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/main_layout.dart';
 import 'features/produtores/viewmodels/produtor_viewmodel.dart';
@@ -69,6 +70,10 @@ void main() async {
 }
 
 Future<void> _bootstrap() async {
+  // Versão vem do próprio pacote; precisa estar pronta antes de qualquer tela
+  // mostrá-la ou o verificador de atualização compará-la.
+  await AppInfo.carregar();
+
   // Abre a janela no modo login (pequena, centralizada) no desktop
   await WindowService.init();
 

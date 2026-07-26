@@ -354,7 +354,48 @@ class DialogoNovidades extends StatelessWidget {
       ),
       content: SizedBox(
         width: 520,
-        child: SingleChildScrollView(child: _NotasRelease(notas)),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Faixa com a build instalada: é a primeira pergunta de quem
+              // acabou de atualizar.
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.verified,
+                      size: 18,
+                      color: Colors.green.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Build $appVersao instalada',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade800,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              _NotasRelease(notas),
+            ],
+          ),
+        ),
       ),
       actions: [
         ElevatedButton(
