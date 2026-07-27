@@ -1015,8 +1015,8 @@ class FirebirdService {
     final rows = await db.selectAll(
       sql:
           '''
-        SELECT VEI_ID, VEI_PLACA, VEI_MARCA, VEI_MODELO, VEI_COR, VEI_TIPO,
-               VEI_RENAVAM, VEI_CHASSI, VEI_STATUS
+        SELECT VEI_ID, VEI_PLACA, VEI_DESCRICAO, VEI_MARCA, VEI_MODELO,
+               VEI_COR, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, VEI_STATUS
         FROM TB_VEICULO $filtro
         ORDER BY VEI_PLACA
       ''',
@@ -1027,6 +1027,7 @@ class FirebirdService {
           (r) => VeiculoModel(
             id: _toInt(r['VEI_ID']),
             placa: _toStr(r['VEI_PLACA']) ?? '',
+            descricao: _toStr(r['VEI_DESCRICAO']) ?? '',
             marca: _toStr(r['VEI_MARCA']) ?? '',
             modelo: _toStr(r['VEI_MODELO']) ?? '',
             cor: _toStr(r['VEI_COR']) ?? '',
@@ -1039,18 +1040,41 @@ class FirebirdService {
         .toList();
   }
 
+  /// Procura um veículo já cadastrado pela placa.
+  ///
+  /// É o que sustenta a consulta por placa das telas: em vez de cadastrar o
+  /// mesmo carro duas vezes, quem digita uma placa conhecida recebe o registro
+  /// que já existe na base e passa a editá-lo. A comparação ignora maiúsculas,
+  /// espaços e o hífero do padrão antigo (ABC-1234 acha ABC1234).
+  Future<VeiculoModel?> buscarVeiculoPorPlaca(String placa) async {
+    final alvo = normalizarPlaca(placa);
+    if (alvo.isEmpty) return null;
+    // O filtro roda em memória porque a base guarda a placa com formatações
+    // diferentes conforme a época do cadastro, e nenhum LIKE cobre todas.
+    final todos = await getVeiculos();
+    for (final v in todos) {
+      if (normalizarPlaca(v.placa) == alvo) return v;
+    }
+    return null;
+  }
+
+  /// Deixa a placa só com letras e números, em maiúsculas.
+  static String normalizarPlaca(String placa) =>
+      placa.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+
   Future<VeiculoModel?> criarVeiculo(VeiculoModel v) async {
     final db = await _db;
     final novoId = await _proximoId2('TB_VEICULO', 'VEI_ID');
     await db.execute(
       sql: '''
         INSERT INTO TB_VEICULO
-          (VEI_ID, VEI_EMPRESA, VEI_PLACA, VEI_MARCA, VEI_MODELO, VEI_COR, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, VEI_STATUS)
-        VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, 'A')
+          (VEI_ID, VEI_EMPRESA, VEI_PLACA, VEI_DESCRICAO, VEI_MARCA, VEI_MODELO, VEI_COR, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, VEI_STATUS)
+        VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 'A')
       ''',
       parameters: [
         novoId,
         v.placa,
+        v.descricao,
         v.marca,
         v.modelo,
         v.cor,
@@ -1069,12 +1093,14 @@ class FirebirdService {
     await db.execute(
       sql: '''
         UPDATE TB_VEICULO SET
-          VEI_PLACA = ?, VEI_MARCA = ?, VEI_MODELO = ?, VEI_COR = ?, VEI_TIPO = ?,
-          VEI_RENAVAM = ?, VEI_CHASSI = ?, VEI_STATUS = ?
+          VEI_PLACA = ?, VEI_DESCRICAO = ?, VEI_MARCA = ?, VEI_MODELO = ?,
+          VEI_COR = ?, VEI_TIPO = ?, VEI_RENAVAM = ?, VEI_CHASSI = ?,
+          VEI_STATUS = ?
         WHERE VEI_ID = ?
       ''',
       parameters: [
         v.placa,
+        v.descricao,
         v.marca,
         v.modelo,
         v.cor,

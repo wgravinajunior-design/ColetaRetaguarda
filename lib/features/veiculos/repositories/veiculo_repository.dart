@@ -11,9 +11,14 @@ class VeiculoRepository {
     return veiculos
         .where((v) =>
             v.placa.toLowerCase().contains(q) ||
+            v.descricao.toLowerCase().contains(q) ||
             v.marca.toLowerCase().contains(q) ||
             v.modelo.toLowerCase().contains(q))
         .toList();
+  }
+
+  Future<VeiculoModel?> buscarPorPlaca(String placa) async {
+    return await _firebird.buscarVeiculoPorPlaca(placa);
   }
 
   Future<VeiculoModel?> createVeiculo(VeiculoModel v) async {

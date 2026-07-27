@@ -1,6 +1,10 @@
 class VeiculoModel {
   int? id;
   String placa;
+
+  /// Nome pelo qual o carro é conhecido no dia a dia ("Caminhão 1", "Toco
+  /// branco"). Grava em VEI_DESCRICAO, coluna que a base do ERP já traz.
+  String descricao;
   String marca;
   String modelo;
   String cor;
@@ -15,7 +19,8 @@ class VeiculoModel {
   VeiculoModel({
     this.id,
     required this.placa,
-    required this.marca,
+    this.descricao = '',
+    this.marca = '',
     this.modelo = '',
     this.cor = '',
     this.ano = '',
@@ -31,6 +36,7 @@ class VeiculoModel {
     return VeiculoModel(
       id: json['VEI_ID'] as int?,
       placa: json['VEI_PLACA'] as String? ?? '',
+      descricao: json['VEI_DESCRICAO'] as String? ?? '',
       marca: json['VEI_MARCA'] as String? ?? '',
       modelo: json['VEI_MODELO'] as String? ?? '',
       cor: json['VEI_COR'] as String? ?? '',
@@ -52,6 +58,7 @@ class VeiculoModel {
     return {
       'VEI_ID': id,
       'VEI_PLACA': placa,
+      'VEI_DESCRICAO': descricao,
       'VEI_MARCA': marca,
       'VEI_MODELO': modelo,
       'VEI_COR': cor,
@@ -68,6 +75,7 @@ class VeiculoModel {
   VeiculoModel copyWith({
     int? id,
     String? placa,
+    String? descricao,
     String? marca,
     String? modelo,
     String? cor,
@@ -82,6 +90,7 @@ class VeiculoModel {
     return VeiculoModel(
       id: id ?? this.id,
       placa: placa ?? this.placa,
+      descricao: descricao ?? this.descricao,
       marca: marca ?? this.marca,
       modelo: modelo ?? this.modelo,
       cor: cor ?? this.cor,

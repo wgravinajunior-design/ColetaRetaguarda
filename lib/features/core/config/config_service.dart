@@ -2,6 +2,10 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:ini/ini.dart';
 import '../../../core/paths/app_paths.dart';
+// Import cruzado com db_connection (que lê esta configuração). O Dart resolve
+// sem problema: os dois são singletons preguiçosos, ninguém inicializa o outro
+// em tempo de carga.
+import '../database/db_connection.dart';
 
 class ConfigService extends ChangeNotifier {
   static final ConfigService _instance = ConfigService._internal();
@@ -30,7 +34,9 @@ class ConfigService extends ChangeNotifier {
 
       host = config.get('Database', 'Host') ?? 'localhost';
       porta = config.get('Database', 'Porta') ?? '3050';
-      caminhoBase = config.get('Database', 'CaminhoBase') ?? 'C:\\Dados\\COLETA\\DADOS.FDB';
+      caminhoBase =
+          config.get('Database', 'CaminhoBase') ??
+          'C:\\Dados\\COLETA\\DADOS.FDB';
       dbUsuario = config.get('Database', 'Usuario') ?? 'SYSDBA';
       dbSenha = config.get('Database', 'Senha') ?? 'masterkey';
       logoPath = config.get('App', 'LogoPath') ?? '';
@@ -55,12 +61,20 @@ class ConfigService extends ChangeNotifier {
     config.set('Database', 'CaminhoBase', caminhoBase);
     config.set('Database', 'Usuario', dbUsuario);
     config.set('Database', 'Senha', dbSenha);
-    
+
     config.addSection('App');
     config.set('App', 'LogoPath', logoPath);
-    
+
     final file = AppPaths.configFile;
     await file.writeAsString(config.toString());
+
+    // Descarta a conexão aberta: ela aponta para a base ANTERIOR e o
+    // DbConnection guarda em cache até alguém desconectar. Sem isto, trocar de
+    // base nas Configurações não tinha efeito — o sistema seguia consultando a
+    // primeira base a que se conectou, e o login não achava o usuário da base
+    // recém-escolhida.
+    await DbConnection().disconnect();
+
     notifyListeners();
   }
 

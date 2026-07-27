@@ -46,6 +46,8 @@ class ApiServer {
         ..put('/coleta/motoristas/<id>', _updateMotorista)
         ..delete('/coleta/motoristas/<id>', _deleteMotorista)
         ..get('/coleta/veiculos', _listVeiculos)
+        // Antes de /coleta/veiculos/<id>: senão "placa" cairia na rota do id.
+        ..get('/coleta/veiculos/placa/<placa>', _veiculoPorPlacaHandler)
         ..post('/coleta/veiculos', _createVeiculo)
         ..put('/coleta/veiculos/<id>', _updateVeiculo)
         ..delete('/coleta/veiculos/<id>', _deleteVeiculo)
@@ -1149,6 +1151,125 @@ class ApiServer {
 
   // ============ VEICULOS ============
 
+  /// Rótulo do veículo para o mobile.
+  ///
+  /// Vem de VEI_DESCRICAO, que é o nome dado ao carro no cadastro. Cadastros
+  /// antigos do ERP têm essa coluna vazia, e para esses ainda vale marca +
+  /// modelo — melhor do que mostrar uma linha em branco na escolha do veículo.
+  static String _rotuloVeiculo(dynamic row) {
+    final descricao = '${row['VEI_DESCRICAO'] ?? ''}'.trim();
+    if (descricao.isNotEmpty) return descricao;
+    return [row['VEI_MARCA'], row['VEI_MODELO']]
+        .where((e) => e != null && '$e'.trim().isNotEmpty)
+        .join(' ')
+        .trim();
+  }
+
+  /// Só letras e números, em maiúsculas — a base guarda placa com e sem hífen.
+  static String _normalizarPlaca(String placa) =>
+      placa.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+
+  /// Id do veículo com esta placa, ou nulo se não houver.
+  static Future<int?> _veiculoPorPlaca(dynamic db, String placa) async {
+    final alvo = _normalizarPlaca(placa);
+    if (alvo.isEmpty) return null;
+    final rows = await db.selectAll(
+      sql: 'SELECT VEI_ID, VEI_PLACA FROM TB_VEICULO',
+    );
+    for (final row in rows) {
+      if (_normalizarPlaca('${row['VEI_PLACA'] ?? ''}') == alvo) {
+        return row['VEI_ID'] as int?;
+      }
+    }
+    return null;
+  }
+
+  /// TB_VEICULO não tem generator nesta base; o id sai de MAX+1.
+  static Future<int> _proximoIdVeiculo(dynamic db) async {
+    final row = await db.selectOne(
+      sql: 'SELECT COALESCE(MAX(VEI_ID),0)+1 AS NID FROM TB_VEICULO',
+    );
+    return (row?['NID'] as int?) ?? 1;
+  }
+
+  /// Grava os campos de um veículo já existente. Usado tanto pelo PUT quanto
+  /// pelo POST que reencontrou a placa.
+  static Future<void> _gravarVeiculo(
+    dynamic db,
+    int veiId,
+    Map<String, dynamic> data,
+    String placa,
+  ) async {
+    await _withCursor(db, (query) => query.openCursor(
+      sql: 'UPDATE TB_VEICULO SET VEI_PLACA = ?, VEI_DESCRICAO = ?, '
+          'VEI_MARCA = ?, VEI_MODELO = ?, VEI_COR = ?, VEI_ANO_FAB = ?, '
+          'VEI_TIPO = ?, VEI_RENAVAM = ?, VEI_CHASSI = ? WHERE VEI_ID = ?',
+      parameters: [
+        placa,
+        '${data['descricao'] ?? ''}'.trim(),
+        data['marca'] ?? '',
+        data['modelo'] ?? '',
+        data['cor'] ?? '',
+        int.tryParse('${data['ano'] ?? ''}') ?? 0,
+        data['tipo'] ?? 'C',
+        data['renavam'] ?? '',
+        data['chassi'],
+        veiId,
+      ],
+    ));
+  }
+
+  /// `GET /coleta/veiculos/placa/<placa>` — consulta por placa para o mobile.
+  ///
+  /// Devolve 404 quando a placa não está cadastrada: é assim que o celular
+  /// sabe que pode seguir para um cadastro novo.
+  static Future<shelf.Response> _veiculoPorPlacaHandler(
+      shelf.Request request, String placa) async {
+    final tokenData = _validateBearerToken(request);
+    if (tokenData == null) {
+      return _errorResponse(401, 'Token inválido ou expirado');
+    }
+
+    try {
+      final alvo = _normalizarPlaca(Uri.decodeComponent(placa));
+      if (alvo.isEmpty) return _errorResponse(400, 'Placa inválida');
+
+      final db = await DbConnection().db;
+      final rows = await db.selectAll(
+        sql: 'SELECT VEI_ID, VEI_PLACA, VEI_DESCRICAO, VEI_MARCA, VEI_MODELO, '
+            'VEI_COR, VEI_ANO_FAB, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, '
+            'VEI_STATUS FROM TB_VEICULO',
+      );
+
+      for (final row in rows) {
+        if (_normalizarPlaca('${row['VEI_PLACA'] ?? ''}') != alvo) continue;
+        return shelf.Response.ok(
+          _encodeJson({
+            'success': true,
+            'data': {
+              'id': row['VEI_ID'],
+              'placa': row['VEI_PLACA'],
+              'descricao': _rotuloVeiculo(row),
+              'marca': row['VEI_MARCA'] ?? '',
+              'modelo': row['VEI_MODELO'] ?? '',
+              'cor': row['VEI_COR'] ?? '',
+              'ano': row['VEI_ANO_FAB'] ?? '',
+              'tipo': row['VEI_TIPO'] ?? 'C',
+              'renavam': row['VEI_RENAVAM'] ?? '',
+              'chassi': row['VEI_CHASSI'],
+              'status': row['VEI_STATUS'] == 'A' ? 'ATIVO' : 'INATIVO',
+            },
+          }),
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
+
+      return _errorResponse(404, 'Placa não cadastrada');
+    } catch (e) {
+      return _errorResponse(500, 'Erro ao consultar placa: $e');
+    }
+  }
+
   static Future<shelf.Response> _listVeiculos(shelf.Request request) async {
     final tokenData = _validateBearerToken(request);
     if (tokenData == null) {
@@ -1159,8 +1280,9 @@ class ApiServer {
       final db = await DbConnection().db;
       final items = await _withCursor(db, (query) async {
         await query.openCursor(
-          sql: 'SELECT VEI_ID, VEI_PLACA, VEI_MARCA, VEI_MODELO, VEI_COR, '
-              'VEI_ANO_FAB, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, VEI_STATUS '
+          sql: 'SELECT VEI_ID, VEI_PLACA, VEI_DESCRICAO, VEI_MARCA, '
+              'VEI_MODELO, VEI_COR, VEI_ANO_FAB, VEI_TIPO, VEI_RENAVAM, '
+              'VEI_CHASSI, VEI_STATUS '
               'FROM TB_VEICULO WHERE VEI_STATUS = \'A\' '
               'ORDER BY VEI_PLACA',
         );
@@ -1171,11 +1293,7 @@ class ApiServer {
             'placa': row['VEI_PLACA'],
             'marca': row['VEI_MARCA'] ?? '',
             'modelo': row['VEI_MODELO'] ?? '',
-            // Campo que o app mobile usa como rótulo do veículo (marca + modelo).
-            'descricao': [row['VEI_MARCA'], row['VEI_MODELO']]
-                .where((e) => e != null && '$e'.trim().isNotEmpty)
-                .join(' ')
-                .trim(),
+            'descricao': _rotuloVeiculo(row),
             'cor': row['VEI_COR'] ?? '',
             'ano': row['VEI_ANO_FAB'] ?? '',
             'tipo': row['VEI_TIPO'] ?? 'C',
@@ -1208,35 +1326,53 @@ class ApiServer {
         return _errorResponse(400, 'Corpo inválido: esperado JSON de objeto');
       }
 
+      final placa = '${data['placa'] ?? ''}'.trim().toUpperCase();
+      if (placa.isEmpty) {
+        return _errorResponse(400, 'Informe a placa do veículo');
+      }
+
       final db = await DbConnection().db;
-      final id = await _withCursor(db, (query) async {
-        await query.openCursor(
-          sql: 'INSERT INTO TB_VEICULO (VEI_PLACA, VEI_MARCA, VEI_MODELO, '
-              'VEI_COR, VEI_ANO_FAB, VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, '
-              'VEI_STATUS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) '
-              'RETURNING VEI_ID',
-          parameters: [
-            data['placa'] ?? '',
-            data['marca'] ?? '',
-            data['modelo'] ?? '',
-            data['cor'] ?? '',
-            int.tryParse('${data['ano'] ?? ''}') ?? 0,
-            data['tipo'] ?? 'C',
-            data['renavam'] ?? '',
-            data['chassi'],
-            'A',
-          ],
-        );
-        var v = 0;
-        await for (var row in query.rows()) {
-          v = row['VEI_ID'] ?? 0;
-          break;
-        }
-        return v;
-      });
+
+      // Placa repetida vira alteração do que já existe. Sem isto, cada vez que
+      // alguém cadastrasse o mesmo carro no celular nasceria outro registro, e
+      // a lista de veículos da rota encheria de duplicados.
+      final existente = await _veiculoPorPlaca(db, placa);
+      if (existente != null) {
+        await _gravarVeiculo(db, existente, data, placa);
+        return shelf.Response.ok(
+            _encodeJson({
+              'success': true,
+              'id': existente,
+              'atualizado': true,
+              'mensagem': 'Placa já cadastrada: o veículo foi atualizado.',
+            }),
+            headers: {'Content-Type': 'application/json'});
+      }
+
+      // TB_VEICULO não tem generator: o id sai de MAX+1, igual ao que a
+      // retaguarda faz nos cadastros pela tela.
+      final novoId = await _proximoIdVeiculo(db);
+      await _withCursor(db, (query) => query.openCursor(
+        sql: 'INSERT INTO TB_VEICULO (VEI_ID, VEI_EMPRESA, VEI_PLACA, '
+            'VEI_DESCRICAO, VEI_MARCA, VEI_MODELO, VEI_COR, VEI_ANO_FAB, '
+            'VEI_TIPO, VEI_RENAVAM, VEI_CHASSI, VEI_STATUS) '
+            'VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'A\')',
+        parameters: [
+          novoId,
+          placa,
+          '${data['descricao'] ?? ''}'.trim(),
+          data['marca'] ?? '',
+          data['modelo'] ?? '',
+          data['cor'] ?? '',
+          int.tryParse('${data['ano'] ?? ''}') ?? 0,
+          data['tipo'] ?? 'C',
+          data['renavam'] ?? '',
+          data['chassi'],
+        ],
+      ));
 
       return shelf.Response(201,
-          body: _encodeJson({'success': true, 'id': id}),
+          body: _encodeJson({'success': true, 'id': novoId}),
           headers: {'Content-Type': 'application/json'});
     } catch (e) {
       return _errorResponse(500, 'Erro ao criar veículo: $e');
@@ -1262,22 +1398,12 @@ class ApiServer {
       }
 
       final db = await DbConnection().db;
-      await _withCursor(db, (query) => query.openCursor(
-        sql: 'UPDATE TB_VEICULO SET VEI_PLACA = ?, VEI_MARCA = ?, '
-            'VEI_MODELO = ?, VEI_COR = ?, VEI_ANO_FAB = ?, VEI_TIPO = ?, '
-            'VEI_RENAVAM = ?, VEI_CHASSI = ? WHERE VEI_ID = ?',
-        parameters: [
-          data['placa'] ?? '',
-          data['marca'] ?? '',
-          data['modelo'] ?? '',
-          data['cor'] ?? '',
-          int.tryParse('${data['ano'] ?? ''}') ?? 0,
-          data['tipo'] ?? 'C',
-          data['renavam'] ?? '',
-          data['chassi'],
-          veiId,
-        ],
-      ));
+      await _gravarVeiculo(
+        db,
+        veiId,
+        data,
+        '${data['placa'] ?? ''}'.trim().toUpperCase(),
+      );
 
       return shelf.Response.ok(
           _encodeJson({'success': true}),

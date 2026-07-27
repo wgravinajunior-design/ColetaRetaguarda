@@ -26,6 +26,11 @@ class VeiculoViewModel extends BaseViewModel<VeiculoModel> {
     }
   }
 
+  /// Consulta a placa na própria base. Devolve o veículo já cadastrado, ou
+  /// nulo se a placa ainda não existir.
+  Future<VeiculoModel?> buscarPorPlaca(String placa) =>
+      _repository.buscarPorPlaca(placa);
+
   Future<bool> createVeiculo(VeiculoModel v) async {
     setLoading();
     try {
