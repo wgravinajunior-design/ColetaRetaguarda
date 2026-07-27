@@ -441,50 +441,52 @@ class _RelatorioDetalheScreenState extends State<RelatorioDetalheScreen> {
     }
 
     // Rolagem nos dois eixos: relatórios largos não cabem na janela.
-    return Scrollbar(
+    //
+    // Sem Scrollbar explícito aqui: o app inteiro já ganha barra pelo
+    // scrollBehavior (core/ui/rolagem.dart), e embrulhar de novo desenharia
+    // duas barras sobrepostas.
+    return SingleChildScrollView(
       child: SingleChildScrollView(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minWidth: MediaQuery.of(context).size.width - 32,
-            ),
-            child: DataTable(
-              headingRowColor: WidgetStatePropertyAll(Colors.blueGrey.shade50),
-              columnSpacing: 26,
-              headingRowHeight: 40,
-              dataRowMinHeight: 34,
-              dataRowMaxHeight: 44,
-              columns: r.colunas
-                  .map(
-                    (c) => DataColumn(
-                      numeric: c.alinhaDireita,
-                      label: Text(
-                        c.titulo,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12.5,
-                        ),
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: MediaQuery.of(context).size.width - 32,
+          ),
+          child: DataTable(
+            headingRowColor: WidgetStatePropertyAll(Colors.blueGrey.shade50),
+            columnSpacing: 26,
+            headingRowHeight: 40,
+            dataRowMinHeight: 34,
+            dataRowMaxHeight: 44,
+            columns: r.colunas
+                .map(
+                  (c) => DataColumn(
+                    numeric: c.alinhaDireita,
+                    label: Text(
+                      c.titulo,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.5,
                       ),
                     ),
-                  )
-                  .toList(),
-              rows: r.linhas
-                  .map(
-                    (linha) => DataRow(
-                      cells: [
-                        for (var i = 0; i < linha.length; i++)
-                          DataCell(
-                            Text(
-                              linha[i],
-                              style: const TextStyle(fontSize: 12.5),
-                            ),
+                  ),
+                )
+                .toList(),
+            rows: r.linhas
+                .map(
+                  (linha) => DataRow(
+                    cells: [
+                      for (var i = 0; i < linha.length; i++)
+                        DataCell(
+                          Text(
+                            linha[i],
+                            style: const TextStyle(fontSize: 12.5),
                           ),
-                      ],
-                    ),
-                  )
-                  .toList(),
-            ),
+                        ),
+                    ],
+                  ),
+                )
+                .toList(),
           ),
         ),
       ),

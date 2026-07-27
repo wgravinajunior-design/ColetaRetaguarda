@@ -21,6 +21,7 @@ import 'features/motoristas/screens/motorista_form_screen.dart';
 import 'features/financeiro/viewmodels/financeiro_viewmodel.dart';
 import 'features/financeiro/screens/financeiro_list_screen.dart';
 import 'features/financeiro/screens/financeiro_form_screen.dart';
+import 'core/ui/rolagem.dart';
 import 'features/usuarios/usuario_list_screen.dart';
 import 'features/veiculos/screens/veiculo_list_screen.dart';
 import 'features/veiculos/screens/veiculo_form_screen.dart';
@@ -339,6 +340,9 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
       darkTheme: AppTheme.getDarkTheme(),
       themeMode: _appTheme.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       routerConfig: router,
+      // Barra de rolagem à vista em toda tela que rola, sem cada uma precisar
+      // pedir. Ver core/ui/rolagem.dart.
+      scrollBehavior: const RolagemSempreVisivel(),
       // A checagem de versão NÃO entra aqui: o contexto do builder fica acima
       // do Navigator, e showDialog a partir dele falha em silêncio. Quem chama
       // é a tela de login.

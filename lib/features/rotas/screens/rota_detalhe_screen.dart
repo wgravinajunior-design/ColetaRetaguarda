@@ -461,16 +461,34 @@ class _BotaoAcaoPequeno extends StatelessWidget {
   }
 }
 
-class _DetalhesBottomSheet extends StatelessWidget {
+class _DetalhesBottomSheet extends StatefulWidget {
   final RotaModel rota;
 
   const _DetalhesBottomSheet({required this.rota});
 
   @override
+  State<_DetalhesBottomSheet> createState() => _DetalhesBottomSheetState();
+}
+
+class _DetalhesBottomSheetState extends State<_DetalhesBottomSheet> {
+  /// Controlador próprio: com a folha aberta, a tela por baixo continua
+  /// rolável, e as duas dividiriam o controlador principal. A barra de rolagem
+  /// então não saberia qual das duas está mostrando.
+  final _rolagem = ScrollController();
+
+  @override
+  void dispose() {
+    _rolagem.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final rota = widget.rota;
     return Container(
       padding: const EdgeInsets.all(16),
       child: SingleChildScrollView(
+        controller: _rolagem,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
