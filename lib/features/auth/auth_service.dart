@@ -53,25 +53,65 @@ class AuthService extends ChangeNotifier {
         debugPrint('[Login] Username: "$cleanUsername" | Password: "$cleanPassword"');
       }
 
-      // Consulta na TB_USUARIO com senha em texto plano
+      // Consulta na TB_USUARIO com senha em texto plano.
+      //
+      // A comparação é feita aqui, e não no WHERE, porque a TB_USUARIO vem do
+      // ERP e cada instalação preencheu essas colunas à sua maneira:
+      //
+      //   - o login pode estar em qualquer caixa (JOAO, joao, João);
+      //   - login e senha costumam vir com espaços à direita, porque a coluna
+      //     é CHAR de tamanho fixo;
+      //   - USU_STATUS em branco é comum em cadastro antigo, e tratá-lo como
+      //     inativo trancava do lado de fora um usuário perfeitamente válido.
+      //
+      // O WHERE antigo exigia igualdade exata e USU_STATUS = 'A', então só
+      // entrava quem tivesse sido cadastrado exatamente daquele jeito.
       await q.openCursor(
-        sql: "SELECT USU_ID, USU_NOME, USU_PERFIL FROM TB_USUARIO "
-             "WHERE USU_LOGIN = ? AND USU_SENHA = ? AND USU_STATUS = 'A'",
-        parameters: [cleanUsername, cleanPassword],
+        sql: 'SELECT USU_ID, USU_NOME, USU_LOGIN, USU_SENHA, '
+             'USU_ADMINISTRADOR, USU_STATUS FROM TB_USUARIO',
       );
 
       bool validLogin = false;
+      bool achouLogin = false;
+      bool inativo = false;
       String? nomeEncontrado;
       String? perfilEncontrado;
 
+      String texto(dynamic v) => v == null ? '' : '$v'.trim();
+
       await for (var row in q.rows()) {
+        if (texto(row['USU_LOGIN']).toLowerCase() !=
+            cleanUsername.toLowerCase()) {
+          continue;
+        }
+        achouLogin = true;
+        if (texto(row['USU_SENHA']) != cleanPassword) continue;
+
+        final status = texto(row['USU_STATUS']).toUpperCase();
+        if (status == 'I') {
+          inativo = true;
+          break;
+        }
+
         validLogin = true;
-        nomeEncontrado = row['USU_NOME'];
-        perfilEncontrado = row['USU_PERFIL'];
+        nomeEncontrado = texto(row['USU_NOME']);
+        // O perfil vem de USU_ADMINISTRADOR ('S'/'N'), e não de USU_PERFIL:
+        // nesta base USU_PERFIL é INTEGER — o código do grupo de permissões do
+        // ERP —, então lê-lo como rótulo dava "1" e ninguém era reconhecido
+        // como administrador. As telas de cadastro ficavam trancadas para
+        // todo mundo.
+        perfilEncontrado = texto(row['USU_ADMINISTRADOR']).toUpperCase() == 'S'
+            ? 'Administrador'
+            : 'Operador';
         break;
       }
 
       await q.close();
+
+      if (inativo) {
+        _logger.warning('AuthService', 'Login de usuário inativo: $cleanUsername');
+        return 'Este usuário está inativo. Peça para reativá-lo em Usuários.';
+      }
 
       if (validLogin) {
         final prefs = await SharedPreferences.getInstance();
@@ -95,7 +135,12 @@ class AuthService extends ChangeNotifier {
         // Registra tentativa falhada
         await _rateLimiter.recordFailedAttempt(cleanUsername);
         _logger.warning('AuthService', 'Failed login attempt for user: $cleanUsername');
-        return 'Usuário ou senha inválidos';
+        // Distinguir os dois casos poupa muita adivinhação: "senha incorreta"
+        // diz que a base é a certa e o usuário existe; "não encontrado" quase
+        // sempre é base errada nas Configurações.
+        return achouLogin
+            ? 'Senha incorreta.'
+            : 'Usuário "$cleanUsername" não existe nesta base.';
       }
     } catch (e) {
       _logger.error('AuthService', 'Database error during login: $e');

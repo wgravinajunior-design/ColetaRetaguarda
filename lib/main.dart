@@ -21,6 +21,7 @@ import 'features/motoristas/screens/motorista_form_screen.dart';
 import 'features/financeiro/viewmodels/financeiro_viewmodel.dart';
 import 'features/financeiro/screens/financeiro_list_screen.dart';
 import 'features/financeiro/screens/financeiro_form_screen.dart';
+import 'features/usuarios/usuario_list_screen.dart';
 import 'features/veiculos/screens/veiculo_list_screen.dart';
 import 'features/veiculos/screens/veiculo_form_screen.dart';
 import 'features/rotas/screens/rota_list_screen.dart';
@@ -249,6 +250,10 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
                   ),
                 ),
               ],
+            ),
+            GoRoute(
+              path: '/usuarios',
+              builder: (context, state) => const UsuarioListScreen(),
             ),
             GoRoute(
               path: '/veiculos',

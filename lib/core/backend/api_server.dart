@@ -416,16 +416,34 @@ class ApiServer {
       String nome = '';
       String perfil = 'OPERADOR';
 
+      // Mesma tolerância do login da retaguarda: a TB_USUARIO vem do ERP e
+      // cada instalação preencheu essas colunas de um jeito. Comparar no WHERE
+      // com igualdade exata e exigir USU_STATUS = 'A' deixava de fora quem
+      // tivesse o login em outra caixa, espaços à direita (a coluna é CHAR de
+      // tamanho fixo) ou o status em branco, comum em cadastro antigo.
+      String texto(dynamic v) => v == null ? '' : '$v'.trim();
+      final loginProcurado = login.trim().toLowerCase();
+      final senhaInformada = senha.trim();
+
       await _withCursor(db, (query) async {
         await query.openCursor(
-          sql: 'SELECT USU_ID, USU_NOME, USU_PERFIL FROM TB_USUARIO '
-              'WHERE USU_LOGIN = ? AND USU_SENHA = ? AND USU_STATUS = \'A\'',
-          parameters: [login, senha],
+          sql: 'SELECT USU_ID, USU_NOME, USU_LOGIN, USU_SENHA, '
+              'USU_ADMINISTRADOR, USU_STATUS FROM TB_USUARIO',
         );
         await for (var row in query.rows()) {
+          if (texto(row['USU_LOGIN']).toLowerCase() != loginProcurado) continue;
+          if (texto(row['USU_SENHA']) != senhaInformada) continue;
+          if (texto(row['USU_STATUS']).toUpperCase() == 'I') continue;
+
           found = true;
-          nome = row['USU_NOME'];
-          perfil = row['USU_PERFIL'] ?? 'OPERADOR';
+          nome = texto(row['USU_NOME']);
+          // Vem de USU_ADMINISTRADOR ('S'/'N'). USU_PERFIL nesta base é
+          // INTEGER — código do grupo de permissões do ERP —, então lê-lo
+          // como rótulo devolvia "1" e ninguém era administrador no celular:
+          // os cadastros ficavam bloqueados para todos.
+          perfil = texto(row['USU_ADMINISTRADOR']).toUpperCase() == 'S'
+              ? 'ADMINISTRADOR'
+              : 'OPERADOR';
           break;
         }
       });

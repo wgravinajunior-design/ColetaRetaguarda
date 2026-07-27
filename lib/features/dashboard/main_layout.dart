@@ -112,6 +112,12 @@ class MainLayout extends StatelessWidget {
                         color: Colors.indigo,
                         onTap: () => context.go('/sync'),
                       ),
+                      _MenuTile(
+                        icon: Icons.manage_accounts,
+                        title: 'Usuários',
+                        color: Colors.blueGrey,
+                        onTap: () => context.go('/usuarios'),
+                      ),
                     ],
                   ),
                 ),
