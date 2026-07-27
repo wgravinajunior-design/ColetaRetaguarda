@@ -63,6 +63,23 @@ foreach ($dll in @('msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
     Write-Host "    $dll" -ForegroundColor Green
 }
 
+# Ponte para instalacoes anteriores a 2.10.0
+#
+# Ate a 2.9.2 o pacote instalava tambem um executavel com o nome da versao
+# (ColetaRetaguarda-v2.9.2.exe), e e esse que o usuario abre pelo atalho. O
+# atualizador daquela versao apenas extrai o pacote por cima e reabre o mesmo
+# arquivo -- entao, se o pacote novo nao trouxer aquele nome, o atalho continua
+# abrindo o build velho, que detecta a atualizacao outra vez. O sistema ficava
+# em laco, baixando a mesma versao para sempre.
+#
+# A copia abaixo quebra o laco: o atalho antigo passa a abrir o build novo. A
+# partir da 2.10.0 o proprio atualizador sobrescreve o executavel em uso seja
+# qual for o nome, entao isto pode sair quando ninguem mais estiver em 2.9.x.
+foreach ($legado in @('ColetaRetaguarda-v2.9.2.exe')) {
+    Copy-Item "$saida\flutter_retaguarda.exe" "$saida\$legado" -Force
+    Write-Host "    $legado (ponte para instalacoes 2.9.x)" -ForegroundColor Yellow
+}
+
 # Confere que nada essencial ficou de fora
 $obrigatorios = @(
     'flutter_retaguarda.exe', 'flutter_windows.dll', 'sqlite3.dll',

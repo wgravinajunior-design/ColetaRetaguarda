@@ -128,6 +128,9 @@ class UpdateService {
     }
   }
 
+  /// Nome do executável que o pacote de atualização sempre traz.
+  static const _exeDoPacote = 'flutter_retaguarda.exe';
+
   /// Aplica a atualização e reinicia o aplicativo.
   ///
   /// O Windows não deixa sobrescrever um executável em uso, então quem troca os
@@ -136,10 +139,14 @@ class UpdateService {
   static Future<void> aplicar(File pacote) async {
     final pastaInstalacao = File(Platform.resolvedExecutable).parent.path;
     final exe = Platform.resolvedExecutable;
+    final nomeExe = p.basename(exe);
     final pid = pid_();
+    final log = p.join(Directory.systemTemp.path, 'coleta-atualizacao.log');
 
     final bat = File(p.join(Directory.systemTemp.path, 'coleta-atualizar.bat'));
 
+    // O `>>"$log" 2>&1` em cada passo existe porque esta janela some em um
+    // segundo: sem registro, uma falha aqui vira "atualizei e nada aconteceu".
     await bat.writeAsString('''
 @echo off
 rem Espera o Coleta fechar antes de trocar os arquivos.
@@ -149,9 +156,24 @@ if not errorlevel 1 (
   timeout /t 1 /nobreak >nul
   goto aguardar
 )
-powershell -NoProfile -Command "Expand-Archive -LiteralPath '${pacote.path}' -DestinationPath '$pastaInstalacao' -Force"
+echo [%date% %time%] extraindo $pacote em $pastaInstalacao>>"$log"
+powershell -NoProfile -Command "Expand-Archive -LiteralPath '${pacote.path}' -DestinationPath '$pastaInstalacao' -Force">>"$log" 2>&1
+
+rem Instalacoes antigas abrem um executavel com o nome da versao
+rem (ColetaRetaguarda-v2.9.2.exe), mas o pacote so traz o nome padrao. Sem esta
+rem copia o atalho seguiria abrindo o build velho, que detectaria a atualizacao
+rem de novo -- o sistema ficava em um laco, atualizando para sempre.
+if /I not "$nomeExe"=="$_exeDoPacote" (
+  echo [%date% %time%] copiando $_exeDoPacote sobre $nomeExe>>"$log"
+  copy /Y "$pastaInstalacao\\$_exeDoPacote" "$exe">>"$log" 2>&1
+)
+
+echo [%date% %time%] reabrindo $exe>>"$log"
 start "" "$exe"
-del "%~f0"
+
+rem Sai antes de apagar: apagar o .bat que ainda esta sendo lido faz o cmd
+rem reclamar "Nao e possivel encontrar o arquivo em lotes" na cara do usuario.
+(goto) 2>nul & del "%~f0"
 ''');
 
     await Process.start(
