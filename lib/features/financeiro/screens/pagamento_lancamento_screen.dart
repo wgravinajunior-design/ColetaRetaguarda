@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/pagamento_model.dart';
-import '../models/movimento_model.dart';
 
 /// Tela de Lançamento de Pagamentos
 /// Permite registrar depósitos do laticínio e folha de pagamento
@@ -12,7 +11,8 @@ class PagamentoLancamentoScreen extends StatefulWidget {
       _PagamentoLancamentoScreenState();
 }
 
-class _PagamentoLancamentoScreenState extends State<PagamentoLancamentoScreen> {
+class _PagamentoLancamentoScreenState extends State<PagamentoLancamentoScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _formKey = GlobalKey<FormState>();
 
@@ -24,9 +24,6 @@ class _PagamentoLancamentoScreenState extends State<PagamentoLancamentoScreen> {
   // Folha de Pagamento
   late TextEditingController _folhaDataController;
   late TextEditingController _folhaObsController;
-
-  List<ItemPagamentoModel> _itensDepositoSelecionados = [];
-  List<ItemPagamentoModel> _itensFolhaSelecionados = [];
 
   @override
   void initState() {
