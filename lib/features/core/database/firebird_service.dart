@@ -131,6 +131,7 @@ class FirebirdService {
                P.PES_COMPLEMENTO, P.PES_BAIRRO, P.PES_CEP, P.PES_STATUS,
                P.PES_TELEFONE, P.PES_CELULAR, P.PES_EMAIL,
                P.PES_LATITUDE, P.PES_LONGITUDE, P.PES_HR_COLETA, P.PES_KM, P.PES_VOLUME_MEDIO,
+               P.PES_PRECO_LITRO,
                P.PES_ID_RESFRIADOR, R.RES_NUMERO_ID, R.RES_MARCA_MODELO
         FROM TB_PESSOA P
         LEFT JOIN TB_RESFRIADOR R ON R.RES_ID = P.PES_ID_RESFRIADOR
@@ -236,6 +237,7 @@ class FirebirdService {
       horarioColeta: _toStr(r['PES_HR_COLETA']),
       km: _toDouble(r['PES_KM']),
       volumeMedio: _toDouble(r['PES_VOLUME_MEDIO']),
+      precoLitro: _toDouble(r['PES_PRECO_LITRO']),
       resfriadorId: _toInt(r['PES_ID_RESFRIADOR']),
       resfriadorNome: resNome,
     );
@@ -703,8 +705,9 @@ class FirebirdService {
            PES_ENDERECO, PES_NUMERO, PES_COMPLEMENTO, PES_BAIRRO, PES_CEP,
            PES_TELEFONE, PES_CELULAR, PES_EMAIL,
            PES_LATITUDE, PES_LONGITUDE, PES_HR_COLETA, PES_KM, PES_VOLUME_MEDIO, PES_ID_RESFRIADOR,
+           PES_PRECO_LITRO,
            PES_STATUS, PES_FORNECEDOR, PES_DT_CADASTRO)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'A', 'S', CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'A', 'S', CURRENT_TIMESTAMP)
       ''',
       parameters: [
         novoId,
@@ -726,6 +729,7 @@ class FirebirdService {
         p.km,
         p.volumeMedio,
         p.resfriadorId,
+        p.precoLitro,
       ],
     );
     p.id = novoId;
@@ -755,6 +759,7 @@ class FirebirdService {
           PES_KM = ?,
           PES_VOLUME_MEDIO = ?,
           PES_ID_RESFRIADOR = ?,
+          PES_PRECO_LITRO = ?,
           PES_STATUS = ?,
           PES_FORNECEDOR = 'S'
         WHERE PES_ID = ?
@@ -777,6 +782,7 @@ class FirebirdService {
         p.km,
         p.volumeMedio,
         p.resfriadorId,
+        p.precoLitro,
         p.status.isEmpty ? 'A' : p.status,
         p.id,
       ],

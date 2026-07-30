@@ -151,6 +151,59 @@ class FirebirdSchemaService {
         ColunaEsperada('PES_KM', 'NUMERIC(15,2)'),
         ColunaEsperada('PES_VOLUME_MEDIO', 'NUMERIC(15,2)'),
         ColunaEsperada('PES_ID_RESFRIADOR', 'INTEGER'),
+        // Quanto se paga por litro a este produtor. É o que transforma os
+        // litros coletados no período em dinheiro na folha de pagamento.
+        ColunaEsperada('PES_PRECO_LITRO', 'NUMERIC(15,4)'),
+      ],
+    ),
+
+    // Pagamentos aos produtores. O prefixo COLETAS_ não é enfeite: a base do
+    // ERP já tem TB_PAGAMENTO e TB_PAGAMENTO_ITEM, que são dele e nada têm a
+    // ver com leite — criar com esse nome faria a atualização de schema
+    // acrescentar colunas da coleta nas tabelas de pagamento do ERP.
+    TabelaEsperada(
+      nome: 'COLETAS_PAGAMENTO',
+      chave: 'PAG_ID',
+      colunas: [
+        ColunaEsperada('PAG_ID', 'INTEGER NOT NULL'),
+        // 'DEPOSITO' (entrada do laticínio) ou 'FOLHA' (repasse aos produtores)
+        ColunaEsperada('PAG_TIPO', 'VARCHAR(20)'),
+        ColunaEsperada('PAG_DT_INICIO', 'DATE'),
+        ColunaEsperada('PAG_DT_FIM', 'DATE'),
+        ColunaEsperada('PAG_VALOR_TOTAL', 'NUMERIC(15,2)'),
+        ColunaEsperada('PAG_OBSERVACAO', 'VARCHAR(500)'),
+        ColunaEsperada('PAG_DT_LANCAMENTO', 'TIMESTAMP'),
+      ],
+    ),
+    TabelaEsperada(
+      nome: 'COLETAS_PAGAMENTO_ITEM',
+      chave: 'ITE_ID',
+      colunas: [
+        ColunaEsperada('ITE_ID', 'INTEGER NOT NULL'),
+        ColunaEsperada('ITE_PAGAMENTO_ID', 'INTEGER'),
+        ColunaEsperada('ITE_PRODUTOR_ID', 'INTEGER'),
+        // Guardados no fechamento, e não recalculados depois: preço e volume
+        // mudam, e uma folha fechada tem de continuar batendo com o que foi
+        // pago na época.
+        ColunaEsperada('ITE_LITROS', 'NUMERIC(15,2)'),
+        ColunaEsperada('ITE_PRECO_LITRO', 'NUMERIC(15,4)'),
+        ColunaEsperada('ITE_VALOR_BRUTO', 'NUMERIC(15,2)'),
+        ColunaEsperada('ITE_DESCONTOS', 'NUMERIC(15,2)'),
+        ColunaEsperada('ITE_VALOR_LIQUIDO', 'NUMERIC(15,2)'),
+      ],
+    ),
+    TabelaEsperada(
+      nome: 'COLETAS_DESCONTO',
+      chave: 'DSC_ID',
+      colunas: [
+        ColunaEsperada('DSC_ID', 'INTEGER NOT NULL'),
+        ColunaEsperada('DSC_PRODUTOR_ID', 'INTEGER'),
+        ColunaEsperada('DSC_DATA', 'DATE'),
+        ColunaEsperada('DSC_VALOR', 'NUMERIC(15,2)'),
+        ColunaEsperada('DSC_DESCRICAO', 'VARCHAR(200)'),
+        // Preenchido quando o desconto entra numa folha. Em branco, ainda está
+        // em aberto e será somado no próximo fechamento.
+        ColunaEsperada('DSC_PAGAMENTO_ID', 'INTEGER'),
       ],
     ),
 

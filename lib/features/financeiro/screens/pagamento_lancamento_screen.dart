@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
-import '../models/pagamento_model.dart';
+import 'package:intl/intl.dart';
+import '../../produtores/models/pessoa_model.dart';
+import '../../produtores/repositories/pessoa_repository.dart';
+import '../pagamento_service.dart';
 
-/// Tela de Lançamento de Pagamentos
-/// Permite registrar depósitos do laticínio e folha de pagamento
+final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+final _dataBr = DateFormat('dd/MM/yyyy');
+
+/// Pagamentos aos produtores: o depósito que o laticínio faz, a folha que
+/// repassa o leite a cada produtor, e os descontos que entram nela.
 class PagamentoLancamentoScreen extends StatefulWidget {
   const PagamentoLancamentoScreen({super.key});
 
@@ -13,41 +19,17 @@ class PagamentoLancamentoScreen extends StatefulWidget {
 
 class _PagamentoLancamentoScreenState extends State<PagamentoLancamentoScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  final _formKey = GlobalKey<FormState>();
-
-  // Depósito
-  late TextEditingController _depositoController;
-  late TextEditingController _dataDepositoController;
-  late TextEditingController _obsDepositoController;
-
-  // Folha de Pagamento
-  late TextEditingController _folhaDataController;
-  late TextEditingController _folhaObsController;
+  late final TabController _tabs;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _depositoController = TextEditingController();
-    _dataDepositoController = TextEditingController(
-      text: DateTime.now().toString().split(' ')[0],
-    );
-    _obsDepositoController = TextEditingController();
-    _folhaDataController = TextEditingController(
-      text: DateTime.now().toString().split(' ')[0],
-    );
-    _folhaObsController = TextEditingController();
+    _tabs = TabController(length: 4, vsync: this);
   }
 
   @override
   void dispose() {
-    _depositoController.dispose();
-    _dataDepositoController.dispose();
-    _obsDepositoController.dispose();
-    _folhaDataController.dispose();
-    _folhaObsController.dispose();
-    _tabController.dispose();
+    _tabs.dispose();
     super.dispose();
   }
 
@@ -55,420 +37,838 @@ class _PagamentoLancamentoScreenState extends State<PagamentoLancamentoScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lançamento de Pagamentos'),
+        title: const Text('Pagamentos'),
         bottom: TabBar(
-          controller: _tabController,
+          controller: _tabs,
           tabs: const [
-            Tab(text: 'Depósito Laticínio'),
-            Tab(text: 'Folha de Pagamento'),
+            Tab(text: 'Folha de pagamento'),
+            Tab(text: 'Descontos'),
+            Tab(text: 'Depósito do laticínio'),
             Tab(text: 'Histórico'),
           ],
         ),
       ),
       body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildDepositoTab(),
-          _buildFolhaPagamentoTab(),
-          _buildHistoricoTab(),
+        controller: _tabs,
+        children: const [
+          _FolhaTab(),
+          _DescontosTab(),
+          _DepositoTab(),
+          _HistoricoTab(),
         ],
       ),
     );
   }
+}
 
-  /// TAB 1: DEPÓSITO DO LATICÍNIO
-  Widget _buildDepositoTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header Info
-            Card(
-              color: Colors.blue.shade50,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Depósito do Laticínio',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Registre o valor total depositado pelo laticínio e o sistema distribuirá automaticamente entre os produtores conforme o volume de coleta.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
+// ── Folha ──────────────────────────────────────────────────────────────────
 
-            // Valor Total
-            TextFormField(
-              controller: _depositoController,
-              decoration: const InputDecoration(
-                labelText: 'Valor Total Depositado',
-                hintText: '0.00',
-                prefixText: 'R\$ ',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-              validator: (v) =>
-                  (v?.isEmpty ?? true) ? 'Insira o valor' : null,
-            ),
-            const SizedBox(height: 16),
+class _FolhaTab extends StatefulWidget {
+  const _FolhaTab();
 
-            // Data
-            TextFormField(
-              controller: _dataDepositoController,
-              decoration: const InputDecoration(
-                labelText: 'Data do Depósito',
-                border: OutlineInputBorder(),
-              ),
-              readOnly: true,
-              onTap: () async {
-                final date = await showDatePicker(
-                  context: context,
-                  initialDate: DateTime.now(),
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime.now(),
-                );
-                if (date != null) {
-                  _dataDepositoController.text =
-                      date.toString().split(' ')[0];
-                }
-              },
-            ),
-            const SizedBox(height: 16),
+  @override
+  State<_FolhaTab> createState() => _FolhaTabState();
+}
 
-            // Observações
-            TextFormField(
-              controller: _obsDepositoController,
-              decoration: const InputDecoration(
-                labelText: 'Observações',
-                hintText: 'Ex: Depósito referente à coleta de 15/07',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 24),
+class _FolhaTabState extends State<_FolhaTab> {
+  final _service = PagamentoService();
+  final _obs = TextEditingController();
 
-            // Preview de Distribuição
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Distribuição (Simulação)',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildDistribuicaoPreview(),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
+  late DateTime _inicio;
+  late DateTime _fim;
+  List<LinhaFolha> _linhas = const [];
+  bool _carregando = false;
+  bool _salvando = false;
+  String? _erro;
 
-            // Botões
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _salvarDeposito(),
-                    icon: const Icon(Icons.check),
-                    label: const Text('Confirmar Depósito'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                OutlinedButton.icon(
-                  onPressed: () => _limparFormDeposito(),
-                  icon: const Icon(Icons.clear),
-                  label: const Text('Limpar'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    // Mês corrente: é o fechamento mais comum, e evita começar com tudo vazio.
+    final hoje = DateTime.now();
+    _inicio = DateTime(hoje.year, hoje.month, 1);
+    _fim = DateTime(hoje.year, hoje.month + 1, 0);
+    _montar();
   }
 
-  /// TAB 2: FOLHA DE PAGAMENTO
-  Widget _buildFolhaPagamentoTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Info
-          Card(
-            color: Colors.green.shade50,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Folha de Pagamento',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Controle de Valor Total - Descontos = Valor Repassado aos Produtores',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Data
-          TextFormField(
-            controller: _folhaDataController,
-            decoration: const InputDecoration(
-              labelText: 'Período de Referência',
-              border: OutlineInputBorder(),
-            ),
-            readOnly: true,
-            onTap: () async {
-              final date = await showDatePicker(
-                context: context,
-                initialDate: DateTime.now(),
-                firstDate: DateTime(2020),
-                lastDate: DateTime.now(),
-              );
-              if (date != null) {
-                _folhaDataController.text = date.toString().split(' ')[0];
-              }
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // Sumário
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  _buildItemFolha('Valor Total a Repassar', 0, Colors.green),
-                  const Divider(),
-                  _buildItemFolha('(-) Descontos', 0, Colors.red),
-                  const Divider(thickness: 2),
-                  _buildItemFolha('(=) Valor Líquido', 0, Colors.blue),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Detalhamento por Produtor
-          const Text(
-            'Detalhamento por Produtor',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          _buildTabelaProdutoresComDescontos(),
-          const SizedBox(height: 24),
-
-          // Observações
-          TextFormField(
-            controller: _folhaObsController,
-            decoration: const InputDecoration(
-              labelText: 'Observações',
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 3,
-          ),
-          const SizedBox(height: 24),
-
-          // Botões
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _salvarFolhaPagamento(),
-                  icon: const Icon(Icons.check),
-                  label: const Text('Confirmar Folha'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: () => _limparFormFolha(),
-                icon: const Icon(Icons.clear),
-                label: const Text('Limpar'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+  @override
+  void dispose() {
+    _obs.dispose();
+    super.dispose();
   }
 
-  /// TAB 3: HISTÓRICO
-  Widget _buildHistoricoTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Text(
-          'Histórico de Pagamentos',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        const SizedBox(height: 12),
-        // TODO: Carregar histórico do banco
-        const Center(
-          child: Text('Nenhum pagamento registrado'),
-        ),
-      ],
-    );
-  }
-
-  // ─── Helpers ───────────────────────────────────────────────────────────
-
-  Widget _buildDistribuicaoPreview() {
-    return Column(
-      children: [
-        _buildItemDistribuicao('Produtor A (500L)', 250.00),
-        _buildItemDistribuicao('Produtor B (300L)', 150.00),
-        _buildItemDistribuicao('Produtor C (200L)', 100.00),
-      ],
-    );
-  }
-
-  Widget _buildItemDistribuicao(String nome, double valor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(nome),
-          Text('R\$ ${valor.toStringAsFixed(2)}'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildItemFolha(String label, double valor, Color color) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: TextStyle(fontWeight: FontWeight.bold)),
-        Text(
-          'R\$ ${valor.toStringAsFixed(2)}',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: color,
-            fontSize: 16,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTabelaProdutoresComDescontos() {
-    return Table(
-      border: TableBorder.all(color: Colors.grey.shade300),
-      columnWidths: const {
-        0: FlexColumnWidth(3),
-        1: FlexColumnWidth(2),
-        2: FlexColumnWidth(2),
-        3: FlexColumnWidth(2),
-      },
-      children: [
-        TableRow(
-          decoration: BoxDecoration(color: Colors.grey.shade200),
-          children: const [
-            Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('Produtor', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('Valor Leite', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('Desconto', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('Repassar', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-        // TODO: Adicionar linhas dinâmicas
-        TableRow(
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('Produtor A'),
-            ),
-            const Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('R\$ 500.00'),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: TextField(
-                decoration: const InputDecoration(
-                  hintText: '0.00',
-                  border: InputBorder.none,
-                  isDense: true,
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('R\$ 500.00', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  void _salvarDeposito() {
-    if (_formKey.currentState?.validate() ?? false) {
-      // TODO: Salvar depósito no banco
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Depósito salvo com sucesso!')),
-      );
+  Future<void> _montar() async {
+    setState(() {
+      _carregando = true;
+      _erro = null;
+    });
+    try {
+      final linhas = await _service.montarFolha(_inicio, _fim);
+      if (!mounted) return;
+      setState(() {
+        _linhas = linhas;
+        _carregando = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _erro = 'Não foi possível montar a folha: $e';
+        _carregando = false;
+      });
     }
   }
 
-  void _salvarFolhaPagamento() {
-    // TODO: Salvar folha de pagamento no banco
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Folha de pagamento salva com sucesso!')),
+  Future<void> _escolherPeriodo() async {
+    final intervalo = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDateRange: DateTimeRange(start: _inicio, end: _fim),
+    );
+    if (intervalo == null) return;
+    setState(() {
+      _inicio = intervalo.start;
+      _fim = intervalo.end;
+    });
+    await _montar();
+  }
+
+  double get _totalBruto => _linhas.fold(0, (s, l) => s + l.bruto);
+  double get _totalDescontos => _linhas.fold(0, (s, l) => s + l.descontos);
+  double get _totalLiquido => _linhas.fold(0, (s, l) => s + l.liquido);
+
+  Future<void> _fechar() async {
+    final semPreco = _linhas.where((l) => l.semPreco).toList();
+    if (semPreco.isNotEmpty) {
+      final segue = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Produtores sem preço por litro'),
+          content: Text(
+            '${semPreco.length} produtor(es) entregaram leite no período mas '
+            'não têm preço por litro no cadastro, então entram com valor '
+            'zero:\n\n${semPreco.map((l) => '• ${l.produtorNome}').join('\n')}'
+            '\n\nFechar a folha assim mesmo?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Fechar assim mesmo'),
+            ),
+          ],
+        ),
+      );
+      if (segue != true) return;
+    }
+
+    setState(() => _salvando = true);
+    try {
+      await _service.salvarFolha(
+        inicio: _inicio,
+        fim: _fim,
+        linhas: _linhas,
+        observacao: _obs.text.trim(),
+      );
+      if (!mounted) return;
+      _obs.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Folha fechada.')),
+      );
+      await _montar(); // os descontos abatidos somem daqui
+      if (mounted) setState(() => _salvando = false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _erro = 'Não foi possível fechar a folha: $e';
+        _salvando = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Período: ${_dataBr.format(_inicio)} a ${_dataBr.format(_fim)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _carregando ? null : _escolherPeriodo,
+                icon: const Icon(Icons.date_range, size: 18),
+                label: const Text('Trocar período'),
+              ),
+            ],
+          ),
+        ),
+        if (_erro != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(_erro!, style: const TextStyle(color: Colors.red)),
+          ),
+        Expanded(
+          child: _carregando
+              ? const Center(child: CircularProgressIndicator())
+              : _linhas.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Nenhuma coleta confirmada neste período.',
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SingleChildScrollView(
+                        child: DataTable(
+                          columns: const [
+                            DataColumn(label: Text('Produtor')),
+                            DataColumn(label: Text('Litros'), numeric: true),
+                            DataColumn(label: Text('R\$/L'), numeric: true),
+                            DataColumn(label: Text('Bruto'), numeric: true),
+                            DataColumn(label: Text('Descontos'), numeric: true),
+                            DataColumn(label: Text('A repassar'), numeric: true),
+                          ],
+                          rows: _linhas
+                              .map(
+                                (l) => DataRow(
+                                  cells: [
+                                    DataCell(
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (l.semPreco)
+                                            const Padding(
+                                              padding:
+                                                  EdgeInsets.only(right: 6),
+                                              child: Icon(
+                                                Icons.warning_amber_rounded,
+                                                size: 16,
+                                                color: Colors.orange,
+                                              ),
+                                            ),
+                                          Text(l.produtorNome),
+                                        ],
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Text(l.litros.toStringAsFixed(2)),
+                                    ),
+                                    DataCell(
+                                      Text(l.precoLitro.toStringAsFixed(4)),
+                                    ),
+                                    DataCell(Text(_moeda.format(l.bruto))),
+                                    DataCell(
+                                      Text(
+                                        l.descontos > 0
+                                            ? '- ${_moeda.format(l.descontos)}'
+                                            : '—',
+                                        style: TextStyle(
+                                          color: l.descontos > 0
+                                              ? Colors.red.shade700
+                                              : null,
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Text(
+                                        _moeda.format(l.liquido),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                    ),
+        ),
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _totalLinha('Bruto', _totalBruto),
+              _totalLinha('(-) Descontos', _totalDescontos, negativo: true),
+              const Divider(),
+              _totalLinha('(=) A repassar', _totalLiquido, destaque: true),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _obs,
+                decoration: const InputDecoration(
+                  labelText: 'Observação',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed:
+                    (_salvando || _linhas.isEmpty) ? null : _fechar,
+                icon: _salvando
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check),
+                label: const Text('Fechar folha do período'),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  void _limparFormDeposito() {
-    _depositoController.clear();
-    _obsDepositoController.clear();
-    _dataDepositoController.text = DateTime.now().toString().split(' ')[0];
+  Widget _totalLinha(
+    String rotulo,
+    double valor, {
+    bool negativo = false,
+    bool destaque = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            rotulo,
+            style: TextStyle(
+              fontWeight: destaque ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          Text(
+            _moeda.format(valor),
+            style: TextStyle(
+              fontWeight: destaque ? FontWeight.bold : FontWeight.normal,
+              fontSize: destaque ? 17 : 14,
+              color: negativo ? Colors.red.shade700 : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Descontos ──────────────────────────────────────────────────────────────
+
+class _DescontosTab extends StatefulWidget {
+  const _DescontosTab();
+
+  @override
+  State<_DescontosTab> createState() => _DescontosTabState();
+}
+
+class _DescontosTabState extends State<_DescontosTab> {
+  final _service = PagamentoService();
+  List<DescontoModel> _descontos = const [];
+  bool _carregando = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregar();
   }
 
-  void _limparFormFolha() {
-    _folhaObsController.clear();
-    _folhaDataController.text = DateTime.now().toString().split(' ')[0];
+  Future<void> _carregar() async {
+    setState(() => _carregando = true);
+    try {
+      final lista = await _service.descontos();
+      if (!mounted) return;
+      setState(() {
+        _descontos = lista;
+        _carregando = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _carregando = false);
+    }
+  }
+
+  Future<void> _novo() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => const _DescontoDialog(),
+    );
+    if (ok == true) await _carregar();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _carregando
+          ? const Center(child: CircularProgressIndicator())
+          : _descontos.isEmpty
+              ? const Center(
+                  child: Text(
+                    'Nenhum desconto em aberto.\n'
+                    'Os lançados aqui entram na próxima folha.',
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: _descontos.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final d = _descontos[i];
+                    return ListTile(
+                      title: Text(d.produtorNome),
+                      subtitle: Text(
+                        [
+                          d.data,
+                          if (d.descricao.isNotEmpty) d.descricao,
+                        ].join('  ·  '),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _moeda.format(d.valor),
+                            style: TextStyle(
+                              color: Colors.red.shade700,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Excluir',
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () async {
+                              await _service.excluirDesconto(d.id!);
+                              await _carregar();
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _novo,
+        icon: const Icon(Icons.add),
+        label: const Text('Lançar desconto'),
+      ),
+    );
+  }
+}
+
+class _DescontoDialog extends StatefulWidget {
+  const _DescontoDialog();
+
+  @override
+  State<_DescontoDialog> createState() => _DescontoDialogState();
+}
+
+class _DescontoDialogState extends State<_DescontoDialog> {
+  final _service = PagamentoService();
+  final _valor = TextEditingController();
+  final _descricao = TextEditingController();
+
+  List<PessoaModel> _produtores = const [];
+  int? _produtorId;
+  DateTime _data = DateTime.now();
+  bool _carregando = true;
+  bool _salvando = false;
+  String? _erro;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarProdutores();
+  }
+
+  Future<void> _carregarProdutores() async {
+    try {
+      final lista = await PessoaRepository().getProdutores();
+      if (!mounted) return;
+      setState(() {
+        _produtores = lista;
+        _carregando = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _carregando = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _valor.dispose();
+    _descricao.dispose();
+    super.dispose();
+  }
+
+  Future<void> _salvar() async {
+    final valor = double.tryParse(_valor.text.replaceAll(',', '.')) ?? 0;
+    if (_produtorId == null || valor <= 0) {
+      setState(() => _erro = 'Escolha o produtor e informe um valor.');
+      return;
+    }
+    setState(() => _salvando = true);
+    try {
+      await _service.criarDesconto(
+        produtorId: _produtorId!,
+        data: _data,
+        valor: valor,
+        descricao: _descricao.text.trim(),
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _erro = 'Não foi possível salvar: $e';
+          _salvando = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Lançar desconto'),
+      content: SizedBox(
+        width: 420,
+        child: _carregando
+            ? const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<int>(
+                    initialValue: _produtorId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Produtor',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _produtores
+                        .map(
+                          (p) => DropdownMenuItem(
+                            value: p.id,
+                            child: Text(
+                              p.rSocialNome,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(() => _produtorId = v),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _valor,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Valor',
+                      prefixText: 'R\$ ',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _descricao,
+                    decoration: const InputDecoration(
+                      labelText: 'Descrição',
+                      hintText: 'Ração, medicamento, adiantamento...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Data'),
+                    subtitle: Text(_dataBr.format(_data)),
+                    trailing: const Icon(Icons.calendar_today, size: 18),
+                    onTap: () async {
+                      final d = await showDatePicker(
+                        context: context,
+                        initialDate: _data,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now().add(
+                          const Duration(days: 365),
+                        ),
+                      );
+                      if (d != null) setState(() => _data = d);
+                    },
+                  ),
+                  if (_erro != null)
+                    Text(
+                      _erro!,
+                      style: TextStyle(color: Colors.red.shade700),
+                    ),
+                ],
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _salvando ? null : _salvar,
+          child: const Text('Salvar'),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Depósito ───────────────────────────────────────────────────────────────
+
+class _DepositoTab extends StatefulWidget {
+  const _DepositoTab();
+
+  @override
+  State<_DepositoTab> createState() => _DepositoTabState();
+}
+
+class _DepositoTabState extends State<_DepositoTab> {
+  final _service = PagamentoService();
+  final _valor = TextEditingController();
+  final _obs = TextEditingController();
+  DateTime _data = DateTime.now();
+  bool _salvando = false;
+  String? _erro;
+
+  @override
+  void dispose() {
+    _valor.dispose();
+    _obs.dispose();
+    super.dispose();
+  }
+
+  Future<void> _salvar() async {
+    final valor = double.tryParse(_valor.text.replaceAll(',', '.')) ?? 0;
+    if (valor <= 0) {
+      setState(() => _erro = 'Informe o valor depositado.');
+      return;
+    }
+    setState(() {
+      _salvando = true;
+      _erro = null;
+    });
+    try {
+      await _service.salvarDeposito(
+        data: _data,
+        valor: valor,
+        observacao: _obs.text.trim(),
+      );
+      if (!mounted) return;
+      _valor.clear();
+      _obs.clear();
+      setState(() => _salvando = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Depósito registrado.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _erro = 'Não foi possível salvar: $e';
+        _salvando = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                'O que o laticínio depositou. Fica registrado para conferir '
+                'com o total das folhas do período — não é ele que define '
+                'quanto cada produtor recebe; isso vem do preço por litro do '
+                'cadastro de cada um.',
+                style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _valor,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Valor depositado',
+              prefixText: 'R\$ ',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Data do depósito'),
+            subtitle: Text(_dataBr.format(_data)),
+            trailing: const Icon(Icons.calendar_today, size: 18),
+            onTap: () async {
+              final d = await showDatePicker(
+                context: context,
+                initialDate: _data,
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now(),
+              );
+              if (d != null) setState(() => _data = d);
+            },
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _obs,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Observação',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          if (_erro != null) ...[
+            const SizedBox(height: 12),
+            Text(_erro!, style: TextStyle(color: Colors.red.shade700)),
+          ],
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: _salvando ? null : _salvar,
+            icon: const Icon(Icons.check),
+            label: const Text('Registrar depósito'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Histórico ──────────────────────────────────────────────────────────────
+
+class _HistoricoTab extends StatefulWidget {
+  const _HistoricoTab();
+
+  @override
+  State<_HistoricoTab> createState() => _HistoricoTabState();
+}
+
+class _HistoricoTabState extends State<_HistoricoTab> {
+  final _service = PagamentoService();
+  List<PagamentoResumo> _itens = const [];
+  bool _carregando = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregar();
+  }
+
+  Future<void> _carregar() async {
+    setState(() => _carregando = true);
+    try {
+      final lista = await _service.historico();
+      if (!mounted) return;
+      setState(() {
+        _itens = lista;
+        _carregando = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _carregando = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_carregando) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_itens.isEmpty) {
+      return const Center(child: Text('Nenhum pagamento registrado ainda.'));
+    }
+    return RefreshIndicator(
+      onRefresh: _carregar,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(12),
+        itemCount: _itens.length,
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (_, i) {
+          final p = _itens[i];
+          return ListTile(
+            leading: Icon(
+              p.ehDeposito ? Icons.account_balance : Icons.receipt_long,
+              color: p.ehDeposito ? Colors.blue : Colors.green,
+            ),
+            title: Text(p.ehDeposito ? 'Depósito do laticínio' : 'Folha'),
+            subtitle: Text(
+              [
+                p.ehDeposito
+                    ? (p.dtInicio ?? '')
+                    : '${p.dtInicio ?? ''} a ${p.dtFim ?? ''}',
+                if (p.observacao.isNotEmpty) p.observacao,
+              ].join('  ·  '),
+            ),
+            trailing: Text(
+              _moeda.format(p.valorTotal),
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            onTap: p.ehDeposito ? null : () => _verItens(p),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _verItens(PagamentoResumo p) async {
+    final linhas = await _service.itensDaFolha(p.id);
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Folha de ${p.dtInicio} a ${p.dtFim}'),
+        content: SizedBox(
+          width: 520,
+          child: linhas.isEmpty
+              ? const Text('Sem linhas.')
+              : SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: linhas
+                        .map(
+                          (l) => ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(l.produtorNome),
+                            subtitle: Text(
+                              '${l.litros.toStringAsFixed(2)} L x '
+                              '${l.precoLitro.toStringAsFixed(4)}'
+                              '${l.descontos > 0 ? '  −  ${_moeda.format(l.descontos)}' : ''}',
+                            ),
+                            trailing: Text(_moeda.format(l.liquido)),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
   }
 }

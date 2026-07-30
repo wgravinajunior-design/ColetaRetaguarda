@@ -28,6 +28,10 @@ class PessoaModel {
   int? resfriadorId;
   String? resfriadorNome;
 
+  /// Quanto se paga por litro a este produtor (PES_PRECO_LITRO).
+  /// É o que transforma os litros do período em dinheiro na folha.
+  double? precoLitro;
+
   PessoaModel({
     this.id,
     required this.tipoPessoa,
@@ -56,6 +60,7 @@ class PessoaModel {
     this.volumeMedio,
     this.resfriadorId,
     this.resfriadorNome,
+    this.precoLitro,
   });
 
   factory PessoaModel.fromJson(Map<String, dynamic> json) {
@@ -136,6 +141,7 @@ class PessoaModel {
     double? volumeMedio,
     int? resfriadorId,
     String? resfriadorNome,
+    double? precoLitro,
   }) {
     return PessoaModel(
       id: id ?? this.id,
@@ -165,6 +171,7 @@ class PessoaModel {
       volumeMedio: volumeMedio ?? this.volumeMedio,
       resfriadorId: resfriadorId ?? this.resfriadorId,
       resfriadorNome: resfriadorNome ?? this.resfriadorNome,
+      precoLitro: precoLitro ?? this.precoLitro,
     );
   }
 }

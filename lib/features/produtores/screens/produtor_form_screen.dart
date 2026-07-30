@@ -31,6 +31,7 @@ class _ProdutorFormScreenState extends State<ProdutorFormScreen> {
   late TextEditingController emailController;
   late TextEditingController kmController;
   late TextEditingController volumeController;
+  late TextEditingController precoLitroController;
   late TextEditingController latController;
   late TextEditingController lonController;
 
@@ -61,6 +62,8 @@ class _ProdutorFormScreenState extends State<ProdutorFormScreen> {
     emailController = TextEditingController(text: p?.email ?? '');
     kmController = TextEditingController(text: p?.km?.toString() ?? '');
     volumeController = TextEditingController(text: p?.volumeMedio?.toString() ?? '');
+    precoLitroController =
+        TextEditingController(text: p?.precoLitro?.toString() ?? '');
     _latitude = p?.latitude;
     _longitude = p?.longitude;
     latController = TextEditingController(text: p?.latitude?.toStringAsFixed(6) ?? '');
@@ -84,6 +87,7 @@ class _ProdutorFormScreenState extends State<ProdutorFormScreen> {
     emailController.dispose();
     kmController.dispose();
     volumeController.dispose();
+    precoLitroController.dispose();
     latController.dispose();
     lonController.dispose();
     super.dispose();
@@ -170,6 +174,9 @@ class _ProdutorFormScreenState extends State<ProdutorFormScreen> {
       horarioColeta: _horarioColeta,
       km: double.tryParse(kmController.text.replaceAll(',', '.')),
       volumeMedio: double.tryParse(volumeController.text.replaceAll(',', '.')),
+      precoLitro: double.tryParse(
+        precoLitroController.text.replaceAll(',', '.'),
+      ),
       resfriadorId: _resfriadorId,
     );
 
@@ -250,7 +257,24 @@ class _ProdutorFormScreenState extends State<ProdutorFormScreen> {
               Expanded(child: _campo(kmController, 'Distância (km)', numero: true)),
             ]),
             const SizedBox(height: 12),
-            _campo(volumeController, 'Volume médio diário (L)', numero: true),
+            Row(children: [
+              Expanded(
+                child: _campo(
+                  volumeController,
+                  'Volume médio diário (L)',
+                  numero: true,
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Base do valor deste produtor na folha de pagamento.
+              Expanded(
+                child: _campo(
+                  precoLitroController,
+                  'Preço por litro (R\$)',
+                  numero: true,
+                ),
+              ),
+            ]),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
               initialValue: _resfriadorId,
