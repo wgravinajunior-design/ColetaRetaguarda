@@ -52,6 +52,8 @@ class ApiServer {
         ..put('/coleta/veiculos/<id>', _updateVeiculo)
         ..delete('/coleta/veiculos/<id>', _deleteVeiculo)
         ..get('/coleta/rotas', _listRotas)
+        // Antes de /coleta/rotas/<id>: senão "motorista" cairia na rota do id.
+        ..get('/coleta/rotas/motorista/<id>', _listRotasPorMotorista)
         ..post('/coleta/rotas', _createRota)
         ..put('/coleta/rotas/<id>', _updateRota)
         ..delete('/coleta/rotas/<id>', _deleteRota)
@@ -413,8 +415,11 @@ class ApiServer {
 
       final db = await DbConnection().db;
       var found = false;
+      int? usuId;
+      var loginReal = login.trim();
       String nome = '';
       String perfil = 'OPERADOR';
+      int? motoristaId;
 
       // Mesma tolerância do login da retaguarda: a TB_USUARIO vem do ERP e
       // cada instalação preencheu essas colunas de um jeito. Comparar no WHERE
@@ -422,31 +427,59 @@ class ApiServer {
       // tivesse o login em outra caixa, espaços à direita (a coluna é CHAR de
       // tamanho fixo) ou o status em branco, comum em cadastro antigo.
       String texto(dynamic v) => v == null ? '' : '$v'.trim();
+      int? inteiro(dynamic v) =>
+          v == null ? null : (v is int ? v : int.tryParse('$v'.trim()));
       final loginProcurado = login.trim().toLowerCase();
       final senhaInformada = senha.trim();
 
-      await _withCursor(db, (query) async {
-        await query.openCursor(
-          sql: 'SELECT USU_ID, USU_NOME, USU_LOGIN, USU_SENHA, '
-              'USU_ADMINISTRADOR, USU_STATUS FROM TB_USUARIO',
-        );
-        await for (var row in query.rows()) {
-          if (texto(row['USU_LOGIN']).toLowerCase() != loginProcurado) continue;
-          if (texto(row['USU_SENHA']) != senhaInformada) continue;
-          if (texto(row['USU_STATUS']).toUpperCase() == 'I') continue;
+      // USU_MOTORISTA_ID é coluna que a coleta acrescenta à TB_USUARIO do ERP.
+      // Numa base onde a atualização de schema ainda não passou ela não existe,
+      // e pedi-la no SELECT derrubaria o login inteiro — por isso a segunda
+      // tentativa, sem a coluna. Quem está nesse caso apenas não tem motorista
+      // vinculado, e o app trata como usuário sem rota própria.
+      Future<void> procurar({required bool comMotorista}) async {
+        final colunaMotorista = comMotorista ? ', USU_MOTORISTA_ID' : '';
+        await _withCursor(db, (query) async {
+          await query.openCursor(
+            sql: 'SELECT USU_ID, USU_NOME, USU_LOGIN, USU_SENHA, '
+                'USU_ADMINISTRADOR, USU_STATUS$colunaMotorista FROM TB_USUARIO',
+          );
+          await for (var row in query.rows()) {
+            if (texto(row['USU_LOGIN']).toLowerCase() != loginProcurado) {
+              continue;
+            }
+            if (texto(row['USU_SENHA']) != senhaInformada) continue;
+            if (texto(row['USU_STATUS']).toUpperCase() == 'I') continue;
 
-          found = true;
-          nome = texto(row['USU_NOME']);
-          // Vem de USU_ADMINISTRADOR ('S'/'N'). USU_PERFIL nesta base é
-          // INTEGER — código do grupo de permissões do ERP —, então lê-lo
-          // como rótulo devolvia "1" e ninguém era administrador no celular:
-          // os cadastros ficavam bloqueados para todos.
-          perfil = texto(row['USU_ADMINISTRADOR']).toUpperCase() == 'S'
-              ? 'ADMINISTRADOR'
-              : 'OPERADOR';
-          break;
-        }
-      });
+            found = true;
+            usuId = inteiro(row['USU_ID']);
+            loginReal = texto(row['USU_LOGIN']);
+            nome = texto(row['USU_NOME']);
+            // Vem de USU_ADMINISTRADOR ('S'/'N'). USU_PERFIL nesta base é
+            // INTEGER — código do grupo de permissões do ERP —, então lê-lo
+            // como rótulo devolvia "1" e ninguém era administrador no celular:
+            // os cadastros ficavam bloqueados para todos.
+            perfil = texto(row['USU_ADMINISTRADOR']).toUpperCase() == 'S'
+                ? 'ADMINISTRADOR'
+                : 'OPERADOR';
+            if (comMotorista) motoristaId = inteiro(row['USU_MOTORISTA_ID']);
+            break;
+          }
+        });
+      }
+
+      try {
+        await procurar(comMotorista: true);
+      } catch (e) {
+        _logger.warning(
+          'ApiServer',
+          'TB_USUARIO sem USU_MOTORISTA_ID — login segue sem vínculo de '
+              'motorista. Rode a atualização de schema. ($e)',
+        );
+        found = false;
+        motoristaId = null;
+        await procurar(comMotorista: false);
+      }
 
       if (!found) {
         _logger.warning('ApiServer', 'Falha de login: $login');
@@ -455,16 +488,21 @@ class ApiServer {
             headers: {'Content-Type': 'application/json'});
       }
 
-      final token = JwtService.generateToken(1, nome, perfil);
+      final token = JwtService.generateToken(usuId ?? 1, nome, perfil);
       _logger.info('ApiServer', 'Login OK: $login ($perfil)');
 
       return shelf.Response.ok(
         _encodeJson({
           'success': true,
           'token': token,
-          'id': login,
+          // `id` era o próprio login (String). O app precisa do USU_ID
+          // numérico para saber quem está logado; `login` passa a vir em
+          // chave própria em vez de ocupar a de id.
+          'id': usuId,
+          'login': loginReal,
           'nome': nome,
           'perfil': perfil,
+          'motorista_id': motoristaId,
         }),
         headers: {'Content-Type': 'application/json'},
       );
@@ -1499,6 +1537,60 @@ class ApiServer {
       );
     } catch (e) {
       return _errorResponse(500, 'Erro ao listar rotas: $e');
+    }
+  }
+
+  /// GET /coleta/rotas/motorista/&lt;id&gt; — rotas de um motorista só.
+  ///
+  /// Existe para o app do motorista não baixar (nem poder ver) as rotas dos
+  /// outros. O filtro é feito aqui, no servidor: filtrar só no aparelho não
+  /// isola nada, porque os dados já teriam chegado nele.
+  static Future<shelf.Response> _listRotasPorMotorista(
+    shelf.Request request,
+    String id,
+  ) async {
+    final tokenData = _validateBearerToken(request);
+    if (tokenData == null) {
+      return _errorResponse(401, 'Token inválido ou expirado');
+    }
+
+    final motoristaId = int.tryParse(id);
+    if (motoristaId == null) {
+      return _errorResponse(400, 'Motorista inválido: $id');
+    }
+
+    try {
+      final db = await DbConnection().db;
+      final items = await _withCursor(db, (query) async {
+        await query.openCursor(
+          sql: 'SELECT FIRST 300 ID, NOME, ID_MOTORISTA, ID_VEICULO, '
+              'DATA_COLETA, DATA_HORA_INICIO, DATA_HORA_FIM, STATUS '
+              'FROM COLETAS_ROTA WHERE ID_MOTORISTA = ? '
+              'ORDER BY DATA_COLETA DESC',
+          parameters: [motoristaId],
+        );
+        final list = <Map<String, dynamic>>[];
+        await for (var row in query.rows()) {
+          list.add({
+            'id': row['ID'],
+            'nome': row['NOME'] ?? '',
+            'id_motorista': row['ID_MOTORISTA'] ?? 0,
+            'id_veiculo': row['ID_VEICULO'] ?? 0,
+            'data_coleta': row['DATA_COLETA'],
+            'data_hora_inicio': row['DATA_HORA_INICIO'],
+            'data_hora_fim': row['DATA_HORA_FIM'],
+            'status': row['STATUS'] ?? 'PENDENTE',
+          });
+        }
+        return list;
+      });
+
+      return shelf.Response.ok(
+        _encodeJson({'success': true, 'data': items}),
+        headers: {'Content-Type': 'application/json'},
+      );
+    } catch (e) {
+      return _errorResponse(500, 'Erro ao listar rotas do motorista: $e');
     }
   }
 

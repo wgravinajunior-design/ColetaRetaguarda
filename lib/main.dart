@@ -7,6 +7,7 @@ import 'core/api/http_client.dart';
 import 'core/backend/api_server.dart';
 import 'features/auth/auth_service.dart';
 import 'features/core/database/sync_service.dart';
+import 'features/core/database/firebird_schema_service.dart';
 import 'features/core/sync/sync_handlers.dart';
 import 'features/core/sync/sync_activity_overlay.dart';
 import 'core/app_info.dart';
@@ -80,6 +81,18 @@ Future<void> _bootstrap() async {
 
   final configService = ConfigService();
   await configService.loadConfig();
+
+  // Põe o schema da base em dia antes de qualquer coisa tocar nela.
+  //
+  // Até aqui isso só acontecia se alguém abrisse a tela de inspeção do banco e
+  // mandasse aplicar — então uma instalação nova rodava com colunas faltando, e
+  // o sintoma aparecia longe da causa (a coluna do vínculo motorista/usuário,
+  // por exemplo, faltava e o login simplesmente não trazia o motorista).
+  //
+  // É estritamente aditivo: numa base já em dia não muda nada. Falha aqui não
+  // impede o sistema de abrir — a base pode estar fora do ar, e o erro real
+  // aparece na tela de configuração.
+  await _atualizarSchema();
 
   // Servidor HTTP para o mobile sincronizar.
   //
@@ -357,6 +370,19 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
 ///
 /// Uma falha aqui não pode impedir o desktop de abrir: o app continua útil
 /// localmente mesmo sem o servidor (por exemplo, se a porta já estiver em uso).
+/// Cria tabelas e colunas que a coleta precisa e a base ainda não tem.
+/// Best-effort: nunca impede o sistema de abrir.
+Future<void> _atualizarSchema() async {
+  try {
+    final feito = await FirebirdSchemaService().aplicar();
+    for (final linha in feito) {
+      debugPrint('[schema] $linha');
+    }
+  } catch (e) {
+    debugPrint('[schema] nao foi possivel atualizar agora: $e');
+  }
+}
+
 Future<void> _startApiServer() async {
   try {
     await ApiServer.start(port: 8080);

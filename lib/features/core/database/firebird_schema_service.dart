@@ -153,6 +153,18 @@ class FirebirdSchemaService {
         ColunaEsperada('PES_ID_RESFRIADOR', 'INTEGER'),
       ],
     ),
+
+    // TB_USUARIO também vem do ERP. A coleta acrescenta só o vínculo com o
+    // motorista: é ele que faz o app do celular mostrar ao usuário apenas as
+    // rotas do motorista dele, em vez das de todo mundo. Sem a coluna o login
+    // ainda funciona — o usuário apenas fica sem motorista vinculado.
+    TabelaEsperada(
+      nome: 'TB_USUARIO',
+      doErp: true,
+      colunas: [
+        ColunaEsperada('USU_MOTORISTA_ID', 'INTEGER'),
+      ],
+    ),
   ];
 
   /// Tabelas do ERP que o sistema consulta mas nunca cria — se faltarem, a base
