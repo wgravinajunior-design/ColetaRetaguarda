@@ -1,4 +1,11 @@
 class MovimentoModel {
+  /// Marca, em MOV_ORIGEM, os lançamentos feitos por este sistema.
+  ///
+  /// A TB_MOVIMENTO_CONTA é do ERP e pode receber lançamentos de outros
+  /// sistemas na mesma base. É esta marca que permite ao financeiro da coleta
+  /// mostrar só o que foi lançado aqui.
+  static const origemColeta = 'COLETA';
+
   final int? id;
   final String tipo; // 'C' para Credito (Receita), 'D' para Debito (Despesa)
   final String status;

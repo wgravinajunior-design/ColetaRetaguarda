@@ -104,6 +104,9 @@ class _FinanceiroFormScreenState extends State<FinanceiroFormScreen> {
       tipo: tipoSelecionado,
       status: 'P',
       dtEmissao: DateTime.now().toString().split(' ')[0],
+      // Sem isto o lançamento nascia como 'MANUAL' e o próprio financeiro da
+      // coleta não o mostrava, por não reconhecê-lo como seu.
+      origem: MovimentoModel.origemColeta,
     );
 
     bool success;

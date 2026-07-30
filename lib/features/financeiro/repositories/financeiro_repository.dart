@@ -10,16 +10,20 @@ class FinanceiroRepository {
   /// Saldo acumulado de cada conta.
   Future<List<SaldoConta>> getSaldosPorConta() => _firebird.getSaldosPorConta();
 
-  /// Retorna apenas movimentos de origem 'COLETA'
-  Future<List<MovimentoModel>> getMovimentos({int? contaId, String? tipo}) async {
-    final movimentos = await _firebird.getMovimentos(contaId: contaId, tipo: tipo);
-    // Filtrar apenas movimentos originados do sistema de coleta
-    return movimentos.where((m) => m.origem == 'COLETA').toList();
-  }
-
-  /// Retorna movimentos de qualquer origem (para admin)
-  Future<List<MovimentoModel>> getMovimentosTodos({int? contaId, String? tipo}) async {
-    return await _firebird.getMovimentos(contaId: contaId, tipo: tipo);
+  /// Movimentos lançados por este sistema.
+  ///
+  /// A TB_MOVIMENTO_CONTA é do ERP e outros sistemas podem lançar na mesma
+  /// base; o financeiro da coleta mostra só o que saiu daqui. O corte é feito
+  /// no SQL, e não depois de trazer tudo.
+  Future<List<MovimentoModel>> getMovimentos({
+    int? contaId,
+    String? tipo,
+  }) async {
+    return await _firebird.getMovimentos(
+      contaId: contaId,
+      tipo: tipo,
+      origem: MovimentoModel.origemColeta,
+    );
   }
 
   Future<MovimentoModel?> createMovimento(MovimentoModel mov) async {

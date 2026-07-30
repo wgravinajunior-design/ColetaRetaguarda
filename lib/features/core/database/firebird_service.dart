@@ -1189,13 +1189,20 @@ class FirebirdService {
   }
 
   // ═════════════ MOVIMENTO DE CONTA (TB_MOVIMENTO_CONTA) ═════════════
+  /// [origem] restringe a MOV_ORIGEM. Em branco, traz de qualquer origem —
+  /// inclusive lançamentos de outros sistemas que usem a mesma base do ERP.
   Future<List<MovimentoModel>> getMovimentos({
     int? contaId,
     String? tipo,
+    String? origem,
   }) async {
     final db = await _db;
     final where = <String>[];
     final params = <dynamic>[];
+    if (origem != null && origem.isNotEmpty) {
+      where.add('M.MOV_ORIGEM = ?');
+      params.add(origem);
+    }
     if (contaId != null) {
       where.add('M.MOV_CONTA = ?');
       params.add(contaId);
