@@ -10,7 +10,15 @@ class FinanceiroRepository {
   /// Saldo acumulado de cada conta.
   Future<List<SaldoConta>> getSaldosPorConta() => _firebird.getSaldosPorConta();
 
+  /// Retorna apenas movimentos de origem 'COLETA'
   Future<List<MovimentoModel>> getMovimentos({int? contaId, String? tipo}) async {
+    final movimentos = await _firebird.getMovimentos(contaId: contaId, tipo: tipo);
+    // Filtrar apenas movimentos originados do sistema de coleta
+    return movimentos.where((m) => m.origem == 'COLETA').toList();
+  }
+
+  /// Retorna movimentos de qualquer origem (para admin)
+  Future<List<MovimentoModel>> getMovimentosTodos({int? contaId, String? tipo}) async {
     return await _firebird.getMovimentos(contaId: contaId, tipo: tipo);
   }
 

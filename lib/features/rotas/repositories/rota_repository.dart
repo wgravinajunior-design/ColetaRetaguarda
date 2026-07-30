@@ -38,6 +38,29 @@ class RotaRepository {
     return [];
   }
 
+  /// Retorna apenas rotas do motorista vinculado ao usuário
+  Future<List<RotaModel>> getRotasPorMotoristaDoUsuario({
+    required int motoristaId,
+    String? status,
+  }) async {
+    // Fonte primária: base Firebird
+    try {
+      final rotas = await _firebird.getRotas(status: status);
+      // Filtrar apenas rotas do motorista do usuário
+      return rotas.where((r) => r.motoristaId == motoristaId).toList();
+    } catch (e) {
+      debugPrint('Erro ao carregar rotas do motorista: $e');
+    }
+
+    try {
+      return await _dao.getAll();
+    } catch (e) {
+      debugPrint('Erro ao carregar rotas do SQLite: $e');
+    }
+
+    return [];
+  }
+
   Future<RotaModel?> getRotaById(int id) async {
     try {
       final response = await _apiClient.get('/coleta/rotas/$id');

@@ -20,6 +20,8 @@ class MotoristaModel {
   String status; // 'A' = Ativo, 'I' = Inativo
   DateTime? dataCadastro;
   DateTime? dataAtualizacao;
+  int? usuarioId; // FK → TB_USUARIO.USU_ID (Vinculação com usuário do sistema)
+  String? usuarioLogin; // Login do usuário vinculado (para exibição)
 
   MotoristaModel({
     this.id,
@@ -43,6 +45,8 @@ class MotoristaModel {
     this.status = 'A',
     this.dataCadastro,
     this.dataAtualizacao,
+    this.usuarioId,
+    this.usuarioLogin,
   });
 
   factory MotoristaModel.fromJson(Map<String, dynamic> json) {
@@ -70,6 +74,8 @@ class MotoristaModel {
       dataAtualizacao: json['PES_DT_ATUALIZACAO'] != null
           ? DateTime.tryParse(json['PES_DT_ATUALIZACAO'] as String)
           : null,
+      usuarioId: json['USU_ID'] as int?,
+      usuarioLogin: json['USU_LOGIN'] as String?,
     );
   }
 
@@ -94,6 +100,8 @@ class MotoristaModel {
       'PES_STATUS': status,
       'PES_DT_CADASTRO': dataCadastro?.toIso8601String(),
       'PES_DT_ATUALIZACAO': dataAtualizacao?.toIso8601String(),
+      if (usuarioId != null) 'USU_ID': usuarioId,
+      if (usuarioLogin != null) 'USU_LOGIN': usuarioLogin,
     };
   }
 
@@ -119,6 +127,8 @@ class MotoristaModel {
     String? status,
     DateTime? dataCadastro,
     DateTime? dataAtualizacao,
+    int? usuarioId,
+    String? usuarioLogin,
   }) {
     return MotoristaModel(
       id: id ?? this.id,
@@ -142,6 +152,8 @@ class MotoristaModel {
       status: status ?? this.status,
       dataCadastro: dataCadastro ?? this.dataCadastro,
       dataAtualizacao: dataAtualizacao ?? this.dataAtualizacao,
+      usuarioId: usuarioId ?? this.usuarioId,
+      usuarioLogin: usuarioLogin ?? this.usuarioLogin,
     );
   }
 }
