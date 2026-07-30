@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/config/config_service.dart';
+import '../motoristas/models/motorista_model.dart';
+import '../motoristas/repositories/motorista_repository.dart';
 import 'usuario_service.dart';
 
 /// Usuários que podem entrar no sistema.
@@ -259,6 +261,11 @@ class _UsuarioDialogState extends State<_UsuarioDialog> {
   bool _salvando = false;
   String? _erro;
 
+  /// Motorista vinculado. Define o que o app do celular mostra a este usuário.
+  int? _motoristaId;
+  List<MotoristaModel> _motoristas = const [];
+  bool _carregandoMotoristas = true;
+
   bool get _novo => widget.usuario == null;
 
   @override
@@ -270,6 +277,27 @@ class _UsuarioDialogState extends State<_UsuarioDialog> {
     _senha = TextEditingController();
     _administrador = u?.administrador ?? false;
     _ativo = u?.ativo ?? true;
+    _motoristaId = u?.motoristaId;
+    _carregarMotoristas();
+  }
+
+  Future<void> _carregarMotoristas() async {
+    try {
+      final lista = await MotoristaRepository().getMotoristas();
+      if (!mounted) return;
+      setState(() {
+        _motoristas = lista;
+        // O motorista guardado pode ter sido inativado depois do vínculo: sem
+        // isto o Dropdown receberia um value fora das opções e estouraria.
+        if (_motoristaId != null &&
+            !lista.any((m) => m.id == _motoristaId)) {
+          _motoristaId = null;
+        }
+        _carregandoMotoristas = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _carregandoMotoristas = false);
+    }
   }
 
   @override
@@ -307,6 +335,7 @@ class _UsuarioDialogState extends State<_UsuarioDialog> {
         senha: _senha.text.trim(),
         administrador: _administrador,
         status: _ativo ? 'A' : 'I',
+        motoristaId: _motoristaId,
       );
 
       if (_novo) {
@@ -372,6 +401,41 @@ class _UsuarioDialogState extends State<_UsuarioDialog> {
                       ? 'Informe a senha'
                       : null,
                 ),
+                const SizedBox(height: 12),
+                // Vínculo com o motorista: é o que restringe, no celular, as
+                // rotas que este usuário enxerga. Em branco, ele vê todas.
+                if (_carregandoMotoristas)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: LinearProgressIndicator(minHeight: 2),
+                  )
+                else
+                  DropdownButtonFormField<int?>(
+                    initialValue: _motoristaId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Motorista vinculado',
+                      helperText:
+                          'No celular, mostra só as rotas deste motorista',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('Nenhum — vê todas as rotas'),
+                      ),
+                      ..._motoristas.map(
+                        (m) => DropdownMenuItem<int?>(
+                          value: m.id,
+                          child: Text(
+                            m.nome ?? 'Motorista ${m.id}',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ],
+                    onChanged: (v) => setState(() => _motoristaId = v),
+                  ),
                 const SizedBox(height: 6),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,

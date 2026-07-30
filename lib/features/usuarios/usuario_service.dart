@@ -16,6 +16,12 @@ class UsuarioModel {
   /// 'A' ativo, 'I' inativo.
   String status;
 
+  /// PES_ID do motorista vinculado (USU_MOTORISTA_ID), ou null.
+  ///
+  /// É o que faz o app do celular mostrar a este usuário apenas as rotas do
+  /// motorista dele, em vez das de todo mundo.
+  int? motoristaId;
+
   UsuarioModel({
     this.id,
     this.nome = '',
@@ -23,6 +29,7 @@ class UsuarioModel {
     this.senha = '',
     this.administrador = false,
     this.status = 'A',
+    this.motoristaId,
   });
 
   bool get ativo => status.toUpperCase() != 'I';
@@ -42,12 +49,37 @@ class UsuarioService {
 
   static String _texto(dynamic v) => v == null ? '' : '$v'.trim();
 
+  bool? _temColunaMotorista;
+
+  /// Se a TB_USUARIO já tem a coluna do vínculo com o motorista.
+  ///
+  /// A coluna é acrescentada pela coleta à tabela do ERP, na atualização de
+  /// schema que roda ao abrir o sistema. Numa base onde ela ainda não passou —
+  /// o banco pode estar fora do ar naquele momento — pedir a coluna no SELECT
+  /// derrubaria a tela de usuários inteira. Descobre uma vez e guarda.
+  Future<bool> _colunaMotoristaExiste() async {
+    final cache = _temColunaMotorista;
+    if (cache != null) return cache;
+    final db = await _db;
+    final row = await db.selectOne(
+      sql: r'''SELECT COUNT(*) AS N FROM RDB$RELATION_FIELDS
+               WHERE RDB$RELATION_NAME = 'TB_USUARIO'
+                 AND TRIM(RDB$FIELD_NAME) = 'USU_MOTORISTA_ID' ''',
+    );
+    final existe = ((row?['N'] as int?) ?? 0) > 0;
+    _temColunaMotorista = existe;
+    return existe;
+  }
+
   Future<List<UsuarioModel>> listar() async {
     final db = await _db;
+    final comMotorista = await _colunaMotoristaExiste();
+    final colunaMotorista = comMotorista ? ', USU_MOTORISTA_ID' : '';
     final rows = await db.selectAll(
       sql:
           'SELECT USU_ID, USU_NOME, USU_LOGIN, USU_SENHA, '
-          'USU_ADMINISTRADOR, USU_STATUS FROM TB_USUARIO ORDER BY USU_NOME',
+          'USU_ADMINISTRADOR, USU_STATUS$colunaMotorista '
+          'FROM TB_USUARIO ORDER BY USU_NOME',
     );
     return rows
         .map<UsuarioModel>(
@@ -62,6 +94,7 @@ class UsuarioService {
             status: _texto(r['USU_STATUS']).isEmpty
                 ? 'A'
                 : _texto(r['USU_STATUS']).toUpperCase(),
+            motoristaId: comMotorista ? r['USU_MOTORISTA_ID'] as int? : null,
           ),
         )
         .toList();
@@ -88,6 +121,7 @@ class UsuarioService {
   Future<int> criar(UsuarioModel u) async {
     final db = await _db;
     final id = await _proximoId();
+    final comMotorista = await _colunaMotoristaExiste();
     await db.execute(
       sql:
           // USU_PERFIL fica de fora de propósito: é o código do grupo de
@@ -95,8 +129,9 @@ class UsuarioService {
           // usuário pode fazer lá dentro.
           'INSERT INTO TB_USUARIO '
           '(USU_ID, USU_NOME, USU_LOGIN, USU_SENHA, '
-          ' USU_ADMINISTRADOR, USU_STATUS) '
-          'VALUES (?, ?, ?, ?, ?, ?)',
+          ' USU_ADMINISTRADOR, USU_STATUS'
+          '${comMotorista ? ', USU_MOTORISTA_ID' : ''}) '
+          'VALUES (?, ?, ?, ?, ?, ?${comMotorista ? ', ?' : ''})',
       parameters: [
         id,
         u.nome,
@@ -104,6 +139,7 @@ class UsuarioService {
         u.senha,
         u.administrador ? 'S' : 'N',
         u.ativo ? 'A' : 'I',
+        if (comMotorista) u.motoristaId,
       ],
     );
     return id;
@@ -112,37 +148,30 @@ class UsuarioService {
   Future<void> atualizar(UsuarioModel u) async {
     if (u.id == null) return;
     final db = await _db;
+    final comMotorista = await _colunaMotoristaExiste();
+
+    final campos = <String>['USU_NOME = ?', 'USU_LOGIN = ?'];
+    final valores = <dynamic>[u.nome, u.login];
+
     // A senha em branco significa "não mexer": assim dá para corrigir o nome
     // de alguém sem precisar saber (nem redefinir) a senha dele.
-    if (u.senha.isEmpty) {
-      await db.execute(
-        sql:
-            'UPDATE TB_USUARIO SET USU_NOME = ?, USU_LOGIN = ?, '
-            'USU_ADMINISTRADOR = ?, USU_STATUS = ? '
-            'WHERE USU_ID = ?',
-        parameters: [
-          u.nome,
-          u.login,
-          u.administrador ? 'S' : 'N',
-          u.ativo ? 'A' : 'I',
-          u.id,
-        ],
-      );
-      return;
+    if (u.senha.isNotEmpty) {
+      campos.add('USU_SENHA = ?');
+      valores.add(u.senha);
     }
+
+    campos.addAll(['USU_ADMINISTRADOR = ?', 'USU_STATUS = ?']);
+    valores.addAll([u.administrador ? 'S' : 'N', u.ativo ? 'A' : 'I']);
+
+    if (comMotorista) {
+      campos.add('USU_MOTORISTA_ID = ?');
+      valores.add(u.motoristaId);
+    }
+
+    valores.add(u.id);
     await db.execute(
-      sql:
-          'UPDATE TB_USUARIO SET USU_NOME = ?, USU_LOGIN = ?, USU_SENHA = ?, '
-          'USU_ADMINISTRADOR = ?, USU_STATUS = ? '
-          'WHERE USU_ID = ?',
-      parameters: [
-        u.nome,
-        u.login,
-        u.senha,
-        u.administrador ? 'S' : 'N',
-        u.ativo ? 'A' : 'I',
-        u.id,
-      ],
+      sql: 'UPDATE TB_USUARIO SET ${campos.join(', ')} WHERE USU_ID = ?',
+      parameters: valores,
     );
   }
 
