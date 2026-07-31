@@ -39,6 +39,10 @@ class _ProdutorFormScreenState extends State<ProdutorFormScreen> {
   final _location = LocationService();
   final _mapController = MapController();
 
+  /// O formulário é longo e passa da tela; sem controlador a barra de rolagem
+  /// só aparece durante o arrasto (ver RolagemSempreVisivel).
+  final _rolagem = ScrollController();
+
   double? _latitude;
   double? _longitude;
   String? _horarioColeta; // "HH:mm"
@@ -90,6 +94,7 @@ class _ProdutorFormScreenState extends State<ProdutorFormScreen> {
     precoLitroController.dispose();
     latController.dispose();
     lonController.dispose();
+    _rolagem.dispose();
     super.dispose();
   }
 
@@ -208,6 +213,7 @@ class _ProdutorFormScreenState extends State<ProdutorFormScreen> {
         title: Text(widget.produtor == null ? 'Novo Produtor' : 'Editar Produtor'),
       ),
       body: SingleChildScrollView(
+        controller: _rolagem,
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
