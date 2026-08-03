@@ -195,163 +195,194 @@ class _AdicionarParadaScreenState extends State<AdicionarParadaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF3F5F4),
       appBar: AppBar(title: const Text('Adicionar Parada'), elevation: 0),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ===== SEÇÃO 1: BUSCAR PRODUTOR =====
-            _buildSecao(
-              titulo: 'Buscar Produtor',
-              icone: Icons.search,
-              child: _produtorSelecionado == null
-                  ? _buildBuscaProdutor()
-                  : _buildProdutorSelecionado(),
-            ),
-            const SizedBox(height: 16),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final duasColunas = constraints.maxWidth >= 860;
 
-            // ===== SEÇÃO 2: DADOS DO PRODUTOR =====
-            _buildSecao(
-              titulo: 'Dados do Produtor',
-              icone: Icons.person,
-              child: Column(
-                children: [
-                  _buildCampo(
-                    controller: _nomeController,
-                    label: 'Nome / Razão Social',
-                    icone: Icons.person_outline,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildCampo(
-                    controller: _cnpjController,
-                    label: 'CNPJ / CPF',
-                    icone: Icons.badge_outlined,
-                  ),
-                ],
+          final colunaEsquerda = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSecao(
+                titulo: 'Buscar Produtor',
+                icone: Icons.search,
+                child: _produtorSelecionado == null
+                    ? _buildBuscaProdutor()
+                    : _buildProdutorSelecionado(),
               ),
-            ),
-            const SizedBox(height: 16),
-
-            // ===== SEÇÃO 3: ENDEREÇO =====
-            _buildSecao(
-              titulo: 'Endereço',
-              icone: Icons.location_on,
-              child: Column(
-                children: [
-                  _buildCampo(
-                    controller: _enderecoController,
-                    label: 'Logradouro (Rua / Estrada)',
-                    icone: Icons.signpost_outlined,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: _buildCampo(
-                          controller: _numeroController,
-                          label: 'Número',
-                          icone: Icons.tag,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: _buildCampo(
-                          controller: _complementoController,
-                          label: 'Complemento',
-                          icone: Icons.add_location_alt_outlined,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: _buildCampo(
-                          controller: _bairroController,
-                          label: 'Bairro',
-                          icone: Icons.holiday_village_outlined,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 1,
-                        child: _buildCampo(
-                          controller: _cepController,
-                          label: 'CEP',
-                          icone: Icons.markunread_mailbox_outlined,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ===== SEÇÃO 4: GEOLOCALIZAÇÃO =====
-            _buildSecao(
-              titulo: 'Geolocalização',
-              icone: Icons.gps_fixed,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildCampo(
-                      controller: _latitudeController,
-                      label: 'Latitude',
-                      icone: Icons.my_location,
-                      hint: '-19.8157',
-                      teclado: TextInputType.number,
+              const SizedBox(height: 10),
+              _buildSecao(
+                titulo: 'Dados do Produtor',
+                icone: Icons.person,
+                child: Column(
+                  children: [
+                    _buildCampo(
+                      controller: _nomeController,
+                      label: 'Nome / Razão Social',
+                      icone: Icons.person_outline,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildCampo(
-                      controller: _longitudeController,
-                      label: 'Longitude',
-                      icone: Icons.my_location,
-                      hint: '-43.9542',
-                      teclado: TextInputType.number,
+                    const SizedBox(height: 10),
+                    _buildCampo(
+                      controller: _cnpjController,
+                      label: 'CNPJ / CPF',
+                      icone: Icons.badge_outlined,
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // ===== BOTÃO SALVAR =====
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  ],
                 ),
-                icon: const Icon(Icons.check, color: Colors.white),
-                label: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
+              ),
+            ],
+          );
+
+          final colunaDireita = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSecao(
+                titulo: 'Endereço',
+                icone: Icons.location_on,
+                child: Column(
+                  children: [
+                    _buildCampo(
+                      controller: _enderecoController,
+                      label: 'Logradouro (Rua / Estrada)',
+                      icone: Icons.signpost_outlined,
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: _buildCampo(
+                            controller: _numeroController,
+                            label: 'Número',
+                            icone: Icons.tag,
                           ),
                         ),
-                      )
-                    : const Text(
-                        'Salvar Parada',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                onPressed: _isLoading ? null : _salvarParada,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: _buildCampo(
+                            controller: _complementoController,
+                            label: 'Complemento',
+                            icone: Icons.add_location_alt_outlined,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: _buildCampo(
+                            controller: _bairroController,
+                            label: 'Bairro',
+                            icone: Icons.holiday_village_outlined,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 1,
+                          child: _buildCampo(
+                            controller: _cepController,
+                            label: 'CEP',
+                            icone: Icons.markunread_mailbox_outlined,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(height: 10),
+              _buildSecao(
+                titulo: 'Geolocalização',
+                icone: Icons.gps_fixed,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildCampo(
+                        controller: _latitudeController,
+                        label: 'Latitude',
+                        icone: Icons.my_location,
+                        hint: '-19.8157',
+                        teclado: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildCampo(
+                        controller: _longitudeController,
+                        label: 'Longitude',
+                        icone: Icons.my_location,
+                        hint: '-43.9542',
+                        teclado: TextInputType.number,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (duasColunas)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: colunaEsquerda),
+                      const SizedBox(width: 12),
+                      Expanded(child: colunaDireita),
+                    ],
+                  )
+                else ...[
+                  colunaEsquerda,
+                  const SizedBox(height: 10),
+                  colunaDireita,
+                ],
+                const SizedBox(height: 16),
+
+                // ===== BOTÃO SALVAR =====
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E7D4F),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: const Icon(Icons.check, color: Colors.white, size: 18),
+                    label: _isLoading
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : const Text(
+                            'Salvar Parada',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                    onPressed: _isLoading ? null : _salvarParada,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -364,40 +395,38 @@ class _AdicionarParadaScreenState extends State<AdicionarParadaScreen> {
     required Widget child,
   }) {
     return Container(
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.blue.shade100, width: 1),
-        borderRadius: BorderRadius.circular(8),
         color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(7),
-                topRight: Radius.circular(7),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(icone, color: Colors.blue.shade600, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  titulo,
-                  style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              ],
-            ),
+                child: Icon(icone, size: 15, color: Colors.blue[700]),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                titulo,
+                style: TextStyle(
+                  color: Colors.blue[700],
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
           ),
-          Padding(padding: const EdgeInsets.all(12), child: child),
+          const SizedBox(height: 10),
+          child,
         ],
       ),
     );
@@ -525,12 +554,16 @@ class _AdicionarParadaScreenState extends State<AdicionarParadaScreen> {
     return TextField(
       controller: controller,
       keyboardType: teclado,
+      style: const TextStyle(fontSize: 13),
       decoration: InputDecoration(
         labelText: label,
+        labelStyle: const TextStyle(fontSize: 12),
         hintText: hint,
-        prefixIcon: Icon(icone, size: 20),
-        border: const OutlineInputBorder(),
+        hintStyle: const TextStyle(fontSize: 12),
+        prefixIcon: Icon(icone, size: 18),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       ),
     );
   }
