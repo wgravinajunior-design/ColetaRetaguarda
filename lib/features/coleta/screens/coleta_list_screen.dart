@@ -53,6 +53,7 @@ class _ColetaListScreenState extends State<ColetaListScreen> {
     return RecarregaAoSincronizar(
       aoAlterar: _recarregar,
       child: Scaffold(
+        backgroundColor: const Color(0xFFF3F5F4),
         appBar: AppBar(
           title: const Text('Coletas'),
           elevation: 0,
@@ -95,9 +96,8 @@ class _ColetaListScreenState extends State<ColetaListScreen> {
         .where((p) => p.status == 'P' || p.status == 'E')
         .length;
 
-    return Container(
-      color: Colors.blue.shade50,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(
         children: [
           _ResumoCard(
@@ -150,67 +150,108 @@ class _ColetaListScreenState extends State<ColetaListScreen> {
 
     final semPeriodo = vm.inicio == null && vm.fim == null;
 
-    return Container(
-      color: Colors.grey.shade50,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-      child: Row(
-        children: [
-          const Icon(Icons.event, size: 16, color: Colors.grey),
-          const SizedBox(width: 8),
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () => escolher(ehInicio: true),
-              child: Text(
-                'De: ${rotulo(vm.inicio)}',
-                overflow: TextOverflow.ellipsis,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.event, size: 15, color: Colors.grey[500]),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  side: BorderSide(color: Colors.grey.shade300),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: () => escolher(ehInicio: true),
+                child: Text(
+                  'De: ${rotulo(vm.inicio)}',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () => escolher(ehInicio: false),
-              child: Text(
-                'Até: ${rotulo(vm.fim)}',
-                overflow: TextOverflow.ellipsis,
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  side: BorderSide(color: Colors.grey.shade300),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: () => escolher(ehInicio: false),
+                child: Text(
+                  'Até: ${rotulo(vm.fim)}',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          TextButton.icon(
-            icon: Icon(
-              semPeriodo ? Icons.today : Icons.filter_alt_off,
-              size: 16,
+            const SizedBox(width: 8),
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+              ),
+              icon: Icon(
+                semPeriodo ? Icons.today : Icons.filter_alt_off,
+                size: 15,
+              ),
+              label: Text(
+                semPeriodo ? 'Hoje' : 'Todo período',
+                style: const TextStyle(fontSize: 12),
+              ),
+              onPressed: () {
+                if (semPeriodo) {
+                  final hoje = DateTime.now();
+                  vm.aplicarPeriodo(hoje, hoje);
+                } else {
+                  vm.limparPeriodo();
+                }
+              },
             ),
-            label: Text(semPeriodo ? 'Hoje' : 'Todo período'),
-            onPressed: () {
-              if (semPeriodo) {
-                final hoje = DateTime.now();
-                vm.aplicarPeriodo(hoje, hoje);
-              } else {
-                vm.limparPeriodo();
-              }
-            },
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildBusca() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: TextField(
         controller: _buscaController,
         onChanged: (v) => setState(() => _busca = v),
+        style: const TextStyle(fontSize: 13),
         decoration: InputDecoration(
           hintText: 'Buscar por produtor, CNPJ ou endereço...',
-          prefixIcon: const Icon(Icons.search),
+          hintStyle: const TextStyle(fontSize: 13),
+          prefixIcon: const Icon(Icons.search, size: 20),
           isDense: true,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.grey.shade200),
+          ),
           suffixIcon: _busca.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear),
+                  icon: const Icon(Icons.clear, size: 18),
                   onPressed: () {
                     _buscaController.clear();
                     setState(() => _busca = '');
@@ -269,26 +310,34 @@ class _ColetaListScreenState extends State<ColetaListScreen> {
     ];
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: filtros.map((f) {
             final selecionado = vm.filtroStatus == f.status;
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.only(right: 6),
               child: FilterChip(
-                label: Text('${f.emoji} ${f.label}'),
-                selected: selecionado,
-                onSelected: (_) => vm.aplicarFiltroStatus(f.status),
-                selectedColor: f.cor.withValues(alpha: 0.2),
-                checkmarkColor: f.cor,
-                labelStyle: TextStyle(
-                  color: selecionado ? f.cor : Colors.black87,
-                  fontWeight: selecionado ? FontWeight.bold : FontWeight.normal,
+                label: Text(
+                  '${f.emoji} ${f.label}',
+                  style: const TextStyle(fontSize: 12),
                 ),
-                side: BorderSide(
-                  color: selecionado ? f.cor : Colors.grey.shade300,
+                selected: selecionado,
+                showCheckmark: false,
+                visualDensity: VisualDensity.compact,
+                onSelected: (_) => vm.aplicarFiltroStatus(f.status),
+                selectedColor: f.cor.withValues(alpha: 0.12),
+                backgroundColor: Colors.white,
+                labelStyle: TextStyle(
+                  color: selecionado ? f.cor : Colors.grey[700],
+                  fontWeight: selecionado ? FontWeight.w600 : FontWeight.w400,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(
+                    color: selecionado ? f.cor : Colors.grey.shade300,
+                  ),
                 ),
               ),
             );
@@ -330,22 +379,23 @@ class _ColetaListScreenState extends State<ColetaListScreen> {
     return Column(
       children: [
         // Contador do total exibido
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: Colors.grey.shade100,
-          child: Text(
-            '${visiveis.length} ${visiveis.length == 1 ? 'coleta' : 'coletas'}',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[700],
-              fontWeight: FontWeight.w500,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '${visiveis.length} ${visiveis.length == 1 ? 'coleta' : 'coletas'}',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey[500],
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
             itemCount: visiveis.length,
             itemBuilder: (context, index) {
               final parada = visiveis[index];
@@ -388,28 +438,28 @@ class _ResumoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 3),
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: cor.withValues(alpha: 0.3)),
+          border: Border.all(color: Colors.grey.shade200),
         ),
         child: Column(
           children: [
-            Icon(icon, color: cor, size: 22),
+            Icon(icon, color: cor, size: 20),
             const SizedBox(height: 4),
             Text(
               valor,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: 15,
                 color: cor,
               ),
             ),
             Text(
               label,
-              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -461,25 +511,30 @@ class _ColetaCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cor = _statusColor(parada.status);
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  color: cor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
+                  color: cor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(9),
                 ),
                 child: Center(
                   child: Text(
                     parada.statusEmoji,
-                    style: const TextStyle(fontSize: 20),
+                    style: const TextStyle(fontSize: 17),
                   ),
                 ),
               ),
@@ -491,21 +546,21 @@ class _ColetaCard extends StatelessWidget {
                     Text(
                       parada.pessoaNome,
                       style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
                     ),
                     if (parada.cnpjCpf.isNotEmpty)
                       Text(
                         parada.cnpjCpf,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                       ),
                     const SizedBox(height: 2),
                     Text(
                       parada.endereco,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                     ),
                     const SizedBox(height: 6),
                     Row(
@@ -516,13 +571,13 @@ class _ColetaCard extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: cor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
+                            color: cor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             parada.statusLabel,
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               color: cor,
                               fontWeight: FontWeight.w600,
                             ),
