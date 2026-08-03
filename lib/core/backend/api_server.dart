@@ -426,7 +426,12 @@ class ApiServer {
       // com igualdade exata e exigir USU_STATUS = 'A' deixava de fora quem
       // tivesse o login em outra caixa, espaços à direita (a coluna é CHAR de
       // tamanho fixo) ou o status em branco, comum em cadastro antigo.
-      String texto(dynamic v) => v == null ? '' : '$v'.trim();
+      // CHAR de tamanho fixo no Firebird às vezes vem preenchido com bytes
+      // nulos (\0) em vez de espaços, a depender do charset da conexão.
+      // String.trim() não remove \0, então sem essa limpeza extra a
+      // comparação falha mesmo com login/senha corretos.
+      String texto(dynamic v) =>
+          v == null ? '' : '$v'.replaceAll(RegExp(r'[\x00-\x1F]'), '').trim();
       int? inteiro(dynamic v) =>
           v == null ? null : (v is int ? v : int.tryParse('$v'.trim()));
       final loginProcurado = login.trim().toLowerCase();

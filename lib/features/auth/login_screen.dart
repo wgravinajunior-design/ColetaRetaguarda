@@ -62,13 +62,6 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    if (password.length < 3) {
-      setState(() {
-        _errorMessage = 'Senha inválida';
-      });
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _errorMessage = null;
