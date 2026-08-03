@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   late final TextEditingController _passwordController;
   bool _isLoading = false;
   String? _errorMessage;
+  String _statusMensagem = '';
 
   @override
   void initState() {
@@ -65,6 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _statusMensagem = 'Conectando à base de dados...';
     });
 
     try {
@@ -74,6 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
         setState(() {
           _isLoading = false;
+          _statusMensagem = '';
           _errorMessage =
               'Sem conexão com a base de dados configurada.\n'
               'Verifique host, porta e caminho nas Configurações.';
@@ -83,21 +86,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // 2) Autentica contra a base de dados
       if (!mounted) return;
+      setState(() => _statusMensagem = 'Verificando usuário e senha...');
       final authService = context.read<AuthService>();
       final loginError = await authService.login(username, password);
 
       if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
 
       if (loginError == null) {
         // Login bem-sucedido
+        setState(() => _statusMensagem = 'Entrando...');
         // Sistema entra em tela cheia após autenticar
         await WindowService.modoApp();
         if (mounted) context.go('/dashboard');
       } else {
         setState(() {
+          _isLoading = false;
+          _statusMensagem = '';
           _errorMessage = loginError;
           // Limpa campo de senha por segurança
           _passwordController.clear();
@@ -107,6 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _statusMensagem = '';
           _errorMessage = 'Erro inesperado durante login. Tente novamente.';
         });
       }
@@ -230,6 +235,32 @@ class _LoginScreenState extends State<LoginScreen> {
                                 : const Text('ENTRAR'),
                           ),
                         ),
+                        if (_isLoading) ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.grey[500]!,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _statusMensagem,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
