@@ -92,8 +92,10 @@ class _UsuarioListScreenState extends State<UsuarioListScreen> {
     final ativos = _usuarios.where((u) => u.ativo).length;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF3F5F4),
       appBar: AppBar(
         title: const Text('Usuários'),
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -113,41 +115,54 @@ class _UsuarioListScreenState extends State<UsuarioListScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Card(
-                margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Icon(Icons.storage, color: Colors.blue.shade700),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Estes são os usuários da base em uso',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              ConfigService().caminhoBase,
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                          ],
-                        ),
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
                       ),
-                      if (!_carregando)
-                        Text(
-                          '$ativos ativo${ativos == 1 ? "" : "s"}'
-                          ' de ${_usuarios.length}',
-                          style: const TextStyle(fontSize: 12.5),
-                        ),
-                    ],
-                  ),
+                      child: Icon(Icons.storage, color: Colors.blue[700], size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Estes são os usuários da base em uso',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            ConfigService().caminhoBase,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (!_carregando)
+                      Text(
+                        '$ativos ativo${ativos == 1 ? "" : "s"}'
+                        ' de ${_usuarios.length}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                  ],
                 ),
               ),
               Expanded(child: _corpo()),
@@ -184,23 +199,41 @@ class _UsuarioListScreenState extends State<UsuarioListScreen> {
       );
     }
     if (_usuarios.isEmpty) {
-      return const Center(child: Text('Nenhum usuário nesta base.'));
+      return Center(
+        child: Text(
+          'Nenhum usuário nesta base.',
+          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+        ),
+      );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 88),
       itemCount: _usuarios.length,
       itemBuilder: (_, i) {
         final u = _usuarios[i];
+        final cor = u.ativo
+            ? (u.administrador ? Colors.indigo : Colors.blueGrey)
+            : Colors.grey;
         return Card(
+          elevation: 0,
+          margin: const EdgeInsets.only(bottom: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade200),
+          ),
           child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: u.ativo
-                  ? (u.administrador ? Colors.indigo : Colors.blueGrey)
-                  : Colors.grey.shade400,
+            visualDensity: VisualDensity.compact,
+            leading: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: cor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(9),
+              ),
               child: Icon(
-                u.administrador ? Icons.shield : Icons.person,
-                color: Colors.white,
+                u.administrador ? Icons.shield_outlined : Icons.person_outline,
+                color: cor,
                 size: 20,
               ),
             ),
@@ -208,6 +241,7 @@ class _UsuarioListScreenState extends State<UsuarioListScreen> {
               u.nome.isEmpty ? u.login : u.nome,
               style: TextStyle(
                 fontWeight: FontWeight.w600,
+                fontSize: 14,
                 decoration: u.ativo ? null : TextDecoration.lineThrough,
               ),
             ),
@@ -215,19 +249,23 @@ class _UsuarioListScreenState extends State<UsuarioListScreen> {
               'Login: ${u.login}'
               '  ·  ${u.administrador ? "Administrador" : "Operador"}'
               '${u.ativo ? "" : "  ·  inativo"}',
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 11),
             ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.edit, size: 20),
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  color: Colors.blueGrey[600],
+                  visualDensity: VisualDensity.compact,
                   tooltip: 'Editar',
                   onPressed: () => _editar(u),
                 ),
                 if (u.ativo)
                   IconButton(
-                    icon: const Icon(Icons.block, size: 20),
+                    icon: const Icon(Icons.block_outlined, size: 18),
+                    color: Colors.red[300],
+                    visualDensity: VisualDensity.compact,
                     tooltip: 'Desativar',
                     onPressed: () => _desativar(u),
                   ),
