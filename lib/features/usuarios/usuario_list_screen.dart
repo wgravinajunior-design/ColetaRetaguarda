@@ -392,137 +392,198 @@ class _UsuarioDialogState extends State<_UsuarioDialog> {
     }
   }
 
+  InputDecoration _decoracao(String label, {String? helper, IconData? icone}) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(fontSize: 12),
+      helperText: helper,
+      helperStyle: TextStyle(fontSize: 11, color: Colors.grey[600]),
+      helperMaxLines: 2,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      prefixIcon: icone != null ? Icon(icone, size: 18) : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(_novo ? 'Novo usuário' : 'Editar usuário'),
-      content: SizedBox(
-        width: 420,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _nome,
-                  decoration: const InputDecoration(
-                    labelText: 'Nome *',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (t) => (t == null || t.trim().isEmpty)
-                      ? 'Informe o nome'
-                      : null,
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _login,
-                  decoration: const InputDecoration(
-                    labelText: 'Login *',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (t) => (t == null || t.trim().isEmpty)
-                      ? 'Informe o login'
-                      : null,
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _senha,
-                  decoration: InputDecoration(
-                    labelText: _novo ? 'Senha *' : 'Nova senha',
-                    helperText: _novo
-                        ? null
-                        : 'Deixe em branco para manter a senha atual',
-                    border: const OutlineInputBorder(),
-                  ),
-                  validator: (t) => (_novo && (t == null || t.trim().isEmpty))
-                      ? 'Informe a senha'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                // Vínculo com o motorista: é o que restringe, no celular, as
-                // rotas que este usuário enxerga. Em branco, ele vê todas.
-                if (_carregandoMotoristas)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: LinearProgressIndicator(minHeight: 2),
-                  )
-                else
-                  DropdownButtonFormField<int?>(
-                    initialValue: _motoristaId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Motorista vinculado',
-                      helperText:
-                          'No celular, mostra só as rotas deste motorista',
-                      border: OutlineInputBorder(),
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _novo ? 'Novo usuário' : 'Editar usuário',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
                     ),
-                    items: [
-                      const DropdownMenuItem<int?>(
-                        value: null,
-                        child: Text('Nenhum — vê todas as rotas'),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _nome,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: _decoracao('Nome *', icone: Icons.badge_outlined),
+                    validator: (t) => (t == null || t.trim().isEmpty)
+                        ? 'Informe o nome'
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _login,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: _decoracao('Login *', icone: Icons.person_outline),
+                    validator: (t) => (t == null || t.trim().isEmpty)
+                        ? 'Informe o login'
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _senha,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: _decoracao(
+                      _novo ? 'Senha *' : 'Nova senha',
+                      helper: _novo
+                          ? null
+                          : 'Deixe em branco para manter a senha atual',
+                      icone: Icons.lock_outline,
+                    ),
+                    validator: (t) => (_novo && (t == null || t.trim().isEmpty))
+                        ? 'Informe a senha'
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+                  // Vínculo com o motorista: é o que restringe, no celular, as
+                  // rotas que este usuário enxerga. Em branco, ele vê todas.
+                  if (_carregandoMotoristas)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: LinearProgressIndicator(minHeight: 2),
+                    )
+                  else
+                    DropdownButtonFormField<int?>(
+                      initialValue: _motoristaId,
+                      isExpanded: true,
+                      style: const TextStyle(fontSize: 13, color: Colors.black87),
+                      decoration: _decoracao(
+                        'Motorista vinculado',
+                        helper: 'No celular, mostra só as rotas deste motorista',
+                        icone: Icons.local_shipping_outlined,
                       ),
-                      ..._motoristas.map(
-                        (m) => DropdownMenuItem<int?>(
-                          value: m.id,
-                          child: Text(
-                            m.nome ?? 'Motorista ${m.id}',
-                            overflow: TextOverflow.ellipsis,
+                      items: [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('Nenhum — vê todas as rotas'),
+                        ),
+                        ..._motoristas.map(
+                          (m) => DropdownMenuItem<int?>(
+                            value: m.id,
+                            child: Text(
+                              m.nome ?? 'Motorista ${m.id}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
+                      ],
+                      onChanged: (v) => setState(() => _motoristaId = v),
+                    ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      children: [
+                        SwitchListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                          title: const Text('Administrador', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                          subtitle: const Text(
+                            'Pode cadastrar e alterar dados pelo celular',
+                            style: TextStyle(fontSize: 11),
+                          ),
+                          value: _administrador,
+                          onChanged: (v) => setState(() => _administrador = v),
+                        ),
+                        const Divider(height: 1),
+                        SwitchListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                          title: const Text('Ativo', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                          subtitle: const Text(
+                            'Desligado, o usuário não consegue entrar',
+                            style: TextStyle(fontSize: 11),
+                          ),
+                          value: _ativo,
+                          onChanged: (v) => setState(() => _ativo = v),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_erro != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      _erro!,
+                      style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: _salvando
+                            ? null
+                            : () => Navigator.of(context).pop(false),
+                        child: const Text('Cancelar'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: _salvando ? null : _salvar,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2E7D4F),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: _salvando
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Salvar',
+                                style: TextStyle(color: Colors.white),
+                              ),
                       ),
                     ],
-                    onChanged: (v) => setState(() => _motoristaId = v),
-                  ),
-                const SizedBox(height: 6),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Administrador', style: TextStyle(fontSize: 14)),
-                  subtitle: const Text(
-                    'Pode cadastrar e alterar dados pelo celular',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  value: _administrador,
-                  onChanged: (v) => setState(() => _administrador = v),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Ativo', style: TextStyle(fontSize: 14)),
-                  subtitle: const Text(
-                    'Desligado, o usuário não consegue entrar',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  value: _ativo,
-                  onChanged: (v) => setState(() => _ativo = v),
-                ),
-                if (_erro != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    _erro!,
-                    style: TextStyle(color: Colors.red.shade700, fontSize: 12.5),
                   ),
                 ],
-              ],
+              ),
             ),
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _salvando ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: _salvando ? null : _salvar,
-          child: _salvando
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Salvar'),
-        ),
-      ],
     );
   }
 }
