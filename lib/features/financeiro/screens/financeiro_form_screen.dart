@@ -127,112 +127,192 @@ class _FinanceiroFormScreenState extends State<FinanceiroFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF3F5F4),
       appBar: AppBar(
         title: Text(widget.movimento == null ? 'Novo Lançamento' : 'Editar Lançamento'),
+        elevation: 0,
       ),
       body: _carregando
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: historicoController,
-                    decoration: const InputDecoration(
-                      labelText: 'Histórico',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: valorController,
-                    decoration: const InputDecoration(
-                      labelText: 'Valor (R\$)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.attach_money),
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  ),
-                  const SizedBox(height: 16),
-                  // Campo de busca de conta (plano de contas)
-                  Stack(
+              padding: const EdgeInsets.all(12),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      TextField(
-                        controller: contaBuscaController,
-                        decoration: InputDecoration(
-                          labelText: 'Plano de Contas *',
-                          border: const OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.account_balance),
-                          hintText: 'Digite para buscar...',
-                          suffixIcon: _contaId != null
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () => setState(() {
-                                    _contaId = null;
-                                    contaBuscaController.clear();
-                                  }),
-                                )
-                              : null,
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade200),
                         ),
-                        onChanged: _filtrarContas,
-                        onTap: () {
-                          if (contaBuscaController.text.isEmpty && _contas.isNotEmpty) {
-                            setState(() {
-                              _contasFiltradas = _contas;
-                              _mostrarSugestoes = true;
-                            });
-                          }
-                        },
-                      ),
-                      if (_mostrarSugestoes && _contasFiltradas.isNotEmpty)
-                        Positioned(
-                          top: 60,
-                          left: 0,
-                          right: 0,
-                          child: Material(
-                            elevation: 4,
-                            child: Container(
-                              constraints: const BoxConstraints(maxHeight: 200),
-                              child: ListView.builder(
-                                shrinkWrap: true,
-                                itemCount: _contasFiltradas.length,
-                                itemBuilder: (context, idx) {
-                                  final conta = _contasFiltradas[idx];
-                                  return ListTile(
-                                    title: Text(conta.descricao),
-                                    subtitle: Text(conta.isBanco ? 'Banco' : 'Caixa'),
-                                    onTap: () => _selecionarConta(conta),
-                                  );
-                                },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            TextField(
+                              controller: historicoController,
+                              style: const TextStyle(fontSize: 13),
+                              decoration: InputDecoration(
+                                labelText: 'Histórico',
+                                labelStyle: const TextStyle(fontSize: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 10,
+                                ),
                               ),
                             ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: valorController,
+                              style: const TextStyle(fontSize: 13),
+                              decoration: InputDecoration(
+                                labelText: 'Valor (R\$)',
+                                labelStyle: const TextStyle(fontSize: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 10,
+                                ),
+                                prefixIcon: const Icon(Icons.attach_money, size: 18),
+                              ),
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            ),
+                            const SizedBox(height: 10),
+                            // Campo de busca de conta (plano de contas)
+                            Stack(
+                              children: [
+                                TextField(
+                                  controller: contaBuscaController,
+                                  style: const TextStyle(fontSize: 13),
+                                  decoration: InputDecoration(
+                                    labelText: 'Plano de Contas *',
+                                    labelStyle: const TextStyle(fontSize: 12),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 10,
+                                    ),
+                                    prefixIcon: const Icon(Icons.account_balance, size: 18),
+                                    hintText: 'Digite para buscar...',
+                                    hintStyle: const TextStyle(fontSize: 12),
+                                    suffixIcon: _contaId != null
+                                        ? IconButton(
+                                            icon: const Icon(Icons.clear, size: 18),
+                                            onPressed: () => setState(() {
+                                              _contaId = null;
+                                              contaBuscaController.clear();
+                                            }),
+                                          )
+                                        : null,
+                                  ),
+                                  onChanged: _filtrarContas,
+                                  onTap: () {
+                                    if (contaBuscaController.text.isEmpty && _contas.isNotEmpty) {
+                                      setState(() {
+                                        _contasFiltradas = _contas;
+                                        _mostrarSugestoes = true;
+                                      });
+                                    }
+                                  },
+                                ),
+                                if (_mostrarSugestoes && _contasFiltradas.isNotEmpty)
+                                  Positioned(
+                                    top: 52,
+                                    left: 0,
+                                    right: 0,
+                                    child: Material(
+                                      elevation: 3,
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Container(
+                                        constraints: const BoxConstraints(maxHeight: 200),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.grey.shade200),
+                                        ),
+                                        child: ListView.builder(
+                                          shrinkWrap: true,
+                                          itemCount: _contasFiltradas.length,
+                                          itemBuilder: (context, idx) {
+                                            final conta = _contasFiltradas[idx];
+                                            return ListTile(
+                                              dense: true,
+                                              visualDensity: VisualDensity.compact,
+                                              title: Text(
+                                                conta.descricao,
+                                                style: const TextStyle(fontSize: 13),
+                                              ),
+                                              subtitle: Text(
+                                                conta.isBanco ? 'Banco' : 'Caixa',
+                                                style: const TextStyle(fontSize: 11),
+                                              ),
+                                              onTap: () => _selecionarConta(conta),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            DropdownButtonFormField<String>(
+                              initialValue: tipoSelecionado,
+                              style: const TextStyle(fontSize: 13, color: Colors.black87),
+                              decoration: InputDecoration(
+                                labelText: 'Tipo',
+                                labelStyle: const TextStyle(fontSize: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 10,
+                                ),
+                              ),
+                              onChanged: (val) => setState(() => tipoSelecionado = val ?? 'C'),
+                              items: const [
+                                DropdownMenuItem(value: 'C', child: Text('Receita (entrada)')),
+                                DropdownMenuItem(value: 'D', child: Text('Despesa (saída)')),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _save,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2E7D4F),
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            'Salvar',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                           ),
                         ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: tipoSelecionado,
-                    decoration: const InputDecoration(
-                      labelText: 'Tipo',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (val) => setState(() => tipoSelecionado = val ?? 'C'),
-                    items: const [
-                      DropdownMenuItem(value: 'C', child: Text('Receita (entrada)')),
-                      DropdownMenuItem(value: 'D', child: Text('Despesa (saída)')),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _save,
-                      child: const Text('Salvar'),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
     );
