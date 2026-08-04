@@ -116,6 +116,10 @@ class _SyncQueueScreenState extends State<SyncQueueScreen>
         ],
         bottom: TabBar(
           controller: _tabs,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
           tabs: const [
             Tab(icon: Icon(Icons.smartphone), text: 'Mobile'),
             Tab(icon: Icon(Icons.desktop_windows), text: 'Fila do desktop'),

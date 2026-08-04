@@ -176,6 +176,10 @@ class _FolhaPagamentoScreenState extends State<FolhaPagamentoScreen>
         elevation: 0,
         bottom: TabBar(
           controller: _tabs,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
           tabs: const [
             Tab(icon: Icon(Icons.request_quote_outlined), text: 'Fechar folha'),
             Tab(icon: Icon(Icons.remove_circle_outline), text: 'Descontos'),
