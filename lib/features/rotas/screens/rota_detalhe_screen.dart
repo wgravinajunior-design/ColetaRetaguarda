@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,7 @@ import '../viewmodels/rota_viewmodel.dart';
 import '../../coleta/screens/coleta_rotas_screen.dart';
 import '../../coleta/screens/adicionar_parada_screen.dart';
 import '../../coleta/screens/mapa_rota_screen.dart';
+import '../../coleta/models/parada_model.dart';
 import '../../coleta/repositories/parada_repository.dart';
 import '../../coleta/services/comprovante_service.dart';
 import '../../core/sync/recarrega_ao_sincronizar.dart';
@@ -271,7 +273,12 @@ class RotaDetalheScreen extends StatelessWidget {
     );
 
     try {
-      final paradas = await ParadaRepository().getParadasByRota(rota.id ?? 0);
+      // Timeout evita que uma consulta travada no banco (ex.: conexão caída
+      // ou lock de outra transação) prenda o diálogo de loading para sempre,
+      // travando a tela inteira sem nunca abrir o PDF.
+      final paradas = await ParadaRepository()
+          .getParadasByRota(rota.id ?? 0)
+          .timeout(const Duration(seconds: 15));
 
       if (!context.mounted) return;
       Navigator.pop(context); // fecha o loading
@@ -285,6 +292,18 @@ class RotaDetalheScreen extends StatelessWidget {
           paradas: paradas,
         ),
       );
+    } on TimeoutException {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'A consulta ao banco demorou demais. Verifique a conexão com '
+              'o banco de dados e tente novamente.',
+            ),
+          ),
+        );
+      }
     } catch (e) {
       if (context.mounted) {
         Navigator.pop(context);
@@ -303,7 +322,20 @@ class RotaDetalheScreen extends StatelessWidget {
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
-    final paradas = await ParadaRepository().getParadasByRota(rota.id ?? 0);
+    List<ParadaModel> paradas;
+    try {
+      paradas = await ParadaRepository()
+          .getParadasByRota(rota.id ?? 0)
+          .timeout(const Duration(seconds: 15));
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // fecha o loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao carregar paradas: $e')),
+        );
+      }
+      return;
+    }
 
     if (!context.mounted) return;
     Navigator.pop(context); // fecha o loading
