@@ -101,6 +101,11 @@ class RotaRepository {
     return await _firebird.atualizarStatusRota(rotaId, status);
   }
 
+  /// Libera (ou recolhe) a rota para o celular sincronizar.
+  Future<bool> liberar(int rotaId, bool liberar) async {
+    return await _firebird.liberarRota(rotaId, liberar);
+  }
+
   /// Coletas da rota ainda em aberto (pendentes ou em andamento).
   Future<int> coletasEmAberto(int rotaId) =>
       _firebird.coletasEmAbertoNaRota(rotaId);

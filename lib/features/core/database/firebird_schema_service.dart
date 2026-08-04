@@ -96,6 +96,9 @@ class FirebirdSchemaService {
         ColunaEsperada('DATA_HORA_INICIO', 'TIMESTAMP'),
         ColunaEsperada('DATA_HORA_FIM', 'TIMESTAMP'),
         ColunaEsperada('STATUS', 'VARCHAR(20)'),
+        // 'S'/'N'. O celular só baixa rotas liberadas — sem isto, uma rota
+        // ainda em montagem na retaguarda já apareceria pronta no motorista.
+        ColunaEsperada('LIBERADA', 'VARCHAR(1)'),
       ],
     ),
     TabelaEsperada(

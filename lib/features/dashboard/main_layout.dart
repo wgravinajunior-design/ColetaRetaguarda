@@ -101,7 +101,7 @@ class MainLayout extends StatelessWidget {
                         onTap: () => context.go('/financeiro'),
                       ),
                       _MenuTile(
-                        icon: Icons.payments,
+                        icon: Icons.request_quote,
                         title: 'Pagamentos',
                         color: Colors.green,
                         onTap: () => context.go('/pagamentos'),

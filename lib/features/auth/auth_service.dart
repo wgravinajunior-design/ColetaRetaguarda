@@ -77,15 +77,36 @@ class AuthService extends ChangeNotifier {
       String? nomeEncontrado;
       String? perfilEncontrado;
 
-      String texto(dynamic v) => v == null ? '' : '$v'.trim();
+      // CHAR de tamanho fixo no Firebird às vezes vem preenchido com bytes
+      // nulos (\0) em vez de espaços, a depender do charset da conexão.
+      // String.trim() não remove \0, então sem essa limpeza extra a
+      // comparação falha mesmo com login/senha corretos.
+      String texto(dynamic v) =>
+          v == null ? '' : '$v'.replaceAll(RegExp(r'[\x00-\x1F]'), '').trim();
+
+      if (kDebugMode) {
+        debugPrint(
+          '[Login] Buscando login="$cleanUsername" (${cleanUsername.length} chars) '
+          'senha="${cleanPassword.replaceAll(RegExp('.'), '*')}" (${cleanPassword.length} chars)',
+        );
+      }
 
       await for (var row in q.rows()) {
-        if (texto(row['USU_LOGIN']).toLowerCase() !=
-            cleanUsername.toLowerCase()) {
+        final loginBanco = texto(row['USU_LOGIN']);
+        if (loginBanco.toLowerCase() != cleanUsername.toLowerCase()) {
           continue;
         }
         achouLogin = true;
-        if (texto(row['USU_SENHA']) != cleanPassword) continue;
+        final senhaBanco = texto(row['USU_SENHA']);
+        if (kDebugMode) {
+          debugPrint(
+            '[Login] Login encontrado: "$loginBanco". '
+            'Senha do banco tem ${senhaBanco.length} chars, códigos: '
+            '${senhaBanco.codeUnits}. Senha digitada tem '
+            '${cleanPassword.length} chars, códigos: ${cleanPassword.codeUnits}.',
+          );
+        }
+        if (senhaBanco != cleanPassword) continue;
 
         final status = texto(row['USU_STATUS']).toUpperCase();
         if (status == 'I') {

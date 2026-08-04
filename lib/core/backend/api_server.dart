@@ -426,7 +426,12 @@ class ApiServer {
       // com igualdade exata e exigir USU_STATUS = 'A' deixava de fora quem
       // tivesse o login em outra caixa, espaços à direita (a coluna é CHAR de
       // tamanho fixo) ou o status em branco, comum em cadastro antigo.
-      String texto(dynamic v) => v == null ? '' : '$v'.trim();
+      // CHAR de tamanho fixo no Firebird às vezes vem preenchido com bytes
+      // nulos (\0) em vez de espaços, a depender do charset da conexão.
+      // String.trim() não remove \0, então sem essa limpeza extra a
+      // comparação falha mesmo com login/senha corretos.
+      String texto(dynamic v) =>
+          v == null ? '' : '$v'.replaceAll(RegExp(r'[\x00-\x1F]'), '').trim();
       int? inteiro(dynamic v) =>
           v == null ? null : (v is int ? v : int.tryParse('$v'.trim()));
       final loginProcurado = login.trim().toLowerCase();
@@ -1510,10 +1515,13 @@ class ApiServer {
       final items = await _withCursor(db, (query) async {
         // FIRST 300: limita ao lote mais recente (evita baixar todo o histórico
         // a cada sync do app). Ordena por data desc, então as ativas/recentes vêm.
+        // LIBERADA = 'S': só rotas que a retaguarda marcou como prontas
+        // chegam ao celular. Sem o filtro, uma rota ainda em montagem
+        // apareceria completa no motorista antes da hora.
         await query.openCursor(
           sql: 'SELECT FIRST 300 ID, NOME, ID_MOTORISTA, ID_VEICULO, DATA_COLETA, '
               'DATA_HORA_INICIO, DATA_HORA_FIM, STATUS '
-              'FROM COLETAS_ROTA ORDER BY DATA_COLETA DESC',
+              "FROM COLETAS_ROTA WHERE LIBERADA = 'S' ORDER BY DATA_COLETA DESC",
         );
         final list = <Map<String, dynamic>>[];
         await for (var row in query.rows()) {
@@ -1562,10 +1570,12 @@ class ApiServer {
     try {
       final db = await DbConnection().db;
       final items = await _withCursor(db, (query) async {
+        // LIBERADA = 'S': mesma trava do endpoint sem filtro por motorista —
+        // ver comentário em _listRotas.
         await query.openCursor(
           sql: 'SELECT FIRST 300 ID, NOME, ID_MOTORISTA, ID_VEICULO, '
               'DATA_COLETA, DATA_HORA_INICIO, DATA_HORA_FIM, STATUS '
-              'FROM COLETAS_ROTA WHERE ID_MOTORISTA = ? '
+              "FROM COLETAS_ROTA WHERE ID_MOTORISTA = ? AND LIBERADA = 'S' "
               'ORDER BY DATA_COLETA DESC',
           parameters: [motoristaId],
         );

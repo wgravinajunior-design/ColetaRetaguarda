@@ -22,7 +22,7 @@ import 'features/motoristas/screens/motorista_form_screen.dart';
 import 'features/financeiro/viewmodels/financeiro_viewmodel.dart';
 import 'features/financeiro/screens/financeiro_list_screen.dart';
 import 'features/financeiro/screens/financeiro_form_screen.dart';
-import 'features/financeiro/screens/pagamento_lancamento_screen.dart';
+import 'features/financeiro/screens/folha_pagamento_screen.dart';
 import 'core/ui/rolagem.dart';
 import 'features/usuarios/usuario_list_screen.dart';
 import 'features/veiculos/screens/veiculo_list_screen.dart';
@@ -62,6 +62,13 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
+  // _bootstrap faz conexão com banco, atualização de schema e subida do
+  // servidor HTTP antes de montar a tela de login — sem pintar nada antes
+  // disso, a janela do Windows fica em branco por vários segundos até
+  // terminar. Aqui a splash é a primeira coisa na tela; _bootstrap troca
+  // pelo app real (ou pela tela de erro) quando terminar.
+  runApp(const _SplashApp());
+
   try {
     await _bootstrap();
   } catch (e, stack) {
@@ -69,6 +76,37 @@ void main() async {
     // app simplesmente "não abre" ao clicar no atalho.
     debugPrint('Falha ao iniciar o aplicativo: $e\n$stack');
     runApp(_StartupErrorApp(erro: '$e'));
+  }
+}
+
+/// Tela exibida enquanto _bootstrap conecta ao banco e sobe os serviços.
+class _SplashApp extends StatelessWidget {
+  const _SplashApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFFF3F5F4),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.business_center,
+                size: 48,
+                color: Color(0xFF2E7D4F),
+              ),
+              const SizedBox(height: 16),
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E7D4F)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -344,7 +382,7 @@ class _ColetaRetaguardaAppState extends State<ColetaRetaguardaApp> {
             ),
             GoRoute(
               path: '/pagamentos',
-              builder: (context, state) => const PagamentoLancamentoScreen(),
+              builder: (context, state) => const FolhaPagamentoScreen(),
             ),
           ],
         ),

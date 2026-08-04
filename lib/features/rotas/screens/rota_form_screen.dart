@@ -144,100 +144,185 @@ class _RotaFormScreenState extends State<RotaFormScreen> {
     return '${dois(d.day)}/${dois(d.month)}/${d.year}';
   }
 
+  Widget _campo(TextEditingController c, String label) {
+    return TextField(
+      controller: c,
+      style: const TextStyle(fontSize: 13),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(fontSize: 12),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF3F5F4),
       appBar: AppBar(
         title: Text(widget.rota == null ? 'Nova Rota' : 'Editar Rota'),
+        elevation: 0,
       ),
       body: _carregando
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: descricaoController,
-                    decoration: const InputDecoration(
-                      labelText: 'Descrição *',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Data da coleta
-                  InkWell(
-                    onTap: _selecionarData,
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Data da coleta *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.calendar_today),
+              padding: const EdgeInsets.all(12),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _campo(descricaoController, 'Descrição *'),
+                            const SizedBox(height: 10),
+                            // Data da coleta
+                            InkWell(
+                              onTap: _selecionarData,
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: 'Data da coleta *',
+                                  labelStyle: const TextStyle(fontSize: 12),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 10,
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.calendar_today,
+                                    size: 18,
+                                  ),
+                                ),
+                                child: Text(
+                                  _dataFmt(_dataColeta),
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            // Motorista (obrigatório)
+                            DropdownButtonFormField<int>(
+                              initialValue: _motoristaId,
+                              isExpanded: true,
+                              style: const TextStyle(fontSize: 13, color: Colors.black87),
+                              decoration: InputDecoration(
+                                labelText: 'Motorista *',
+                                labelStyle: const TextStyle(fontSize: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 10,
+                                ),
+                                prefixIcon: const Icon(Icons.person, size: 18),
+                              ),
+                              items: _motoristas
+                                  .map(
+                                    (m) => DropdownMenuItem(
+                                      value: m.id,
+                                      child: Text(m.label),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (v) => setState(() => _motoristaId = v),
+                              hint: Text(
+                                _motoristas.isEmpty
+                                    ? 'Nenhum motorista cadastrado'
+                                    : 'Selecione',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            // Veículo (obrigatório)
+                            DropdownButtonFormField<int>(
+                              initialValue: _veiculoId,
+                              isExpanded: true,
+                              style: const TextStyle(fontSize: 13, color: Colors.black87),
+                              decoration: InputDecoration(
+                                labelText: 'Veículo *',
+                                labelStyle: const TextStyle(fontSize: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 10,
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.local_shipping,
+                                  size: 18,
+                                ),
+                              ),
+                              items: _veiculos
+                                  .map(
+                                    (v) => DropdownMenuItem(
+                                      value: v.id,
+                                      child: Text(v.label),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (v) => setState(() => _veiculoId = v),
+                              hint: Text(
+                                _veiculos.isEmpty
+                                    ? 'Nenhum veículo cadastrado'
+                                    : 'Selecione',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Text(_dataFmt(_dataColeta)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Motorista (obrigatório)
-                  DropdownButtonFormField<int>(
-                    initialValue: _motoristaId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Motorista *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person),
-                    ),
-                    items: _motoristas
-                        .map(
-                          (m) => DropdownMenuItem(
-                            value: m.id,
-                            child: Text(m.label),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _salvando ? null : _save,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2E7D4F),
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => _motoristaId = v),
-                    hint: _motoristas.isEmpty
-                        ? const Text('Nenhum motorista cadastrado')
-                        : const Text('Selecione'),
+                          child: _salvando
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Salvar',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  // Veículo (obrigatório)
-                  DropdownButtonFormField<int>(
-                    initialValue: _veiculoId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Veículo *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.local_shipping),
-                    ),
-                    items: _veiculos
-                        .map(
-                          (v) => DropdownMenuItem(
-                            value: v.id,
-                            child: Text(v.label),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => _veiculoId = v),
-                    hint: _veiculos.isEmpty
-                        ? const Text('Nenhum veículo cadastrado')
-                        : const Text('Selecione'),
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _salvando ? null : _save,
-                      child: _salvando
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Salvar'),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
     );

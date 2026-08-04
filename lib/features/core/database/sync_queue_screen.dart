@@ -91,8 +91,10 @@ class _SyncQueueScreenState extends State<SyncQueueScreen>
     final naAbaMobile = _tabs.index == 0;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF3F5F4),
       appBar: AppBar(
         title: const Text('Sincronização'),
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -114,6 +116,10 @@ class _SyncQueueScreenState extends State<SyncQueueScreen>
         ],
         bottom: TabBar(
           controller: _tabs,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
           tabs: const [
             Tab(icon: Icon(Icons.smartphone), text: 'Mobile'),
             Tab(icon: Icon(Icons.desktop_windows), text: 'Fila do desktop'),
@@ -131,14 +137,24 @@ class _SyncQueueScreenState extends State<SyncQueueScreen>
             ),
       bottomNavigationBar: naAbaMobile
           ? null
-          : Padding(
+          : Container(
               padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              ),
               child: Row(
                 children: [
                   if (erros > 0) ...[
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.replay),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: const Icon(Icons.replay, size: 18),
                         label: const Text('Tentar erros'),
                         onPressed: _sincronizando ? null : _tentarNovamente,
                       ),
@@ -148,8 +164,11 @@ class _SyncQueueScreenState extends State<SyncQueueScreen>
                   Expanded(
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
+                        backgroundColor: const Color(0xFF2E7D4F),
                         padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                       icon: _sincronizando
                           ? const SizedBox(
@@ -157,7 +176,7 @@ class _SyncQueueScreenState extends State<SyncQueueScreen>
                               height: 18,
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.sync, color: Colors.white),
+                          : const Icon(Icons.sync, color: Colors.white, size: 18),
                       label: Text(
                         pendentes > 0
                             ? 'Sincronizar ($pendentes)'
@@ -185,18 +204,11 @@ class _SyncQueueScreenState extends State<SyncQueueScreen>
 
     return Column(
       children: [
-        Container(
-          color: Colors.grey.shade50,
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _chip('Requisições', _logMobile.length, Colors.blue),
-              _chip('Registros enviados', baixados, Colors.green),
-              _chip('Falhas', comErro, comErro > 0 ? Colors.red : Colors.grey),
-            ],
-          ),
-        ),
+        _resumoContainer([
+          _chip('Requisições', _logMobile.length, Colors.blue),
+          _chip('Registros enviados', baixados, Colors.green),
+          _chip('Falhas', comErro, comErro > 0 ? Colors.red : Colors.grey),
+        ]),
         if (_logMobile.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -212,9 +224,24 @@ class _SyncQueueScreenState extends State<SyncQueueScreen>
               ],
             ),
           ),
-        const Divider(height: 16),
+        const SizedBox(height: 8),
         Expanded(child: _buildListaMobile()),
       ],
+    );
+  }
+
+  Widget _resumoContainer(List<Widget> chips) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: chips),
+      ),
     );
   }
 
@@ -243,48 +270,65 @@ class _SyncQueueScreenState extends State<SyncQueueScreen>
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(8),
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       itemCount: _logMobile.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final item = _logMobile[index];
         final cor = item.sucesso ? Colors.green : Colors.red;
-        return ListTile(
-          leading: Icon(
-            item.sucesso ? Icons.check_circle : Icons.error,
-            color: cor,
+        return Card(
+          elevation: 0,
+          margin: const EdgeInsets.only(bottom: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade200),
           ),
-          title: Text(
-            item.descricao,
-            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          child: ListTile(
+            visualDensity: VisualDensity.compact,
+            leading: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: cor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(
+                item.sucesso ? Icons.check_circle_outline : Icons.error_outline,
+                color: cor,
+                size: 18,
+              ),
+            ),
+            title: Text(
+              item.descricao,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+            subtitle: Text(
+              '${_formatar(item.dataHora)} • ${item.metodo} ${item.rota}'
+              '${item.duracaoMs != null ? ' • ${item.duracaoMs} ms' : ''}'
+              '${item.erro != null ? '\n${item.erro}' : ''}',
+              style: const TextStyle(fontSize: 11),
+            ),
+            isThreeLine: item.erro != null,
+            trailing: item.registros != null
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('${item.registros}',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: cor)),
+                      Text('reg.',
+                          style:
+                              TextStyle(fontSize: 10, color: Colors.grey[600])),
+                    ],
+                  )
+                : Text('${item.statusHttp}',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: cor,
+                        fontWeight: FontWeight.bold)),
           ),
-          subtitle: Text(
-            '${_formatar(item.dataHora)} • ${item.metodo} ${item.rota}'
-            '${item.duracaoMs != null ? ' • ${item.duracaoMs} ms' : ''}'
-            '${item.erro != null ? '\n${item.erro}' : ''}',
-            style: const TextStyle(fontSize: 12),
-          ),
-          isThreeLine: item.erro != null,
-          trailing: item.registros != null
-              ? Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('${item.registros}',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: cor)),
-                    Text('reg.',
-                        style:
-                            TextStyle(fontSize: 10, color: Colors.grey[600])),
-                  ],
-                )
-              : Text('${item.statusHttp}',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: cor,
-                      fontWeight: FontWeight.bold)),
         );
       },
     );
@@ -295,19 +339,12 @@ class _SyncQueueScreenState extends State<SyncQueueScreen>
   Widget _buildAbaDesktop(int pendentes, int erros, int enviados) {
     return Column(
       children: [
-        Container(
-          color: Colors.grey.shade50,
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _chip('Pendentes', pendentes, Colors.orange),
-              _chip('Erros', erros, Colors.red),
-              _chip('Enviados', enviados, Colors.green),
-            ],
-          ),
-        ),
-        const Divider(height: 1),
+        _resumoContainer([
+          _chip('Pendentes', pendentes, Colors.orange),
+          _chip('Erros', erros, Colors.red),
+          _chip('Enviados', enviados, Colors.green),
+        ]),
+        const SizedBox(height: 8),
         Expanded(child: _buildLista()),
       ],
     );
@@ -318,9 +355,9 @@ class _SyncQueueScreenState extends State<SyncQueueScreen>
       children: [
         Text('$count',
             style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.bold, color: cor)),
+                fontSize: 18, fontWeight: FontWeight.bold, color: cor)),
         Text(label,
-            style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+            style: TextStyle(fontSize: 11, color: Colors.grey[600])),
       ],
     );
   }
@@ -350,45 +387,62 @@ class _SyncQueueScreenState extends State<SyncQueueScreen>
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(8),
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       itemCount: _itens.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final item = _itens[index];
-        return ListTile(
-          leading: _statusIcon(item.status),
-          title: Text('${item.operacao} • ${item.tabela}',
-              style:
-                  const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-          subtitle: Text(
-            'ID ${item.registroId ?? '-'} • tentativas: ${item.tentativas}'
-            '${item.dataUltimoTentativa != null ? '\nÚltima: ${_formatar(item.dataUltimoTentativa!)}' : ''}',
-            style: const TextStyle(fontSize: 12),
+        final cor = _statusColor(item.status);
+        return Card(
+          elevation: 0,
+          margin: const EdgeInsets.only(bottom: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade200),
           ),
-          isThreeLine: item.dataUltimoTentativa != null,
-          trailing: Text(
-            _statusLabel(item.status),
-            style: TextStyle(
-                fontSize: 11,
-                color: _statusColor(item.status),
-                fontWeight: FontWeight.bold),
+          child: ListTile(
+            visualDensity: VisualDensity.compact,
+            leading: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: cor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(_statusIcone(item.status), color: cor, size: 18),
+            ),
+            title: Text('${item.operacao} • ${item.tabela}',
+                style:
+                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            subtitle: Text(
+              'ID ${item.registroId ?? '-'} • tentativas: ${item.tentativas}'
+              '${item.dataUltimoTentativa != null ? '\nÚltima: ${_formatar(item.dataUltimoTentativa!)}' : ''}',
+              style: const TextStyle(fontSize: 11),
+            ),
+            isThreeLine: item.dataUltimoTentativa != null,
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: cor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _statusLabel(item.status),
+                style: TextStyle(
+                    fontSize: 10, color: cor, fontWeight: FontWeight.w600),
+              ),
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _statusIcon(String status) {
-    switch (status) {
-      case 'S':
-        return const Icon(Icons.check_circle, color: Colors.green);
-      case 'E':
-        return const Icon(Icons.error, color: Colors.red);
-      default:
-        return const Icon(Icons.schedule, color: Colors.orange);
-    }
-  }
+  IconData _statusIcone(String status) => switch (status) {
+        'S' => Icons.check_circle_outline,
+        'E' => Icons.error_outline,
+        _ => Icons.schedule,
+      };
 
   String _statusLabel(String s) => switch (s) {
         'S' => 'Enviado',

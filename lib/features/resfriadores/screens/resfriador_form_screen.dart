@@ -98,79 +98,154 @@ class _ResfriadorFormScreenState extends State<ResfriadorFormScreen> {
     return '${dois(d.day)}/${dois(d.month)}/${d.year}';
   }
 
+  Widget _campo(
+    TextEditingController c,
+    String label, {
+    String? hint,
+    TextInputType? teclado,
+  }) {
+    return TextField(
+      controller: c,
+      keyboardType: teclado,
+      style: const TextStyle(fontSize: 13),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(fontSize: 12),
+        hintText: hint,
+        hintStyle: const TextStyle(fontSize: 12),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.resfriador == null ? 'Novo Resfriador' : 'Editar Resfriador')),
+      backgroundColor: const Color(0xFFF3F5F4),
+      appBar: AppBar(
+        title: Text(widget.resfriador == null ? 'Novo Resfriador' : 'Editar Resfriador'),
+        elevation: 0,
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: numeroController,
-              decoration: const InputDecoration(
-                labelText: 'Número / Identificador *',
-                hintText: 'ex: RES-001',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: marcaController,
-              decoration: const InputDecoration(labelText: 'Marca e Modelo *', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 16),
-            Row(children: [
-              Expanded(
-                child: TextField(
-                  controller: capacidadeController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Capacidade (L) *', border: OutlineInputBorder()),
+        padding: const EdgeInsets.all(12),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _campo(
+                        numeroController,
+                        'Número / Identificador *',
+                        hint: 'ex: RES-001',
+                      ),
+                      const SizedBox(height: 10),
+                      _campo(marcaController, 'Marca e Modelo *'),
+                      const SizedBox(height: 10),
+                      Row(children: [
+                        Expanded(
+                          child: _campo(
+                            capacidadeController,
+                            'Capacidade (L) *',
+                            teclado: const TextInputType.numberWithOptions(decimal: true),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _campo(
+                            anoController,
+                            'Ano fabricação',
+                            teclado: TextInputType.number,
+                          ),
+                        ),
+                      ]),
+                      const SizedBox(height: 10),
+                      InkWell(
+                        onTap: _selecionarData,
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Última manutenção',
+                            labelStyle: const TextStyle(fontSize: 12),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 10,
+                            ),
+                            prefixIcon: const Icon(Icons.build, size: 18),
+                          ),
+                          child: Text(
+                            _ultimaManutencao == null
+                                ? '--/--/----'
+                                : _dataFmt(_ultimaManutencao!),
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<String>(
+                        initialValue: _status,
+                        style: const TextStyle(fontSize: 13, color: Colors.black87),
+                        decoration: InputDecoration(
+                          labelText: 'Status',
+                          labelStyle: const TextStyle(fontSize: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 10,
+                          ),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'ATIVO', child: Text('Ativo')),
+                          DropdownMenuItem(
+                            value: 'MANUTENCAO',
+                            child: Text('Em manutenção'),
+                          ),
+                          DropdownMenuItem(value: 'INATIVO', child: Text('Inativo')),
+                        ],
+                        onChanged: (v) => setState(() => _status = v ?? 'ATIVO'),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: anoController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Ano fabricação', border: OutlineInputBorder()),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _save,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E7D4F),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'Salvar',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 ),
-              ),
-            ]),
-            const SizedBox(height: 16),
-            InkWell(
-              onTap: _selecionarData,
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Última manutenção',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.build),
-                ),
-                child: Text(_ultimaManutencao == null ? '--/--/----' : _dataFmt(_ultimaManutencao!)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              initialValue: _status,
-              decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
-              items: const [
-                DropdownMenuItem(value: 'ATIVO', child: Text('Ativo')),
-                DropdownMenuItem(value: 'MANUTENCAO', child: Text('Em manutenção')),
-                DropdownMenuItem(value: 'INATIVO', child: Text('Inativo')),
               ],
-              onChanged: (v) => setState(() => _status = v ?? 'ATIVO'),
             ),
-            const SizedBox(height: 28),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _save,
-                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                child: const Text('Salvar'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -16,6 +16,10 @@ class RotaModel {
   double? kmRealizado;
   DateTime? dataCadastro;
 
+  /// Rota só aparece para o celular sincronizar depois de liberada — evita
+  /// que uma rota ainda em montagem chegue pronta no motorista.
+  bool liberada;
+
   RotaModel({
     this.id,
     required this.descricao,
@@ -31,6 +35,7 @@ class RotaModel {
     this.kmEstimado = 0.0,
     this.kmRealizado = 0.0,
     this.dataCadastro,
+    this.liberada = false,
   });
 
   factory RotaModel.fromJson(Map<String, dynamic> json) {
@@ -50,6 +55,7 @@ class RotaModel {
       dataCadastro: json['ROT_DT_CADASTRO'] != null
           ? DateTime.tryParse(json['ROT_DT_CADASTRO'] as String)
           : null,
+      liberada: json['ROT_LIBERADA'] == 'S' || json['ROT_LIBERADA'] == true,
     );
   }
 
@@ -68,6 +74,7 @@ class RotaModel {
       'ROT_KM_ESTIMADO': kmEstimado,
       'ROT_KM_REALIZADO': kmRealizado,
       'ROT_DT_CADASTRO': dataCadastro?.toIso8601String(),
+      'ROT_LIBERADA': liberada ? 'S' : 'N',
     };
   }
 }

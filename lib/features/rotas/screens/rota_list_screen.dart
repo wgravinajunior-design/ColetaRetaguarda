@@ -25,23 +25,26 @@ class _RotaListScreenState extends State<RotaListScreen> {
     final viewModel = context.watch<RotaViewModel>();
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF3F5F4),
       appBar: AppBar(
         title: const Text('Gestão de Rotas'),
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Atualizar',
             onPressed: () => viewModel.loadRotas(),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.go('/rotas/novo'),
+        tooltip: 'Nova rota',
         child: const Icon(Icons.add),
       ),
       body: Column(
         children: [
           _buildFiltros(viewModel),
-          const Divider(height: 1),
           Expanded(
             child: viewModel.isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -83,68 +86,102 @@ class _RotaListScreenState extends State<RotaListScreen> {
       vm.aplicarPeriodo(ehInicio ? d : vm.inicio, ehInicio ? vm.fim : d);
     }
 
-    return Container(
-      color: Colors.grey.shade50,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          SizedBox(
-            width: 190,
-            child: DropdownButtonFormField<String?>(
-              initialValue: vm.filtroStatus,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Situação',
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            SizedBox(
+              width: 190,
+              child: DropdownButtonFormField<String?>(
+                initialValue: vm.filtroStatus,
+                isExpanded: true,
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                decoration: InputDecoration(
+                  labelText: 'Situação',
+                  labelStyle: const TextStyle(fontSize: 12),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
                 ),
-                border: OutlineInputBorder(),
+                items: situacoes.entries
+                    .map(
+                      (e) => DropdownMenuItem(
+                        value: e.key,
+                        child: Text(e.value, style: const TextStyle(fontSize: 13)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: vm.aplicarFiltroStatus,
               ),
-              items: situacoes.entries
-                  .map(
-                    (e) => DropdownMenuItem(value: e.key, child: Text(e.value)),
-                  )
-                  .toList(),
-              onChanged: vm.aplicarFiltroStatus,
             ),
-          ),
-          SizedBox(
-            width: 160,
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.event, size: 15),
-              label: Text(
-                'De: ${rotulo(vm.inicio)}',
-                overflow: TextOverflow.ellipsis,
+            SizedBox(
+              width: 150,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  side: BorderSide(color: Colors.grey.shade300),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.event, size: 15),
+                label: Text(
+                  'De: ${rotulo(vm.inicio)}',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
+                ),
+                onPressed: () => escolher(ehInicio: true),
               ),
-              onPressed: () => escolher(ehInicio: true),
             ),
-          ),
-          SizedBox(
-            width: 160,
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.event, size: 15),
-              label: Text(
-                'Até: ${rotulo(vm.fim)}',
-                overflow: TextOverflow.ellipsis,
+            SizedBox(
+              width: 150,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  side: BorderSide(color: Colors.grey.shade300),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.event, size: 15),
+                label: Text(
+                  'Até: ${rotulo(vm.fim)}',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
+                ),
+                onPressed: () => escolher(ehInicio: false),
               ),
-              onPressed: () => escolher(ehInicio: false),
             ),
-          ),
-          if (vm.inicio != null || vm.fim != null || vm.filtroStatus != null)
-            TextButton.icon(
-              icon: const Icon(Icons.filter_alt_off, size: 16),
-              label: const Text('Limpar'),
-              onPressed: () {
-                vm.aplicarPeriodo(null, null);
-                vm.aplicarFiltroStatus(null);
-              },
-            ),
-        ],
+            if (vm.inicio != null || vm.fim != null || vm.filtroStatus != null)
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(Icons.filter_alt_off, size: 16),
+                label: const Text('Limpar', style: TextStyle(fontSize: 12)),
+                onPressed: () {
+                  vm.aplicarPeriodo(null, null);
+                  vm.aplicarFiltroStatus(null);
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -163,26 +200,50 @@ class _RotaListScreenState extends State<RotaListScreen> {
     }
 
     if (viewModel.items.isEmpty) {
-      return const Center(child: Text('Nenhuma rota encontrada.'));
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.route_outlined, size: 56, color: Colors.grey[350]),
+            const SizedBox(height: 12),
+            Text(
+              'Nenhuma rota encontrada.',
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            ),
+          ],
+        ),
+      );
     }
 
     return ListView.builder(
       itemCount: viewModel.items.length,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       itemBuilder: (context, index) {
         final r = viewModel.items[index];
         return Card(
+          elevation: 0,
+          margin: const EdgeInsets.only(bottom: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade200),
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             child: ListTile(
+              visualDensity: VisualDensity.compact,
               title: Row(
                 children: [
                   Expanded(
                     child: Text(
                       r.descricao,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
+                  _EtiquetaLiberacao(liberada: r.liberada),
+                  const SizedBox(width: 6),
                   _Etiqueta(status: r.status),
                 ],
               ),
@@ -190,16 +251,47 @@ class _RotaListScreenState extends State<RotaListScreen> {
                 '${_dataCurta(r.dataPrevista)} • '
                 '${r.paradasFeitas ?? 0}/${r.paradas ?? 0} coletas • '
                 '${r.kmEstimado?.toStringAsFixed(1) ?? '0'} km',
+                style: const TextStyle(fontSize: 12),
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (r.liberada)
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: Colors.grey[600],
+                      ),
+                      icon: const Icon(Icons.undo, size: 16),
+                      label: const Text('Recolher', style: TextStyle(fontSize: 12)),
+                      onPressed: r.id == null
+                          ? null
+                          : () => viewModel.liberar(r.id!, false),
+                    )
+                  else
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: const Color(0xFF2E7D4F),
+                      ),
+                      icon: const Icon(Icons.cloud_upload_outlined, size: 16),
+                      label: const Text('Liberar', style: TextStyle(fontSize: 12)),
+                      onPressed: r.id == null
+                          ? null
+                          : () => viewModel.liberar(r.id!, true),
+                    ),
                   IconButton(
-                    icon: const Icon(Icons.edit),
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    color: Colors.blueGrey[600],
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Editar',
                     onPressed: () => context.go('/rotas/editar', extra: r),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.delete),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    color: Colors.red[300],
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Excluir',
                     onPressed: () async {
                       if (await showDialog(
                         context: context,
@@ -276,15 +368,48 @@ class _Etiqueta extends StatelessWidget {
   Widget build(BuildContext context) {
     final (rotulo, cor) = _RotaListScreenState._situacao(status);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: cor.withValues(alpha: 0.12),
+        color: cor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cor.withValues(alpha: 0.4)),
       ),
       child: Text(
         rotulo,
         style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+/// Indica se a rota já foi liberada para o celular sincronizar.
+class _EtiquetaLiberacao extends StatelessWidget {
+  const _EtiquetaLiberacao({required this.liberada});
+
+  final bool liberada;
+
+  @override
+  Widget build(BuildContext context) {
+    final cor = liberada ? Colors.teal : Colors.grey;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: cor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            liberada ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+            size: 12,
+            color: cor,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            liberada ? 'Liberada' : 'Não liberada',
+            style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }
