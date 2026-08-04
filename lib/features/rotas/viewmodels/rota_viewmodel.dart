@@ -142,4 +142,20 @@ class RotaViewModel extends BaseViewModel<RotaModel> {
       return false;
     }
   }
+
+  Future<bool> liberar(int rotaId, bool liberar) async {
+    try {
+      final ok = await _repository.liberar(rotaId, liberar);
+      if (ok) {
+        final i = items.indexWhere((x) => x.id == rotaId);
+        if (i != -1) items[i].liberada = liberar;
+        cacheManager.removePattern('/rotas');
+        notifyListeners();
+      }
+      return ok;
+    } catch (e) {
+      setError('Erro: $e');
+      return false;
+    }
+  }
 }

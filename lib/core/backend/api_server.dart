@@ -1515,10 +1515,13 @@ class ApiServer {
       final items = await _withCursor(db, (query) async {
         // FIRST 300: limita ao lote mais recente (evita baixar todo o histórico
         // a cada sync do app). Ordena por data desc, então as ativas/recentes vêm.
+        // LIBERADA = 'S': só rotas que a retaguarda marcou como prontas
+        // chegam ao celular. Sem o filtro, uma rota ainda em montagem
+        // apareceria completa no motorista antes da hora.
         await query.openCursor(
           sql: 'SELECT FIRST 300 ID, NOME, ID_MOTORISTA, ID_VEICULO, DATA_COLETA, '
               'DATA_HORA_INICIO, DATA_HORA_FIM, STATUS '
-              'FROM COLETAS_ROTA ORDER BY DATA_COLETA DESC',
+              "FROM COLETAS_ROTA WHERE LIBERADA = 'S' ORDER BY DATA_COLETA DESC",
         );
         final list = <Map<String, dynamic>>[];
         await for (var row in query.rows()) {
@@ -1567,10 +1570,12 @@ class ApiServer {
     try {
       final db = await DbConnection().db;
       final items = await _withCursor(db, (query) async {
+        // LIBERADA = 'S': mesma trava do endpoint sem filtro por motorista —
+        // ver comentário em _listRotas.
         await query.openCursor(
           sql: 'SELECT FIRST 300 ID, NOME, ID_MOTORISTA, ID_VEICULO, '
               'DATA_COLETA, DATA_HORA_INICIO, DATA_HORA_FIM, STATUS '
-              'FROM COLETAS_ROTA WHERE ID_MOTORISTA = ? '
+              "FROM COLETAS_ROTA WHERE ID_MOTORISTA = ? AND LIBERADA = 'S' "
               'ORDER BY DATA_COLETA DESC',
           parameters: [motoristaId],
         );

@@ -242,6 +242,8 @@ class _RotaListScreenState extends State<RotaListScreen> {
                       ),
                     ),
                   ),
+                  _EtiquetaLiberacao(liberada: r.liberada),
+                  const SizedBox(width: 6),
                   _Etiqueta(status: r.status),
                 ],
               ),
@@ -254,6 +256,30 @@ class _RotaListScreenState extends State<RotaListScreen> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (r.liberada)
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: Colors.grey[600],
+                      ),
+                      icon: const Icon(Icons.undo, size: 16),
+                      label: const Text('Recolher', style: TextStyle(fontSize: 12)),
+                      onPressed: r.id == null
+                          ? null
+                          : () => viewModel.liberar(r.id!, false),
+                    )
+                  else
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: const Color(0xFF2E7D4F),
+                      ),
+                      icon: const Icon(Icons.cloud_upload_outlined, size: 16),
+                      label: const Text('Liberar', style: TextStyle(fontSize: 12)),
+                      onPressed: r.id == null
+                          ? null
+                          : () => viewModel.liberar(r.id!, true),
+                    ),
                   IconButton(
                     icon: const Icon(Icons.edit_outlined, size: 18),
                     color: Colors.blueGrey[600],
@@ -350,6 +376,40 @@ class _Etiqueta extends StatelessWidget {
       child: Text(
         rotulo,
         style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+/// Indica se a rota já foi liberada para o celular sincronizar.
+class _EtiquetaLiberacao extends StatelessWidget {
+  const _EtiquetaLiberacao({required this.liberada});
+
+  final bool liberada;
+
+  @override
+  Widget build(BuildContext context) {
+    final cor = liberada ? Colors.teal : Colors.grey;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: cor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            liberada ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+            size: 12,
+            color: cor,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            liberada ? 'Liberada' : 'Não liberada',
+            style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }

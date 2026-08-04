@@ -270,7 +270,7 @@ class FirebirdService {
       sql:
           '''
         SELECT R.ID, R.NOME, R.ID_MOTORISTA, R.ID_VEICULO, R.DATA_COLETA,
-               R.DATA_HORA_INICIO, R.DATA_HORA_FIM, R.STATUS,
+               R.DATA_HORA_INICIO, R.DATA_HORA_FIM, R.STATUS, R.LIBERADA,
                (SELECT COUNT(*) FROM COLETAS_DETALHE D WHERE D.ID_COLETA_ROTA = R.ID) AS QTD_PARADAS,
                (SELECT COUNT(*) FROM COLETAS_DETALHE D WHERE D.ID_COLETA_ROTA = R.ID
                   AND D.STATUS = 'CONFIRMADO') AS QTD_FEITAS
@@ -293,6 +293,7 @@ class FirebirdService {
             dataFim: _toStr(r['DATA_HORA_FIM']),
             paradas: _toInt(r['QTD_PARADAS']) ?? 0,
             paradasFeitas: _toInt(r['QTD_FEITAS']) ?? 0,
+            liberada: _toStr(r['LIBERADA']) == 'S',
           ),
         )
         .toList();
@@ -554,8 +555,8 @@ class FirebirdService {
 
     await db.execute(
       sql: '''
-        INSERT INTO COLETAS_ROTA (ID, NOME, ID_MOTORISTA, ID_VEICULO, DATA_COLETA, STATUS)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO COLETAS_ROTA (ID, NOME, ID_MOTORISTA, ID_VEICULO, DATA_COLETA, STATUS, LIBERADA)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       ''',
       parameters: [
         novoId,
@@ -564,9 +565,13 @@ class FirebirdService {
         r.veiculoId,
         dataColeta,
         r.status.isEmpty ? 'PENDENTE' : r.status,
+        // Nasce não liberada: só sobe para o celular quando alguém confirmar
+        // que a rota está pronta, na tela de Rotas.
+        'N',
       ],
     );
     r.id = novoId;
+    r.liberada = false;
     return r;
   }
 
@@ -623,12 +628,23 @@ class FirebirdService {
     return true;
   }
 
-  /// Altera o status da rota (PENDENTE, LIBERADA, EM_ANDAMENTO, CONCLUIDA).
+  /// Altera o status da rota (PENDENTE, EM_ANDAMENTO, CONCLUIDA).
   Future<bool> atualizarStatusRota(int rotaId, String status) async {
     final db = await _db;
     await db.execute(
       sql: 'UPDATE COLETAS_ROTA SET STATUS = ? WHERE ID = ?',
       parameters: [status, rotaId],
+    );
+    return true;
+  }
+
+  /// Libera (ou recolhe) a rota para o celular. O servidor mobile só devolve
+  /// rotas com LIBERADA = 'S' — ver `_listRotas` em api_server.dart.
+  Future<bool> liberarRota(int rotaId, bool liberar) async {
+    final db = await _db;
+    await db.execute(
+      sql: 'UPDATE COLETAS_ROTA SET LIBERADA = ? WHERE ID = ?',
+      parameters: [liberar ? 'S' : 'N', rotaId],
     );
     return true;
   }
